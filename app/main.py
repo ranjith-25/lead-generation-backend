@@ -19,7 +19,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Lead Generation API", lifespan=lifespan)
 
-
+from app.core.security import get_password_hash
+print(get_password_hash("1234"))
 from app.api.sample import router as sample_router
 from app.api.auth import router as auth_router
 

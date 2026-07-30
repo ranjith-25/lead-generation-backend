@@ -16,7 +16,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-
 def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -29,3 +28,6 @@ def create_access_token(subject: str | Any, expires_delta: timedelta | None = No
         to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
     )
     return encoded_jwt
+
+if __name__ == "__main__":
+    print(get_password_hash("1234"))
