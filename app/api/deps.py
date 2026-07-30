@@ -11,6 +11,7 @@ from app.core.connections.postgres import get_db
 from app.exceptions.auth import SessionExpiredException, TokenExpiredException
 from app.models.user import User
 from app.services.db.user import get_user_by_id
+from app.services.db.session import get_session_by_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -38,6 +39,10 @@ async def get_current_user(
     user = await get_user_by_id(db, uid)
 
     if user is None:
+        raise SessionExpiredException()
+
+    session = await get_session_by_token(db, token)
+    if not session or session.isRevoked:
         raise SessionExpiredException()
 
     return user

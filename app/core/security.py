@@ -17,7 +17,7 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
+def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> tuple[str, datetime]:
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -28,4 +28,4 @@ def create_access_token(subject: str | Any, expires_delta: timedelta | None = No
     encoded_jwt = jwt.encode(
         to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
     )
-    return encoded_jwt
+    return encoded_jwt, expire

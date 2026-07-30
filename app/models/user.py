@@ -48,3 +48,22 @@ class User(Base):
     )
 
     role: Mapped["Role"] = relationship(backref="users", lazy="selectin")
+
+
+class Session(Base):
+    __tablename__ = "sessions"
+
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
+    )
+    token: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    expiresAt: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    isRevoked: Mapped[bool] = mapped_column(default=False, nullable=False)
+    createdAt: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+    user: Mapped["User"] = relationship(backref="sessions", lazy="selectin")
