@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from app.Responses.Base import BaseResponse
+from app.responses.base import BaseResponse
 from app.schemas.auth import Token
 class AuthenticationResponse(BaseResponse,Token):
     user_id : str = Field(...,description="Logged in userID for the user")

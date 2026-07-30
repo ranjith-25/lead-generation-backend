@@ -9,7 +9,7 @@ from app.exceptions.auth import InvalidCredentialsException
 from app.models.user import User
 from app.schemas.auth import LoginRequest, Token
 from app.schemas.user import UserRead
-from app.Responses.Authentication import AuthenticationResponse
+from app.responses.authentication import AuthenticationResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -30,13 +30,16 @@ async def login(
 
     access_token = create_access_token(subject=str(user.user_id))
 
+    user_role = user.role.roleName if user.role else "USER"
+    user_permissions = [menu.name for menu in user.role.menus] if user.role and user.role.menus else []
+
     return AuthenticationResponse(
-        message = "Authentication successful",
+        message="Authentication successful",
         access_token=access_token,
         user_id=str(user.user_id),
         fullName=user.fullName,
-        role= "ADMIN",
-        permissions= ["VIEW_DASHBOARD","VIEW_PIPELINE","VIEW_AI_DISCOVERY","VIEW_PROJECT","VIEW_TEAM"]
+        role=user_role,
+        permissions=user_permissions
     )
 
 

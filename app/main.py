@@ -31,10 +31,8 @@ app.add_middleware(
 
 from app.core.security import get_password_hash
 print(get_password_hash("1234"))
-from app.api.sample import router as sample_router
 from app.api.auth import router as auth_router
 
-app.include_router(sample_router)
 app.include_router(auth_router)
 
 @app.get("/health")

@@ -1,5 +1,5 @@
 from app.models.base import Base
-from app.models.sample import Sample
-from app.models.user import Role, User, UserRole
+from app.models.user import Role, User
+from app.models.menu import Menu, MenuRole
 
-__all__ = ["Sample", "User", "Role", "UserRole"]
+__all__ = ["User", "Role", "Menu", "MenuRole"]
