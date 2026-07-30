@@ -4,13 +4,13 @@ import jwt
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import ValidationError
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import settings
 from app.core.connections.postgres import get_db
 from app.exceptions.auth import SessionExpiredException, TokenExpiredException
 from app.models.user import User
+from app.services.db.user import get_user_by_id
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -35,8 +35,7 @@ async def get_current_user(
     except ValueError:
         raise SessionExpiredException()
 
-    result = await db.execute(select(User).where(User.user_id == uid))
-    user = result.scalars().first()
+    user = await get_user_by_id(db, uid)
 
     if user is None:
         raise SessionExpiredException()
