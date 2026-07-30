@@ -24,8 +24,11 @@ def create_access_token(subject: str | Any, expires_delta: timedelta | None = No
         expire = datetime.now(timezone.utc) + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
+    # Strip tzinfo to make it offset-naive for SQLAlchemy DateTime column
+    expire_naive = expire.replace(tzinfo=None)
+    
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(
         to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
     )
-    return encoded_jwt, expire
+    return encoded_jwt, expire_naive
