@@ -2,16 +2,19 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from app.api.sample import router as sample_router
-from app.database import engine
+from app.core.connections.postgres import get_connection,close_connection
 from app.models import Base
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    print("Application Started")
+
     yield
+
     await engine.dispose()
+    print("Application Stopped")
+    
 
 
 app = FastAPI(title="Lead Generation API", lifespan=lifespan)
