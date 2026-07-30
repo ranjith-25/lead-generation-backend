@@ -6,6 +6,7 @@ from app.core.security import create_access_token, verify_password
 from app.core.connections.postgres import get_db
 from app.services.db.user import get_user_by_email
 from app.services.db.session import create_session, revoke_session
+from app.services.db.menu import get_menu_names_by_role_id
 from app.exceptions.auth import InvalidCredentialsException
 from app.models.user import User
 from app.schemas.auth import LoginRequest, Token
@@ -34,7 +35,9 @@ async def login(
     await create_session(db=db, user_id=user.user_id, token=access_token, expires_at=expire)
 
     user_role = user.role.roleName if user.role else "USER"
-    user_permissions = [menu.name for menu in user.role.menus] if user.role and user.role.menus else []
+    user_permissions = []
+    if user.role_id:
+        user_permissions = await get_menu_names_by_role_id(db, user.role_id)
 
     return AuthenticationResponse(
         message="Authentication successful",
