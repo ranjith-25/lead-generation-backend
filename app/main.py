@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-
 from app.api.sample import router as sample_router
 from app.database import engine
 from app.models import Base
