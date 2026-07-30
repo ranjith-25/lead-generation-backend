@@ -11,7 +11,7 @@ from app.core.settings import settings
 from app.models import Base
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url_sync)
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -39,7 +39,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     config_section = config.get_section(config.config_ini_section, {})
-    config_section["sqlalchemy.url"] = settings.database_url
+    config_section["sqlalchemy.url"] = settings.DATABASE_URL
     connectable = async_engine_from_config(
         config_section,
         prefix="sqlalchemy.",

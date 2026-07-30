@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from app.api.sample import router as sample_router
-from app.core.connections.postgres import get_connection,close_connection
+
+from app.core.connections.postgres import engine
 from app.models import Base
 
 
@@ -20,8 +20,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Lead Generation API", lifespan=lifespan)
 
 
-app.include_router(sample_router)
+from app.api.sample import router as sample_router
+from app.api.auth import router as auth_router
 
+app.include_router(sample_router)
+app.include_router(auth_router)
 
 @app.get("/health")
 async def health():

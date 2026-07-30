@@ -8,7 +8,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    DATABASE_URL : str
-    ENVIRONMENT : str
+    DATABASE_URL: str
+    DATABASE_URL_SYNC: str
+    ENVIRONMENT: str
+    JWT_SECRET_KEY: str
+    JWT_ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
 
 settings = Settings()
