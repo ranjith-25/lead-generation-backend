@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.connections.postgres import engine
 from app.models import Base
@@ -18,6 +19,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Lead Generation API", lifespan=lifespan)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 from app.core.security import get_password_hash
 print(get_password_hash("1234"))

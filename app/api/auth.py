@@ -9,11 +9,12 @@ from app.exceptions.auth import InvalidCredentialsException
 from app.models.user import User
 from app.schemas.auth import LoginRequest, Token
 from app.schemas.user import UserRead
+from app.Responses.Authentication import AuthenticationResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=AuthenticationResponse)
 async def login(
     login_data: LoginRequest, db: AsyncSession = Depends(get_db)
 ) -> Token:
@@ -25,8 +26,18 @@ async def login(
     if not verify_password(login_data.password, user.hashedPassword):
         raise InvalidCredentialsException()
 
+
+
     access_token = create_access_token(subject=str(user.user_id))
-    return Token(access_token=access_token)
+
+    return AuthenticationResponse(
+        message = "Authentication successful",
+        access_token=access_token,
+        user_id=str(user.user_id),
+        fullName=user.fullName,
+        role= "ADMIN",
+        permissions= ["VIEW_DASHBOARD","VIEW_PIPELINE","VIEW_AI_DISCOVERY","VIEW_PROJECT","VIEW_TEAM"]
+    )
 
 
 @router.get("/me", response_model=UserRead)
