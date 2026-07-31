@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+
 class UserBase(BaseModel):
     fullName: str = Field(..., max_length=100)
     email: EmailStr = Field(..., max_length=100)
@@ -23,6 +24,8 @@ class UserRead(UserBase):
 class UserHierarchy(BaseModel):
     user_id: UUID
     fullName: str
+    specialization : str | None = None
+    roleName : str 
     children: list["UserHierarchy"] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

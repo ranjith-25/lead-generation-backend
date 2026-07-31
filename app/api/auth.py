@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from fastapi.responses import JSONResponse
 from app.api.deps import get_current_user, oauth2_scheme
 from app.core.connections.postgres import get_db
 from app.services.auth import authenticate_user, logout_user
@@ -10,6 +10,7 @@ from app.schemas.user import UserRead
 from app.responses.authentication import AuthenticationResponse
 from app.responses.base import BaseResponse
 from app.services.hierarchy import handleGetHierarchy
+from app.responses.authentication import HierarchyResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -32,6 +33,11 @@ async def logout(
 async def get_me(current_user: User = Depends(get_current_user)) -> UserRead:
     return UserRead.model_validate(current_user)
 
-@router.get("/reportingHierarchy")
+@router.get("/reportingHierarchy",response_model=HierarchyResponse)
 async def get_hierarchy(current_user : User = Depends(get_current_user),db: AsyncSession = Depends(get_db)) : 
-    return await handleGetHierarchy(db,current_user)
+
+    response : HierarchyResponse = await handleGetHierarchy(db,current_user)
+    return JSONResponse(
+        status_code= 200,
+        content=response.model_dump(mode="json")
+    ) 
