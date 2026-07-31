@@ -4,13 +4,15 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+import httpx
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.exceptions.ai_exception import get_ai_message
 from app.exceptions.custom import AppException
 from app.exceptions.database import get_database_message
 from app.exceptions.error_codes import ErrorCode
 from app.exceptions.responses import error_response
-
+from app.exceptions.ai_exception import AIException
 
 def register_exception_handlers(app: FastAPI):
 
@@ -74,11 +76,26 @@ def register_exception_handlers(app: FastAPI):
             ),
         )
 
+    @app.exception_handler(AIException)
+    async def ai_exception_handler(
+        request: Request,
+        exc: AIException,
+    ):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=error_response(
+                exc.message,
+                exc.error_code,
+                exc.status_code
+            ),
+        )
+
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(
         request: Request,
         exc: Exception,
     ):
+
         return JSONResponse(
             status_code=500,
             content=error_response(

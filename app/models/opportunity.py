@@ -11,7 +11,7 @@ from app.models.base import Base
 class Opportunity(Base):
     __tablename__ = "opportunities"
 
-    id: Mapped[uuid.UUID] = mapped_column(
+    opportunityID: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     status: Mapped[str | None] = mapped_column(String(50), nullable=True)

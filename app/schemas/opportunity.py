@@ -1,10 +1,11 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel,Field,ConfigDict
 
 
 class OpportunityBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     status: str | None = None
     title: str
     company: str | None = None
@@ -26,7 +27,10 @@ class OpportunityBase(BaseModel):
 class OpportunityCreate(OpportunityBase):
     pass
 
+class GetOpportunityContent(BaseModel):
+    url : str = Field(...,description="URL that must be scraped")
 
+    
 class OpportunityRead(OpportunityBase):
     id: UUID
     createdAt: datetime

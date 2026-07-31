@@ -11,12 +11,16 @@ from app.core.security import get_password_hash
 from app.exceptions.handlers import register_exception_handlers
 
 from app.api.auth import router as auth_router
+from app.api.ai import aiRouter
+from app.core.connections.ai_connection import connect_ai,disconnect_ai
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application Started")
+    await connect_ai()
 
     yield
+    await disconnect_ai()
 
     await engine.dispose()
     logger.info("Application Stopped")
@@ -47,3 +51,4 @@ async def health():
 
 
 app.include_router(auth_router)
+app.include_router(aiRouter)
