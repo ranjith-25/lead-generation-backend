@@ -20,14 +20,14 @@ async def create_opportunity(
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ) -> OpportunityRead:
-    return await create_opportunity_service(db, opp_data)
+    return await create_opportunity_service(db, opp_data, current_user.user_id)
 
 
 @router.get("", response_model=list[OpportunityRead])
 async def get_opportunities(
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> list[OpportunityRead]:
-    opportunities = await get_all_opportunities(db)
+    opportunities = await get_all_opportunities(db, current_user.user_id)
     return [OpportunityRead.model_validate(opp) for opp in opportunities]
 
 
@@ -37,7 +37,7 @@ async def get_opportunity(
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ) -> OpportunityRead:
-    return await get_opportunity_service(db, opportunityID)
+    return await get_opportunity_service(db, opportunityID, current_user.user_id)
 
 
 @router.put("/{opportunityID}", response_model=OpportunityRead)
@@ -48,7 +48,7 @@ async def update_opportunity(
     db: AsyncSession = Depends(get_db)
 ) -> OpportunityRead:
     from app.services.opportunity import update_opportunity_service
-    return await update_opportunity_service(db, opportunityID, opp_data)
+    return await update_opportunity_service(db, opportunityID, opp_data, current_user.user_id)
 
 
 @router.delete("/{opportunityID}", response_model=BaseResponse)
@@ -58,4 +58,4 @@ async def delete_opportunity(
     db: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
     from app.services.opportunity import delete_opportunity_service
-    return await delete_opportunity_service(db, opportunityID)
+    return await delete_opportunity_service(db, opportunityID, current_user.user_id)

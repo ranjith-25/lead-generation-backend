@@ -49,6 +49,7 @@ class GetOpportunityContent(BaseModel):
     
 class OpportunityRead(OpportunityBase):
     opportunityID: UUID
+    user_id: UUID | None = None
     createdAt: datetime
     updatedAt: datetime | None = None
 

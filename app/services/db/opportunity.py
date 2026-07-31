@@ -8,13 +8,13 @@ async def addOpportunity(opportunity : Opportunity,db: AsyncSession) -> Opportun
     await db.refresh(opportunity)
     return opportunity
 
-async def get_all_opportunities(db: AsyncSession) -> list[Opportunity]:
-    result = await db.execute(select(Opportunity))
+async def get_all_opportunities(db: AsyncSession, user_id) -> list[Opportunity]:
+    result = await db.execute(select(Opportunity).where(Opportunity.user_id == user_id))
     return list(result.scalars().all())
 
 
-async def get_opportunity_by_id(db: AsyncSession, opportunity_id) -> Opportunity | None:
-    result = await db.execute(select(Opportunity).where(Opportunity.opportunityID == opportunity_id))
+async def get_opportunity_by_id(db: AsyncSession, opportunity_id, user_id) -> Opportunity | None:
+    result = await db.execute(select(Opportunity).where(Opportunity.opportunityID == opportunity_id, Opportunity.user_id == user_id))
     return result.scalars().first()
 
 async def update_opportunity_db(db: AsyncSession, opportunity: Opportunity, update_data: dict) -> Opportunity:
