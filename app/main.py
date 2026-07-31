@@ -9,10 +9,11 @@ from app.core.connections.postgres import engine
 from app.models import Base
 from app.core.security import get_password_hash
 from app.exceptions.handlers import register_exception_handlers
+from app.core.connections.ai_connection import connect_ai,disconnect_ai
 
 from app.api.auth import router as auth_router
-from app.api.ai import aiRouter
-from app.core.connections.ai_connection import connect_ai,disconnect_ai
+from app.api.opportunity import router as opportunity_router
+from app.api.ai import router as aiRouter
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -52,3 +53,4 @@ async def health():
 
 app.include_router(auth_router)
 app.include_router(aiRouter)
+app.include_router(opportunity_router)

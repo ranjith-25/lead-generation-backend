@@ -1,5 +1,6 @@
 from app.responses.base import BaseResponse
-from app.schemas.opportunity import OpportunityBase
+from app.schemas.opportunity import OpportunityBase, CompanyProfileBase
 
 class GetOpportunityResponse(BaseResponse):
-    opportunityDetails : OpportunityBase | None = None
+    job_details : OpportunityBase | None = None
+    company_profile : CompanyProfileBase | None = None

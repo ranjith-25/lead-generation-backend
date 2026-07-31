@@ -12,7 +12,7 @@ from app.responses.base import BaseResponse
 from app.services.hierarchy import handleGetHierarchy
 from app.responses.authentication import HierarchyResponse
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/login", response_model=AuthenticationResponse)
