@@ -1,24 +1,33 @@
 from contextlib import asynccontextmanager
+import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.connections.postgres import engine
 from app.models import Base
+from app.core.security import get_password_hash
+from app.exceptions.handlers import register_exception_handlers
 
+from app.api.auth import router as auth_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Application Started")
+    logger.info("Application Started")
 
     yield
 
     await engine.dispose()
-    print("Application Stopped")
+    logger.info("Application Stopped")
     
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 app = FastAPI(title="Lead Generation API", lifespan=lifespan)
+
+register_exception_handlers(app)
 
 
 app.add_middleware(
@@ -29,12 +38,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.core.security import get_password_hash
-print(get_password_hash("1234"))
-from app.api.auth import router as auth_router
+logger.info(get_password_hash("1234"))
 
-app.include_router(auth_router)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return JSONResponse(status_code=status.HTTP_200_OK, content="Ok")
+
+
+app.include_router(auth_router)
