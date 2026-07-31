@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.user import UserRead
 from app.responses.authentication import AuthenticationResponse
 from app.responses.base import BaseResponse
+from app.services.hierarchy import handleGetHierarchy
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -30,3 +31,7 @@ async def logout(
 @router.get("/me", response_model=UserRead)
 async def get_me(current_user: User = Depends(get_current_user)) -> UserRead:
     return UserRead.model_validate(current_user)
+
+@router.get("/reportingHierarchy")
+async def get_hierarchy(current_user : User = Depends(get_current_user),db: AsyncSession = Depends(get_db)) : 
+    return await handleGetHierarchy(db,current_user)

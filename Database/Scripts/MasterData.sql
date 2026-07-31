@@ -67,6 +67,9 @@ VALUES(gen_random_uuid(),'BD-Manager')
 INSERT INTO roles("role_id","roleName")
 VALUES(gen_random_uuid(),'Team Lead') 
 
+INSERT INTO roles("role_id","roleName")
+VALUES(gen_random_uuid(),'Manager') 
+
 INSERT INTO menus("menu_id","name","description")
 VALUES 
 (gen_random_uuid(),'AI Discovery','AI Descovery screen'),
@@ -104,7 +107,13 @@ VALUES
     ('b607d9e3-a094-4e93-84f2-6e574690f2cb','b9cc9bb6-c537-415d-a549-88c11c89bc32'),
     ('1e758089-97cb-4715-b4a2-1c43608165cc','b9cc9bb6-c537-415d-a549-88c11c89bc32'),
     ('76e08585-a0f2-4957-891b-4b4727bffc8f','b9cc9bb6-c537-415d-a549-88c11c89bc32'),
-    ('b4734c23-575f-454d-881c-34ca43f0c3a2','b9cc9bb6-c537-415d-a549-88c11c89bc32')
+    ('b4734c23-575f-454d-881c-34ca43f0c3a2','b9cc9bb6-c537-415d-a549-88c11c89bc32'),
+
+    ('a41d891c-c743-4bf3-b2b1-66c46cbf5b23','0dd52864-a8a4-4d29-be02-09d4297d1e93'),
+    ('b607d9e3-a094-4e93-84f2-6e574690f2cb','0dd52864-a8a4-4d29-be02-09d4297d1e93'),
+    ('1e758089-97cb-4715-b4a2-1c43608165cc','0dd52864-a8a4-4d29-be02-09d4297d1e93'),
+    ('76e08585-a0f2-4957-891b-4b4727bffc8f','0dd52864-a8a4-4d29-be02-09d4297d1e93'),
+    ('b4734c23-575f-454d-881c-34ca43f0c3a2','0dd52864-a8a4-4d29-be02-09d4297d1e93')
 
 
 SELECT
@@ -112,3 +121,21 @@ SELECT
     "hashedPassword"
 FROM users
 WHERE email = 'dbmanager@example.com';
+
+
+
+INSERT INTO users("user_id",
+                  "fullName",
+                  "email",
+                  "hashedPassword",
+                  "refUID",
+                  "reporting_to")
+VALUES (gen_random_uuid(),'User 1', 'user1@example.com', '$argon2id$v=19$m=65536,t=3,p=4$tRYCIGQs5byX0tq79x7DWA$jR8u1xzeXVgn/ny0Ms/uaXfprXGfgWwrzZIUeMND8+o', gen_random_uuid(),'c9506ced-0ed1-4a50-b2e5-ae37983196a5');
+
+INSERT INTO users("user_id",
+                  "fullName",
+                  "email",
+                  "hashedPassword",
+                  "refUID",
+                  "reporting_to")
+VALUES (gen_random_uuid(),'User 2', 'user2@example.com', '$argon2id$v=19$m=65536,t=3,p=4$tRYCIGQs5byX0tq79x7DWA$jR8u1xzeXVgn/ny0Ms/uaXfprXGfgWwrzZIUeMND8+o', gen_random_uuid(),'c9506ced-0ed1-4a50-b2e5-ae37983196a5');
