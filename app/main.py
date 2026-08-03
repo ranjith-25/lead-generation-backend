@@ -13,7 +13,8 @@ from app.core.connections.ai_connection import connect_ai,disconnect_ai
 
 from app.api.auth import router as auth_router
 from app.api.opportunity import router as opportunity_router
-from app.api.ai import router as aiRouter
+from app.api.ai import router as ai_router
+from app.api.sales_enablement import router as sales_enablement_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -52,5 +53,6 @@ async def health():
 
 
 app.include_router(auth_router)
-app.include_router(aiRouter)
+app.include_router(ai_router)
 app.include_router(opportunity_router)
+app.include_router(sales_enablement_router)
