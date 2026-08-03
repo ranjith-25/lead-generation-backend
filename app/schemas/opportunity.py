@@ -14,7 +14,6 @@ class CompanyProfileBase(BaseModel):
 
 class OpportunityBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    status: str | None = None
     title: str
     company: str | None = None
     location: str | None = None
@@ -49,7 +48,8 @@ class GetOpportunityContent(BaseModel):
     
 class OpportunityRead(OpportunityBase):
     opportunityID: UUID
-    user_id: UUID | None = None
+    createdBy: UUID
+    updatedBy: UUID
     createdAt: datetime
     updatedAt: datetime | None = None
 

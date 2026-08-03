@@ -8,8 +8,7 @@ from app.core.connections.postgres import get_db
 from app.models.user import User
 from app.schemas.opportunity import OpportunityRead, OpportunityCreate
 from app.responses.base import BaseResponse
-from app.services.db.opportunity import get_all_opportunities
-from app.services.opportunity import get_opportunity_service, create_opportunity_service
+from app.services.opportunity import get_opportunity_service, create_opportunity_service, update_opportunity_service, delete_opportunity_service
 
 router = APIRouter(prefix="/opportunities", tags=["Opportunities"])
 
@@ -27,8 +26,8 @@ async def create_opportunity(
 async def get_opportunities(
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> list[OpportunityRead]:
-    opportunities = await get_all_opportunities(db, current_user.user_id)
-    return [OpportunityRead.model_validate(opp) for opp in opportunities]
+    from app.services.opportunity import get_all_opportunities_service
+    return await get_all_opportunities_service(db, current_user.user_id)
 
 
 @router.get("/{opportunityID}", response_model=OpportunityRead)
@@ -47,7 +46,6 @@ async def update_opportunity(
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ) -> OpportunityRead:
-    from app.services.opportunity import update_opportunity_service
     return await update_opportunity_service(db, opportunityID, opp_data, current_user.user_id)
 
 
@@ -57,5 +55,4 @@ async def delete_opportunity(
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
-    from app.services.opportunity import delete_opportunity_service
     return await delete_opportunity_service(db, opportunityID, current_user.user_id)
