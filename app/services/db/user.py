@@ -14,3 +14,7 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
 async def get_user_by_id(db: AsyncSession, user_id: UUID) -> User | None:
     result = await db.execute(select(User).where(User.user_id == user_id))
     return result.scalars().first()
+
+async def getAllUsers(db: AsyncSession) -> list[User]:
+    result = await db.execute(select(User))
+    return result.scalars().all()

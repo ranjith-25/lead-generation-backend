@@ -36,7 +36,7 @@ async def get_me(current_user: User = Depends(get_current_user)) -> UserRead:
 @router.get("/reportingHierarchy",response_model=HierarchyResponse)
 async def get_hierarchy(current_user : User = Depends(get_current_user),db: AsyncSession = Depends(get_db)) : 
 
-    response : HierarchyResponse = await handleGetHierarchy(db,current_user)
+    response : HierarchyResponse = await handleGetHierarchy(db)
     return JSONResponse(
         status_code= 200,
         content=response.model_dump(mode="json")
