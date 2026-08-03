@@ -1,6 +1,4 @@
 from app.exceptions.ai_exception import handle_ai_exception
-import httpx
-from httpx import AsyncClient
 from app.core.connections.ai_connection import get_ai_client
 import logging
 from app.services.db.opportunity import addOpportunity

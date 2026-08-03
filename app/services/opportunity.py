@@ -2,15 +2,16 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.opportunity import OpportunityRead, OpportunityCreate
-from app.services.db.opportunity import get_opportunity_by_id
+from app.services.db.opportunity import Opportunity, get_opportunity_by_id, get_all_opportunities, addOpportunity, update_opportunity_db, delete_opportunity_db
 from app.responses.base import BaseResponse
 
 async def get_all_opportunities_service(db: AsyncSession, user_id: UUID) -> list[OpportunityRead]:
-    from app.services.db.opportunity import get_all_opportunities
+
     opportunities = await get_all_opportunities(db, user_id)
     return [OpportunityRead.model_validate(opp) for opp in opportunities]
 
 async def get_opportunity_service(db: AsyncSession, opportunityID: str, user_id: UUID) -> OpportunityRead:
+
     try:
         opp_id = UUID(opportunityID)
     except ValueError:
@@ -23,9 +24,7 @@ async def get_opportunity_service(db: AsyncSession, opportunityID: str, user_id:
     return OpportunityRead.model_validate(opportunity)
 
 async def create_opportunity_service(db: AsyncSession, opp_data: OpportunityCreate, user_id: UUID) -> OpportunityRead:
-    from app.models.opportunity import Opportunity
-    from app.services.db.opportunity import addOpportunity
-    
+
     opp_dict = opp_data.model_dump()
     opp_dict['createdBy'] = user_id
     opp_dict['updatedBy'] = user_id
@@ -34,8 +33,7 @@ async def create_opportunity_service(db: AsyncSession, opp_data: OpportunityCrea
     return OpportunityRead.model_validate(saved_opp)
 
 async def update_opportunity_service(db: AsyncSession, opportunityID: str, opp_data: OpportunityCreate, user_id: UUID) -> OpportunityRead:
-    from app.services.db.opportunity import update_opportunity_db
-    
+
     try:
         opp_id = UUID(opportunityID)
     except ValueError:
@@ -51,8 +49,7 @@ async def update_opportunity_service(db: AsyncSession, opportunityID: str, opp_d
     return OpportunityRead.model_validate(updated_opp)
 
 async def delete_opportunity_service(db: AsyncSession, opportunityID: str, user_id: UUID) -> BaseResponse:
-    from app.services.db.opportunity import delete_opportunity_db
-    
+
     try:
         opp_id = UUID(opportunityID)
     except ValueError:
