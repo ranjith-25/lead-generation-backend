@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import (
     String,
     DateTime,
-    ForeignKey,
+    ForeignKey,func
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -40,15 +40,15 @@ class Feature(Base):
         nullable=True
     )
 
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[DateTime] = mapped_column(
         DateTime,
-        default=datetime.utcnow
+        server_default=func.now()
     )
 
-    updated_at: Mapped[datetime] = mapped_column(
+    updated_at: Mapped[DateTime] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        server_default=func.now(),
+        onupdate=func.now()
     )
 
     parent: Mapped["Feature"] = relationship(
