@@ -5,6 +5,7 @@ from fastapi import status
 
 from app.api.deps import get_current_user
 from app.core.connections.postgres import get_db
+from app.core.security import require_permission
 from app.models.user import User
 from app.schemas.opportunity import OpportunityRead, OpportunityCreate, OpportunityFilterRequest, OpportunityFilterValuesResponse
 from app.responses.base import BaseResponse
