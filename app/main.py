@@ -44,8 +44,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logger.info(get_password_hash("1234"))
-
 
 @app.get("/health")
 async def health():

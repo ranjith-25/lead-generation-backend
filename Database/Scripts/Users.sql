@@ -163,3 +163,22 @@ VALUES
 (7,5,2),
 (3,5,2),
 (4,5,2);
+
+
+INSERT INTO opportunity_status (status, description, is_active) VALUES
+    ('New', 'Newly scraped or created opportunity', true),
+    ('Qualified', 'Opportunity has been qualified for further action', true),
+    ('Shortlisted', 'Candidate has been shortlisted for this opportunity', true),
+    ('Candidate Selected', 'A specific candidate has been selected', true),
+    ('Interview Prepared', 'Preparation for the interview has been completed', true),
+    ('Client Interview', 'Client interview stage', true),
+    ('Selected', 'Successfully selected for the opportunity', true),
+    ('Rejected', 'Opportunity rejected or closed', true)
+ON CONFLICT (status) DO NOTHING;
+
+
+INSERT INTO platforms (name, description, is_active) VALUES
+    ('linkedin', 'LinkedIn Platform', true),
+    ('upwork', 'Upwork Platform', true),
+    ('manual', 'Manual Entry', true)
+ON CONFLICT (name) DO NOTHING;

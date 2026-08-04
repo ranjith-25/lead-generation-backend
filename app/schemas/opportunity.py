@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel,Field,ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, AliasChoices
 
 class CompanyProfileBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -41,6 +41,7 @@ class OpportunityBase(BaseModel):
     additional_notes: str | None = None
     is_ai_scraped: bool = True
     platform: str | None = None
+    status_id: int = 1
     additional_fields: dict | None = None
     createdBy: UUID | None = None
     updatedBy: UUID | None = None
@@ -59,11 +60,34 @@ class GetOpportunityContent(BaseModel):
     url : str = Field(...,description="URL that must be scraped")
 
     
+class OpportunityFilterRequest(BaseModel):
+    status: list[str] | None = None
+    platform: list[str] | None = None
+    company: list[str] | None = None
+    role: list[str] | None = None
+    location: list[str] | None = None
+
+class OpportunityFilterValuesResponse(BaseModel):
+    status: list[str]
+    platform: list[str]
+    company: list[str]
+    role: list[str]
+    location: list[str]
+
+class OpportunityStatusRead(BaseModel):
+    id: int
+    status: str
+    description: str | None = None
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
 class OpportunityRead(OpportunityBase):
     opportunityID: int
-    createdBy: UUID
-    updatedBy: UUID
+    createdBy: str = Field(validation_alias=AliasChoices("createdByName", "createdBy"))
+    updatedBy: str = Field(validation_alias=AliasChoices("updatedByName", "updatedBy"))
     createdAt: datetime
     updatedAt: datetime | None = None
+    status: OpportunityStatusRead | None = None
 
     model_config = {"from_attributes": True}
