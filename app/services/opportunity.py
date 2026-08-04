@@ -1,14 +1,19 @@
 from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.opportunity import OpportunityRead, OpportunityCreate
-from app.services.db.opportunity import Opportunity, get_opportunity_by_id, get_all_opportunities, addOpportunity, update_opportunity_db, delete_opportunity_db
+from app.schemas.opportunity import OpportunityRead, OpportunityCreate, OpportunityFilterRequest, OpportunityFilterValuesResponse
+from app.services.db.opportunity import Opportunity, get_opportunity_by_id, get_all_opportunities, addOpportunity, update_opportunity_db, delete_opportunity_db, get_opportunity_filter_values
 from app.responses.base import BaseResponse
 
-async def get_all_opportunities_service(db: AsyncSession, user_id: UUID) -> list[OpportunityRead]:
+async def get_all_opportunities_service(db: AsyncSession, user_id: UUID, filters: OpportunityFilterRequest | None = None) -> list[OpportunityRead]:
 
-    opportunities = await get_all_opportunities(db, user_id)
+    opportunities = await get_all_opportunities(db, user_id, filters)
     return [OpportunityRead.model_validate(opp) for opp in opportunities]
+
+async def get_opportunity_filter_values_service(db: AsyncSession, user_id: UUID) -> OpportunityFilterValuesResponse:
+    
+    filter_data = await get_opportunity_filter_values(db, user_id)
+    return OpportunityFilterValuesResponse(**filter_data)
 
 async def get_opportunity_service(db: AsyncSession, opportunityID: int | str, user_id: UUID) -> OpportunityRead:
 

@@ -164,23 +164,21 @@ VALUES
 (3,5,2),
 (4,5,2);
 
-INSERT INTO "rolePermissions" ("role_id","permission_id","feature_id")
-VALUES
-(1,2,1),
-(1,2,10),
-(2,2,10),
-(3,2,10),
-(4,2,10),
-(5,2,10),
-(1,2,11),
-(2,2,11),
-(4,2,11),
-(1,2,12),
-(2,2,12),
-(3,2,12),
-(4,2,12),
-(1,2,13),
-(2,2,13),
-(3,2,13),
-(4,2,13),
-(5,2,13);
+
+INSERT INTO opportunity_status (status, description, is_active) VALUES
+    ('New', 'Newly scraped or created opportunity', true),
+    ('Qualified', 'Opportunity has been qualified for further action', true),
+    ('Shortlisted', 'Candidate has been shortlisted for this opportunity', true),
+    ('Candidate Selected', 'A specific candidate has been selected', true),
+    ('Interview Prepared', 'Preparation for the interview has been completed', true),
+    ('Client Interview', 'Client interview stage', true),
+    ('Selected', 'Successfully selected for the opportunity', true),
+    ('Rejected', 'Opportunity rejected or closed', true)
+ON CONFLICT (status) DO NOTHING;
+
+
+INSERT INTO platforms (name, description, is_active) VALUES
+    ('linkedin', 'LinkedIn Platform', true),
+    ('upwork', 'Upwork Platform', true),
+    ('manual', 'Manual Entry', true)
+ON CONFLICT (name) DO NOTHING;
