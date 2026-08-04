@@ -12,9 +12,14 @@ class Permission(Base):
         autoincrement=True
     )
 
-    permission_name: Mapped[str] = mapped_column(
+    permission_key: Mapped[str] = mapped_column(
         String(50),
         unique=True,
+        nullable=False
+    )
+
+    description : Mapped[str] =  mapped_column(
+        String(100),
         nullable=False
     )
 
@@ -33,5 +38,4 @@ class Permission(Base):
         server_default=func.now(),
         onupdate=func.now()
     )
-
 

@@ -17,7 +17,7 @@ class RolePermission(Base):
         nullable=False
     )
 
-    module_id: Mapped[int] = mapped_column(
+    feature_id: Mapped[int] = mapped_column(
         ForeignKey("features.feature_id"),
         nullable=False
     )
