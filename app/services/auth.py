@@ -32,7 +32,7 @@ async def authenticate_user(db: AsyncSession, form_data: OAuth2PasswordRequestFo
     return AuthenticationResponse(
         message="Authentication successful",
         access_token=access_token,
-        user_id=str(user.user_id),
+        user_id=user.user_id,
         fullName=user.fullName,
         role=user_role,
         permissions=user_permissions

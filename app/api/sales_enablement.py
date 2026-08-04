@@ -27,7 +27,7 @@ async def create_sales_enablement(
 
 @router.get("/opportunity/{opportunityID}", response_model=SalesEnablementRead)
 async def get_sales_enablement_by_opp(
-    opportunityID: str,
+    opportunityID: int,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> SalesEnablementRead:
     return await get_sales_enablement_by_opp_service(db, opportunityID, current_user.user_id)
@@ -35,7 +35,7 @@ async def get_sales_enablement_by_opp(
 
 @router.get("/{id}", response_model=SalesEnablementRead)
 async def get_sales_enablement(
-    id: str,
+    id: int,
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ) -> SalesEnablementRead:
@@ -44,7 +44,7 @@ async def get_sales_enablement(
 
 @router.put("/{id}", response_model=SalesEnablementRead)
 async def update_sales_enablement(
-    id: str,
+    id: int,
     se_data: SalesEnablementCreate,
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
@@ -54,7 +54,7 @@ async def update_sales_enablement(
 
 @router.delete("/{id}", response_model=BaseResponse)
 async def delete_sales_enablement(
-    id: str,
+    id: int,
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ) -> BaseResponse:

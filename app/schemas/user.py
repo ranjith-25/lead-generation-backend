@@ -1,6 +1,5 @@
 from __future__ import annotations
 from datetime import datetime
-from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -15,14 +14,14 @@ class UserCreate(UserBase):
 
 
 class UserRead(UserBase):
-    user_id: UUID
+    user_id: int
     refUID: str | None = None
     createdAt: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 class UserHierarchy(BaseModel):
-    user_id: UUID
+    user_id: int
     fullName: str
     specialization : str | None = None
     roleName : str 

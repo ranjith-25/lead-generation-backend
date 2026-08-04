@@ -1,8 +1,7 @@
-import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text, func, ForeignKey
-from sqlalchemy.dialects.postgresql import ARRAY, UUID, JSONB
+from sqlalchemy import DateTime, Integer, String, Text, func, ForeignKey
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -11,14 +10,14 @@ from app.models.base import Base
 class Opportunity(Base):
     __tablename__ = "opportunities"
 
-    opportunityID: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    opportunityID: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
     )
-    createdBy: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
+    createdBy: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
     )
-    updatedBy: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
+    updatedBy: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     company: Mapped[str | None] = mapped_column(String(255), nullable=True)

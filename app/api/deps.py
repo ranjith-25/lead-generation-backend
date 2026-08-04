@@ -1,5 +1,3 @@
-from uuid import UUID
-
 import jwt
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -32,8 +30,8 @@ async def get_current_user(
         raise SessionExpiredException()
 
     try:
-        uid = UUID(user_id)
-    except ValueError:
+        uid = int(user_id)
+    except (ValueError, TypeError):
         raise SessionExpiredException()
 
     user = await get_user_by_id(db, uid)

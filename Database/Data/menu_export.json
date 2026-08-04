@@ -1,0 +1,50 @@
+[
+ {
+  "menu_id": "67db1b3a-127b-4e8d-b95e-3bf1cf366f8c",
+  "name": "AI Discovery",
+  "description": "AI Descovery screen",
+  "createdAt": "2026-07-30 11:00:36.420747"
+ },
+ {
+  "menu_id": "22ca63cf-658a-4a45-ae69-f12105e7565d",
+  "name": "KPI Dashboard",
+  "description": "Menu items responsible to show all the kpi",
+  "createdAt": "2026-07-30 11:00:36.420747"
+ },
+ {
+  "menu_id": "b607d9e3-a094-4e93-84f2-6e574690f2cb",
+  "name": "Opportunity Pipeline",
+  "description": "Opportunity pipelines",
+  "createdAt": "2026-07-30 11:00:36.420747"
+ },
+ {
+  "menu_id": "1e758089-97cb-4715-b4a2-1c43608165cc",
+  "name": "User Profiles",
+  "description": "User Profile details ",
+  "createdAt": "2026-07-30 11:00:36.420747"
+ },
+ {
+  "menu_id": "76e08585-a0f2-4957-891b-4b4727bffc8f",
+  "name": "Projects",
+  "description": "List of unique projects",
+  "createdAt": "2026-07-30 11:00:36.420747"
+ },
+ {
+  "menu_id": "b4734c23-575f-454d-881c-34ca43f0c3a2",
+  "name": "Team Hierarchy",
+  "description": "Menu item responsible to see Team Hierarchy",
+  "createdAt": "2026-07-30 11:00:36.420747"
+ },
+ {
+  "menu_id": "a41d891c-c743-4bf3-b2b1-66c46cbf5b23",
+  "name": "Dashboard",
+  "description": "Menu Item for dashboard Screen",
+  "createdAt": "2026-07-30 11:00:36.420747"
+ },
+ {
+  "menu_id": "4019faad-b4ea-497c-a624-cd86b826cb4d",
+  "name": "Settings",
+  "description": "Menu Item for Settings",
+  "createdAt": "2026-07-30 11:00:36.420747"
+ }
+]

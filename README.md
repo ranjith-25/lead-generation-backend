@@ -8,7 +8,7 @@ Welcome to the backend repository for the **AI-Powered Opportunity Analysis & Sa
 - **ORM:** SQLAlchemy (Async)
 - **Migrations:** Alembic
 - **Validation:** Pydantic
-- **Authentication:** OAuth2 with JWT tokens
+- **Authentication:** OAuth2 with JWT tokens 
 
 ## Core Features
 1. **Authentication & Authorization**: Secure login, session tracking, and role-based access control.

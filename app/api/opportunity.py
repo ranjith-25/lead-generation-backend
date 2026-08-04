@@ -32,7 +32,7 @@ async def get_opportunities(
 
 @router.get("/{opportunityID}", response_model=OpportunityRead)
 async def get_opportunity(
-    opportunityID: str,
+    opportunityID: int,
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ) -> OpportunityRead:
@@ -41,7 +41,7 @@ async def get_opportunity(
 
 @router.put("/{opportunityID}", response_model=OpportunityRead)
 async def update_opportunity(
-    opportunityID: str,
+    opportunityID: int,
     opp_data: OpportunityCreate,
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
@@ -51,7 +51,7 @@ async def update_opportunity(
 
 @router.delete("/{opportunityID}", response_model=BaseResponse)
 async def delete_opportunity(
-    opportunityID: str,
+    opportunityID: int,
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
