@@ -25,12 +25,15 @@ async def get_opportunity_service(db: AsyncSession, opportunityID: int | str, us
 
 async def create_opportunity_service(db: AsyncSession, opp_data: OpportunityCreate, user_id: UUID) -> OpportunityRead:
 
-    opp_dict = opp_data.model_dump()
-    opp_dict['createdBy'] = user_id
-    opp_dict['updatedBy'] = user_id
-    new_opp = Opportunity(**opp_dict)
-    saved_opp = await addOpportunity(new_opp, db)
-    return OpportunityRead.model_validate(saved_opp)
+    try:
+        opp_dict = opp_data.model_dump()
+        opp_dict['createdBy'] = user_id
+        opp_dict['updatedBy'] = user_id
+        new_opp = Opportunity(**opp_dict)
+        saved_opp = await addOpportunity(new_opp, db)
+        return OpportunityRead.model_validate(saved_opp)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error creating opportunity: {str(exc)}")
 
 async def update_opportunity_service(db: AsyncSession, opportunityID: int | str, opp_data: OpportunityCreate, user_id: UUID) -> OpportunityRead:
 

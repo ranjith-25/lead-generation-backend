@@ -42,6 +42,10 @@ class Opportunity(Base):
     ai_job_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     required_proposal_questions: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     company_profile: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    job_posting_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    company_website: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    additional_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_ai_scraped: Mapped[bool] = mapped_column(default=True, server_default="true", nullable=False)
     additional_fields: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     createdAt: Mapped[datetime] = mapped_column(

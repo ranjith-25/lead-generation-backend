@@ -36,11 +36,23 @@ class OpportunityBase(BaseModel):
     ai_job_summary: str | None = None
     required_proposal_questions: list[str] | None = []
     company_profile: CompanyProfileBase | None = None
+    job_posting_url: str | None = None
+    company_website: str | None = None
+    additional_notes: str | None = None
+    is_ai_scraped: bool = True
     additional_fields: dict | None = None
+    createdBy: UUID | None = None
+    updatedBy: UUID | None = None
 
 
-class OpportunityCreate(OpportunityBase):
-    pass
+class OpportunityCreate(BaseModel):
+    title: str
+    company: str
+    company_website: str | None = None
+    experience: str | None = None
+    description: str
+    additional_notes: str | None = None
+    is_ai_scraped: bool = False
 
 class GetOpportunityContent(BaseModel):
     url : str = Field(...,description="URL that must be scraped")

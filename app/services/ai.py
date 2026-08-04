@@ -4,12 +4,12 @@ import logging
 from app.services.db.opportunity import addOpportunity
 from app.models.opportunity import Opportunity
 from app.schemas.opportunity import OpportunityBase
-from app.responses.opportunity import GetOpportunityResponse
+from app.responses.opportunity import CreateOpportunityResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.responses.ai import GetScrapedURLDataResponse
 
 
-async def handleGetScrapedData(url: str, db: AsyncSession):
+async def handleGetScrapedData(url: str, db: AsyncSession, user_id) -> CreateOpportunityResponse:
     try:
         client = get_ai_client()
 
@@ -24,15 +24,21 @@ async def handleGetScrapedData(url: str, db: AsyncSession):
 
         aiResponse = GetScrapedURLDataResponse(**response.json())
 
-        opportunityBase = OpportunityBase(**aiResponse.job_details)
+        opportunityBase = OpportunityBase(
+            **aiResponse.job_details,
+            job_posting_url=url,
+            is_ai_scraped=True,
+            createdBy=user_id,
+            updatedBy=user_id
+        )
 
         opportunity = Opportunity( **opportunityBase.model_dump() )
 
         result: Opportunity = await addOpportunity(opportunity, db)
 
-        return GetOpportunityResponse(
+        return CreateOpportunityResponse(
             message="Opportunity fetched from AI successfully",
-            opportunityDetails=OpportunityBase.model_validate(result),
+            opportunityID=result.opportunityID
         )
 
     except Exception as exc:
