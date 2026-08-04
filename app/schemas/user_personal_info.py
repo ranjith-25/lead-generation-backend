@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -26,7 +27,7 @@ class UserPersonalInfoBase(BaseModel):
 
 
 class UserPersonalInfoCreate(UserPersonalInfoBase):
-    user_id: int
+    user_id: UUID
 
 
 class UserPersonalInfoUpdate(BaseModel):
@@ -55,7 +56,7 @@ class UserPersonalInfoUpdate(BaseModel):
 
 class UserPersonalInfoResponse(UserPersonalInfoBase):
     id: int
-    user_id: int
+    user_id: UUID
     createdAt: datetime
     updatedAt: datetime | None = None
 

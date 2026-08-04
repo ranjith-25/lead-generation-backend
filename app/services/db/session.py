@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import Session
 
 
-async def create_session(db: AsyncSession, user_id: int, token: str, expires_at: datetime) -> Session:
+async def create_session(db: AsyncSession, user_id: UUID, token: str, expires_at: datetime) -> Session:
     session = Session(user_id=user_id, token=token, expiresAt=expires_at)
     db.add(session)
     await db.commit()

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+from uuid import UUID
 
 class SalesEnablementBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -14,7 +15,7 @@ class SalesEnablementCreate(SalesEnablementBase):
 
 class SalesEnablementRead(SalesEnablementBase):
     id: int
-    createdBy: int
-    updatedBy: int
+    createdBy: UUID
+    updatedBy: UUID
     createdAt: datetime
     updatedAt: datetime | None = None

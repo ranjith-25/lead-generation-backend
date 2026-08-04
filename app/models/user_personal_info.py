@@ -1,7 +1,9 @@
+import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -16,8 +18,8 @@ class UserPersonalInfo(Base):
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True
     )
-    user_id: Mapped[int] = mapped_column(
-        Integer,
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False,
         unique=True,

@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel,Field,ConfigDict
 
@@ -47,8 +48,8 @@ class GetOpportunityContent(BaseModel):
     
 class OpportunityRead(OpportunityBase):
     opportunityID: int
-    createdBy: int
-    updatedBy: int
+    createdBy: UUID
+    updatedBy: UUID
     createdAt: datetime
     updatedAt: datetime | None = None
 

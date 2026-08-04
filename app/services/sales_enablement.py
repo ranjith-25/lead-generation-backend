@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,13 +8,13 @@ from app.models.sales_enablement import SalesEnablement
 from app.services.db.opportunity import get_opportunity_by_id
 from app.services.db.sales_enablement import get_sales_enablement_by_id_db, get_sales_enablement_by_opp_db, add_sales_enablement_db, update_sales_enablement_db, delete_sales_enablement_db
 
-async def check_opportunity_access(db: AsyncSession, opportunity_id: int, user_id: int) -> None:
+async def check_opportunity_access(db: AsyncSession, opportunity_id: int, user_id: UUID) -> None:
 
     opportunity = await get_opportunity_by_id(db, opportunity_id, user_id)
     if not opportunity:
         raise HTTPException(status_code=404, detail="Opportunity not found or unauthorized")
 
-async def get_sales_enablement_service(db: AsyncSession, se_id: int | str, user_id: int) -> SalesEnablementRead:
+async def get_sales_enablement_service(db: AsyncSession, se_id: int | str, user_id: UUID) -> SalesEnablementRead:
     
     try:
         parsed_id = int(se_id)
@@ -28,7 +29,7 @@ async def get_sales_enablement_service(db: AsyncSession, se_id: int | str, user_
     
     return SalesEnablementRead.model_validate(se)
 
-async def get_sales_enablement_by_opp_service(db: AsyncSession, opp_id: int | str, user_id: int) -> SalesEnablementRead:
+async def get_sales_enablement_by_opp_service(db: AsyncSession, opp_id: int | str, user_id: UUID) -> SalesEnablementRead:
     
     try:
         parsed_opp_id = int(opp_id)
@@ -43,7 +44,7 @@ async def get_sales_enablement_by_opp_service(db: AsyncSession, opp_id: int | st
         
     return SalesEnablementRead.model_validate(se)
 
-async def create_sales_enablement_service(db: AsyncSession, se_data: SalesEnablementCreate, user_id: int) -> SalesEnablementRead:
+async def create_sales_enablement_service(db: AsyncSession, se_data: SalesEnablementCreate, user_id: UUID) -> SalesEnablementRead:
 
     await check_opportunity_access(db, se_data.opportunityID, user_id)
 
@@ -58,7 +59,7 @@ async def create_sales_enablement_service(db: AsyncSession, se_data: SalesEnable
     saved_se = await add_sales_enablement_db(db, new_se)
     return SalesEnablementRead.model_validate(saved_se)
 
-async def update_sales_enablement_service(db: AsyncSession, se_id: int | str, se_data: SalesEnablementCreate, user_id: int) -> SalesEnablementRead:
+async def update_sales_enablement_service(db: AsyncSession, se_id: int | str, se_data: SalesEnablementCreate, user_id: UUID) -> SalesEnablementRead:
     
     try:
         parsed_id = int(se_id)
@@ -78,7 +79,7 @@ async def update_sales_enablement_service(db: AsyncSession, se_id: int | str, se
     updated_se = await update_sales_enablement_db(db, se, update_dict)
     return SalesEnablementRead.model_validate(updated_se)
 
-async def delete_sales_enablement_service(db: AsyncSession, se_id: int | str, user_id: int) -> BaseResponse:
+async def delete_sales_enablement_service(db: AsyncSession, se_id: int | str, user_id: UUID) -> BaseResponse:
     
     try:
         parsed_id = int(se_id)
