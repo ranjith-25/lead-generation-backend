@@ -40,6 +40,7 @@ class OpportunityBase(BaseModel):
     company_website: str | None = None
     additional_notes: str | None = None
     is_ai_scraped: bool = True
+    platform: str | None = None
     additional_fields: dict | None = None
     createdBy: UUID | None = None
     updatedBy: UUID | None = None
