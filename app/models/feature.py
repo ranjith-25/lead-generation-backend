@@ -30,6 +30,11 @@ class Feature(Base):
         nullable=False
     )
 
+    description : Mapped[str] =  mapped_column(
+        String(255),
+        nullable=True
+    )
+
     parent_feature_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("features.feature_id"),
         nullable=True
