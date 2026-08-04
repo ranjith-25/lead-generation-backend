@@ -25,6 +25,12 @@ class Role(Base):
         secondary="menu_roles", backref="roles", lazy="selectin"
     )
 
+    role_permissions = relationship(
+        "RolePermission",
+        back_populates="role",
+        cascade="all, delete-orphan"
+    )
+
 
 class User(Base):
     __tablename__ = "users"

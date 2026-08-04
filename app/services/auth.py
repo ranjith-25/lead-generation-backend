@@ -11,6 +11,7 @@ from app.responses.base import BaseResponse
 
 
 async def authenticate_user(db: AsyncSession, form_data: OAuth2PasswordRequestForm) -> AuthenticationResponse:
+
     user = await get_user_by_email(db, form_data.username)
 
     if not user or not user.hashedPassword:
