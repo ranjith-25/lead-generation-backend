@@ -11,6 +11,7 @@ from app.responses.authentication import AuthenticationResponse
 from app.responses.base import BaseResponse
 from app.services.hierarchy import handleGetHierarchy
 from app.responses.authentication import HierarchyResponse
+from app.core.security import require_permission
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -34,7 +35,7 @@ async def get_me(current_user: User = Depends(get_current_user)) -> UserRead:
     return UserRead.model_validate(current_user)
 
 @router.get("/reportingHierarchy",response_model=HierarchyResponse)
-async def get_hierarchy(current_user : User = Depends(get_current_user),db: AsyncSession = Depends(get_db)) : 
+async def get_hierarchy(current_user : User = Depends(require_permission("user_hierarchy","read")),db: AsyncSession = Depends(get_db)) : 
 
     response : HierarchyResponse = await handleGetHierarchy(db)
     return JSONResponse(

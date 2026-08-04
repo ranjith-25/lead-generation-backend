@@ -32,3 +32,11 @@ class TokenExpiredException(AppException):
             status_code=status.HTTP_401_UNAUTHORIZED,
             error_code=ErrorCode.TOKEN_EXPIRED,
         )
+
+class PermissionRequired(AppException):
+    def __init__(self):
+        super().__init__(
+            message="No enough permissions",
+            status_code=status.HTTP_403_FORBIDDEN,
+            error_code=ErrorCode.NOT_ALLOWED
+        )

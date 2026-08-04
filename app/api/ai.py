@@ -8,10 +8,10 @@ from app.api.deps import get_current_user
 from app.core.connections.postgres import get_db
 from app.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.core.security import require_permission
 router = APIRouter(prefix="/ai",tags=["AI"])
 
 @router.post("")
-async def get_scrapped_data(request : GetOpportunityContent,current_user : User = Depends(get_current_user),db: AsyncSession = Depends(get_db)):
+async def get_scrapped_data(request : GetOpportunityContent,current_user : User = Depends(require_permission("ai_discovery","create")),db: AsyncSession = Depends(get_db)):
     response : CreateOpportunityResponse = await handleGetScrapedData(request.url,db, current_user.user_id)
     return response
