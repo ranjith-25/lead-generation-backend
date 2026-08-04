@@ -1,6 +1,6 @@
-from sqlalchemy import ForeignKey, DateTime, func
+from sqlalchemy import ForeignKey, DateTime, func , Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+import sqlalchemy as sa
 from app.models.base import Base
 
 
@@ -12,6 +12,13 @@ class RolePermission(Base):
         autoincrement=True
     )
 
+    isDeleted : Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        server_default= sa.false()
+    )
+
     role_id: Mapped[int] = mapped_column(
         ForeignKey("roles.role_id"),
         nullable=False
@@ -21,7 +28,7 @@ class RolePermission(Base):
         ForeignKey("features.feature_id"),
         nullable=False
     )
-
+    
     permission_id: Mapped[int] = mapped_column(
         ForeignKey("permissions.permission_id"),
         nullable=False

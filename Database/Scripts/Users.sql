@@ -129,3 +129,37 @@ INSERT INTO features("feature_key","display_name","description") VALUES
 ('settings', 'Settings', 'Menu Item - Settings');
 
 
+INSERT INTO features("parent_feature_id","feature_key","display_name","description") VALUES
+(1,"overview_and_analysis","Overview & Analysis","Tabs inside Opportunity pipeline screen Overview of the scraped data."),
+(1,"sales_enablement","Sales Enablement","Tabs inside Opportunity pipeline screen showing Sales Enablement details"),
+(1,"resource_match","Resource Match","Tabs inside Opportunity pipeline screen showing Resource Match details"),
+(1,"technical_preperation","Technical Preperation","Tabs inside Opportunity pipeline screen showing Technical Preparation details")
+
+
+INSERT INTO "rolePermissions" ("feature_id","role_id","permission_id")
+VALUES
+(1,2,2),
+(2,2,2),
+(3,2,2),
+(4,2,2),
+(5,2,2),
+(6,2,2),
+(2,1,2),
+(3,1,2),
+(4,1,2),
+(5,1,2),
+(6,1,2),
+(8,1,2),
+(7,3,2),
+(3,3,2),
+(4,3,2),
+(5,3,2),
+(6,3,2),
+(7,4,2),
+(3,4,2),
+(4,4,2),
+(5,4,2),
+(6,4,2),
+(7,5,2),
+(3,5,2),
+(4,5,2);
