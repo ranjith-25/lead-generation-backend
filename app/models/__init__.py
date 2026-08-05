@@ -15,5 +15,6 @@ from app.models.techstacks import TechStacks
 from app.models.project_techstacks import ProjectTechStack
 from app.models.opportunity import Opportunity
 from app.models.project_domains import ProjectDomain
+from app.models.user_status import UserStatus
 
-__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain"]
+__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain", "UserStatus"]
