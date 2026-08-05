@@ -41,10 +41,9 @@ async def create_project_domain(db: AsyncSession, projectDomain: ProjectDomain):
 async def update_project_domain(
     db: AsyncSession,
     project_domain: dict,
+    domain_id : int
 ):
     try:
-        domain_id = project_domain.get("id")
-
         result = await db.execute(
             select(ProjectDomain).where(
                 ProjectDomain.id == domain_id

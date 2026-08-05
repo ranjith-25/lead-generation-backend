@@ -1,4 +1,4 @@
-from pydantic import BaseModel,Field
+from pydantic import BaseModel,Field,ConfigDict
 from typing import Optional
 
 class ProjectDomainBase(BaseModel):
@@ -8,6 +8,7 @@ class ProjectDomainBase(BaseModel):
 
 class ProjectDomainDTO(ProjectDomainBase):
     id: int = Field(...,description="Project Domain ID")
+    model_config = ConfigDict(from_attributes=True)
 
 class ProjectDomainCreate(ProjectDomainBase):
     pass

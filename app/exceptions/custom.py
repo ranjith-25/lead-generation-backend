@@ -1,3 +1,5 @@
+from fastapi import status
+from app.exceptions.error_codes import ErrorCode
 class AppException(Exception):
 
     def __init__(

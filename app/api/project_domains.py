@@ -36,7 +36,7 @@ async def get_project_domain_by_id(
 @project_domain_router.post("/")
 async def create_project_domain(
     project_domain : ProjectDomainCreate,
-    current_user : User = Depends(require_permission("user_hierarchy","write")),
+    current_user : User = Depends(require_permission("user_hierarchy","read")),
     db: AsyncSession = Depends(get_db)
     ):
     response : CreateProjectDomainResponse = await handle_create_project_domain(db,current_user,project_domain)
@@ -49,10 +49,10 @@ async def create_project_domain(
 async def update_project_domain(
     project_domain_id: int,
     project_domain : ProjectDomainUpdate,
-    current_user : User = Depends(require_permission("user_hierarchy","write")),
+    current_user : User = Depends(require_permission("user_hierarchy","read")),
     db: AsyncSession = Depends(get_db)
     ):
-    response : UpdateProjectDomainResponse = await handle_update_project_domain(db,current_user,project_domain)
+    response : UpdateProjectDomainResponse = await handle_update_project_domain(db,current_user,project_domain,project_domain_id)
     return JSONResponse(
         content=response.model_dump(mode="json",exclude_none=True),
         status_code=200
@@ -61,10 +61,10 @@ async def update_project_domain(
 @project_domain_router.delete("/{project_domain_id}")
 async def delete_project_domain(
     project_domain_id: int,
-    current_user : User = Depends(require_permission("user_hierarchy","write")),
+    current_user : User = Depends(require_permission("user_hierarchy","read")),
     db: AsyncSession = Depends(get_db)
     ):
-    response : DeleteProjectDomainResponse = await handle_delete_project_domain(db,current_user,projectDomainId)
+    response : DeleteProjectDomainResponse = await handle_delete_project_domain(db,current_user,project_domain_id)
     return JSONResponse(
         content=response.model_dump(mode="json",exclude_none=True),
         status_code=200

@@ -16,10 +16,11 @@ async def handle_get_project_domains(db:AsyncSession,current_user : User) -> Get
             raise NotFoundException()
 
         projectDomainsResponse = GetProjectDomainResponse(
-            data=projectDomains,
+            projectDomainList= [ProjectDomainDTO.model_validate(projectDomain) for projectDomain in projectDomains] ,
             message="Project Domains fetched successfully",
             status_code=200
         )
+        return projectDomainsResponse
     
     except NotFoundException as e:
         logging.exception("Couldnot find Project domains")
@@ -37,10 +38,12 @@ async def handle_get_project_domain_by_id(db:AsyncSession,current_user : User,pr
             raise NotFoundException()
 
         projectDomainDetailsResponse = GetProjectDomainResponse(
-            data=projectDomainDetails,
+            projectDomain=projectDomainDetails,
             message="Project Domain fetched successfully",
             status_code=200
         )
+
+        return projectDomainDetailsResponse
     
     except NotFoundException as e:
         logging.exception("Couldnot find Project domains")
@@ -57,25 +60,28 @@ async def handle_create_project_domain(db:AsyncSession,current_user : User,proje
         createdBy = current_user.user_id,updatedBy = current_user.user_id)
         projectDomain = await create_project_domain(db,newProjectDomain)
         projectDomainResponse = CreateProjectDomainResponse(
-            data=projectDomain,
+            newProjectDomain=projectDomain,
             message="Project Domain created successfully"
         )
+
+        return projectDomainResponse
     
     except Exception as e:
         logging.exception("Some error occoured while creating Project domain")
         raise e 
 
-async def handle_update_project_domain(db:AsyncSession,current_user : User,projectDomainUpdate : ProjectDomainUpdate) -> UpdateProjectDomainResponse:
+async def handle_update_project_domain(db:AsyncSession,current_user : User,projectDomainUpdate : ProjectDomainUpdate,domainID : int) -> UpdateProjectDomainResponse:
     try:
 
         updatedProjectDomain = projectDomainUpdate.model_dump(exclude_unset=True,exclude_none= True)
         updatedProjectDomain["updatedBy"] = current_user.user_id
-        updatedProjectDomain = await update_project_domain(db,updatedProjectDomain)
+        updatedProjectDomain = await update_project_domain(db,updatedProjectDomain,domainID)
         projectDomainResponse = UpdateProjectDomainResponse(
-            data=updatedProjectDomain,
+            updatedProjectDomain=updatedProjectDomain,
             message="Project Domain updated successfully"
         )
-    
+
+        return projectDomainResponse
     except Exception as e:
         logging.exception("Some error occoured while updating Project domain")
         raise e 
@@ -88,9 +94,9 @@ async def handle_delete_project_domain(db:AsyncSession,current_user : User,proje
             raise NotFoundException()
 
         projectDomainDetailsResponse = DeleteProjectDomainResponse(
-            data=projectDomainDetails,
             message="Project Domain deleted successfully"
         )
+        return projectDomainDetailsResponse
     
     except NotFoundException as e:
         logging.exception("Couldnot find Project domains")
