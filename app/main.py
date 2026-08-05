@@ -17,7 +17,7 @@ from app.api.opportunity import router as opportunity_router
 from app.api.ai import router as ai_router
 from app.api.sales_enablement import router as sales_enablement_router
 from app.api.feature import router as feature_router
-from app.api.role_permisions import router as role_permisions_router
+from app.api.role_permissions import router as role_permissions_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application Started")
@@ -57,4 +57,4 @@ app.include_router(ai_router)
 app.include_router(opportunity_router)
 app.include_router(sales_enablement_router)
 app.include_router(feature_router)
-app.include_router(role_permisions_router)
+app.include_router(role_permissions_router)

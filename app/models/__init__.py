@@ -6,7 +6,7 @@ from app.models.opportunity import Opportunity
 from app.models.sales_enablement import SalesEnablement
 from app.models.feature import Feature
 from app.models.permissions import Permission
-from app.models.role_permisions import RolePermission
+from app.models.role_permissions import RolePermission
 from app.models.opportunity_status import OpportunityStatus
 from app.models.platform import Platform
 

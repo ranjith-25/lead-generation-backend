@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.responses.role_permisions import (
+from app.responses.role_permissions import (
     RolePermissionCreate,
     RolePermissionRead,
     GetRolePermissionsResponse,
@@ -10,18 +10,17 @@ from app.responses.role_permisions import (
     UpdateRolePermissionResponse,
 )
 from app.responses.base import BaseResponse
-from app.models.role_permisions import RolePermission
-from app.services.db.role_permisions import (
+from app.models.role_permissions import RolePermission
+from app.services.db.role_permissions import (
     get_role_permission_by_id_db,
     get_role_permission_by_details_db,
     get_all_role_permissions_db,
     add_role_permission_db,
     update_role_permission_db,
     delete_role_permission_db,
-    check_role_exists_db,
-    check_feature_exists_db,
-    check_permission_exists_db,
 )
+from app.services.db.user import get_user_by_id
+from app.services.db.feature import get_feature_by_id_db
 
 async def get_all_role_permissions_service(db: AsyncSession) -> GetRolePermissionsResponse:
     role_permissions = await get_all_role_permissions_db(db)
@@ -53,13 +52,6 @@ async def get_role_permission_service(
 async def create_role_permission_service(
     db: AsyncSession, rp_data: RolePermissionCreate
 ) -> CreateRolePermissionResponse:
-    # Check if role, feature, permission exist
-    if not await check_role_exists_db(db, rp_data.role_id):
-        raise HTTPException(status_code=404, detail="Role not found")
-    if not await check_feature_exists_db(db, rp_data.feature_id):
-        raise HTTPException(status_code=404, detail="Feature not found")
-    if not await check_permission_exists_db(db, rp_data.permission_id):
-        raise HTTPException(status_code=404, detail="Permission not found")
 
     # Check if a mapping already exists (even if soft-deleted)
     existing = await get_role_permission_by_details_db(
@@ -97,14 +89,6 @@ async def update_role_permission_service(
     rp = await get_role_permission_by_id_db(db, parsed_id)
     if not rp:
         raise HTTPException(status_code=404, detail="Role permission mapping not found")
-
-    # Check if role, feature, permission exist
-    if not await check_role_exists_db(db, rp_data.role_id):
-        raise HTTPException(status_code=404, detail="Role not found")
-    if not await check_feature_exists_db(db, rp_data.feature_id):
-        raise HTTPException(status_code=404, detail="Feature not found")
-    if not await check_permission_exists_db(db, rp_data.permission_id):
-        raise HTTPException(status_code=404, detail="Permission not found")
 
     # Check if the updated details would conflict with an existing active mapping (other than itself)
     conflict = await get_role_permission_by_details_db(
