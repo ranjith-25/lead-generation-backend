@@ -27,9 +27,6 @@ class OpportunityBase(BaseModel):
     posted_date: str | None = None
     required_skills: list[str] | None = []
     preferred_skills: list[str] | None = []
-    description: str | None = None
-    responsibilities: list[str] | None = []
-    requirements: list[str] | None = []
     benefits: list[str] | None = []
     client_information: dict | None = None
     apply_url: str | None = None
