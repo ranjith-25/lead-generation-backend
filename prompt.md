@@ -20,7 +20,7 @@ Input
 
 I will provide exactly one SQLAlchemy model file, for example:
 
-app/models/platform.py
+app/models/opportunity_status.py
 
 Example:
 
@@ -37,15 +37,15 @@ Files You Must Generate
 
 Generate ONLY these files.
 
-app/api/platform.py
+app/api/opportunity_status.py
 
-app/schemas/platform.py
+app/schemas/opportunity_status.py
 
-app/services/db/platform.py
+app/services/db/opportunity_status.py
 
-app/services/platform.py
+app/services/opportunity_status.py
 
-app/responses/platform.py
+app/responses/opportunity_status.py
 
 Do not generate anything else.
 
@@ -305,7 +305,7 @@ ProjectDomain
 
 becomes
 
-platform.py
+opportunity_status.py
 
 ProjectDomainCreate
 
@@ -343,7 +343,7 @@ Do not modify UUID fields.
 
 Do not modify foreign keys.
 
-platform
+opportunity_status
 
 Generate APIs using the existing permission style.
 
