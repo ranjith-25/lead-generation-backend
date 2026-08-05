@@ -8,7 +8,7 @@ from app.models.opportunity_status import OpportunityStatus
 
 async def get_all_opportunity_statuses(db: AsyncSession):
     try:
-        result = await db.execute(select(OpportunityStatus)).where(OpportunityStatus.is_active == True)
+        result = await db.execute(select(OpportunityStatus).where(OpportunityStatus.is_active == True))
         return result.scalars().all()
     except SQLAlchemyError as e:
         await db.rollback()

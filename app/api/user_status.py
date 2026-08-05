@@ -20,10 +20,10 @@ from app.services.user_status import (
     handle_update_user_status,
 )
 
-user_status_router = APIRouter(prefix="/user-status", tags=["User Status"])
+router = APIRouter(prefix="/user-status", tags=["User Status"])
 
 
-@user_status_router.get("/")
+@router.get("/")
 async def get_all_user_statuses(
     current_user: User = Depends(require_permission("user_status", "read")),
     db: AsyncSession = Depends(get_db),
@@ -35,7 +35,7 @@ async def get_all_user_statuses(
     )
 
 
-@user_status_router.get("/{id}")
+@router.get("/{id}")
 async def get_user_status_by_id(
     id: int,
     current_user: User = Depends(require_permission("user_status", "read")),
@@ -48,7 +48,7 @@ async def get_user_status_by_id(
     )
 
 
-@user_status_router.post("/")
+@router.post("/")
 async def create_user_status(
     user_status: UserStatusCreate,
     current_user: User = Depends(require_permission("user_status", "create")),
@@ -61,7 +61,7 @@ async def create_user_status(
     )
 
 
-@user_status_router.put("/{id}")
+@router.put("/{id}")
 async def update_user_status(
     id: int,
     user_status: UserStatusUpdate,
@@ -75,7 +75,7 @@ async def update_user_status(
     )
 
 
-@user_status_router.delete("/{id}")
+@router.delete("/{id}")
 async def delete_user_status(
     id: int,
     current_user: User = Depends(require_permission("user_status", "delete")),
