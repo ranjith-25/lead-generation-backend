@@ -22,6 +22,7 @@ from app.api.project import router as project_router
 
 from app.api.project_domains import project_domain_router
 from app.api.permissions import permission_router
+from app.api.platform import platform_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application Started")
@@ -65,3 +66,4 @@ app.include_router(role_permissions_router)
 app.include_router(project_domain_router)
 app.include_router(project_router)
 app.include_router(permission_router)
+app.include_router(platform_router)

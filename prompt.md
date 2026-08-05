@@ -20,7 +20,7 @@ Input
 
 I will provide exactly one SQLAlchemy model file, for example:
 
-app/models/permissions.py
+app/models/platform.py
 
 Example:
 
@@ -37,15 +37,15 @@ Files You Must Generate
 
 Generate ONLY these files.
 
-app/api/permissions.py
+app/api/platform.py
 
-app/schemas/permissions.py
+app/schemas/platform.py
 
-app/services/db/permissions.py
+app/services/db/platform.py
 
-app/services/permissions.py
+app/services/platform.py
 
-app/responses/permissions.py
+app/responses/platform.py
 
 Do not generate anything else.
 
@@ -305,7 +305,7 @@ ProjectDomain
 
 becomes
 
-permissions.py
+platform.py
 
 ProjectDomainCreate
 
@@ -343,7 +343,7 @@ Do not modify UUID fields.
 
 Do not modify foreign keys.
 
-Permissions
+platform
 
 Generate APIs using the existing permission style.
 
