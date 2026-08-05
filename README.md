@@ -53,7 +53,7 @@ We use Alembic for database schema migrations.
 
 **Generate a new migration** (after changing SQLAlchemy models):
 ```bash
-alembic revision --autogenerate -m "Added Job Roles Table"
+alembic revision --autogenerate -m "description of changes"
 ```
 
 **Apply migrations to the database**:
