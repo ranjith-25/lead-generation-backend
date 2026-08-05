@@ -11,3 +11,11 @@ class AppException(Exception):
         self.status_code = status_code
         self.error_code = error_code
         self.details = details
+
+class NotFoundException(AppException):
+    def __init__(self):
+        super().__init__(
+            message="Data not found",
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code=ErrorCode.DATA_NOT_FOUND,
+        )
