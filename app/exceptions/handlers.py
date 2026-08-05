@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi import Request
@@ -13,6 +15,9 @@ from app.exceptions.database import get_database_message
 from app.exceptions.error_codes import ErrorCode
 from app.exceptions.responses import error_response
 from app.exceptions.ai_exception import AIException
+
+logger = logging.getLogger(__name__)
+
 
 def register_exception_handlers(app: FastAPI):
 
@@ -65,6 +70,10 @@ def register_exception_handlers(app: FastAPI):
         request: Request,
         exc: SQLAlchemyError,
     ):
+        # the client only ever sees a generic message, so the real statement/constraint has to
+        # reach the log or the failure is undiagnosable
+        logger.exception("Database error on %s %s", request.method, request.url.path)
+
         message, code, status = get_database_message(exc)
 
         return JSONResponse(
@@ -95,6 +104,7 @@ def register_exception_handlers(app: FastAPI):
         request: Request,
         exc: Exception,
     ):
+        logger.exception("Unhandled error on %s %s", request.method, request.url.path)
 
         return JSONResponse(
             status_code=500,

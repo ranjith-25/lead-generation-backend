@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
-from sqlalchemy import DateTime, func, String,ForeignKey
+from sqlalchemy import DateTime, func, String,ForeignKey, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -22,27 +23,32 @@ class Projects(Base):
         String(255)
     )
 
-    case_study: Mapped[str | None] = mapped_column(
-        String(100),
+    # free-form label -> URL map: a column per link type would mean a migration every time
+    # the business wants to record a new kind of link
+    links: Mapped[dict[str, str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb")
+    )
+
+    # only the location of the uploaded document lives in the DB; the bytes sit under
+    # settings.CASE_STUDY_DIR
+    case_study: Mapped[Optional[str]] = mapped_column(
+        String(255),
         nullable=True
     )
 
-    app_link: Mapped[str | None] = mapped_column(
-        String(100),
-        nullable=True
-    )
-
-    # many projects can have many domains
     projectDomainID: Mapped[int] = mapped_column(
-    ForeignKey("project_domains.id"),
-    nullable=False
+        ForeignKey("project_domains.id", ondelete="RESTRICT"),
+        nullable=False
     )
 
     projectDomain: Mapped["ProjectDomain"] = relationship(
-        back_populates="projects"
+        back_populates="projects",
+        lazy="selectin"
     )
 
-    # many projects can have many techstacks
     techstacks: Mapped[List["TechStacks"]] = relationship(
         secondary="project_techstacks",
         back_populates="projects",
@@ -59,7 +65,3 @@ class Projects(Base):
         server_default=func.now(),
         onupdate=func.now()
     )
-
-    @property
-    def links(self) -> dict:
-        return {"case_study": self.case_study, "app_link": self.app_link}

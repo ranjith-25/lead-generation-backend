@@ -16,4 +16,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     AI_BASE_URL : str
 
+    MAX_CASE_STUDY_SIZE_MB: int = 10
+    CASE_STUDY_DIR: str = "case_studies"
+
 settings = Settings()

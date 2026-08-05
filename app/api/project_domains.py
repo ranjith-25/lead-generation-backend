@@ -27,7 +27,7 @@ async def get_project_domain_by_id(
     current_user : User = Depends(require_permission("user_hierarchy","read")),
     db: AsyncSession = Depends(get_db)
     ):
-    response : GetProjectDomainResponse = await handle_get_project_domain_by_id(db,current_user,projectDomainId)
+    response : GetProjectDomainResponse = await handle_get_project_domain_by_id(db,current_user,project_domain_id)
     return JSONResponse(
         content=response.model_dump(mode="json",exclude_none=True),
         status_code=200
