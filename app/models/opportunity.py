@@ -23,11 +23,17 @@ class Opportunity(Base):
         UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
     )
     
-    creator: Mapped[User] = relationship(
+    creator: Mapped["User"] = relationship(
         "User", foreign_keys=[createdBy], lazy="selectin"
     )
-    updater: Mapped[User] = relationship(
+    updater: Mapped["User"] = relationship(
         "User", foreign_keys=[updatedBy], lazy="selectin"
+    )
+    assigned_to: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True
+    )
+    assigned_user: Mapped["User"] = relationship(
+        "User", foreign_keys=[assigned_to], lazy="selectin"
     )
 
     @property
@@ -37,6 +43,14 @@ class Opportunity(Base):
     @property
     def updatedByName(self) -> str:
         return self.updater.fullName if self.updater else str(self.updatedBy)
+
+    @property
+    def assignedToName(self) -> str | None:
+        return self.assigned_user.fullName if self.assigned_user else None
+
+    @property
+    def statusName(self) -> str | None:
+        return self.status.status if getattr(self, "status", None) else None
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     company: Mapped[str | None] = mapped_column(String(255), nullable=True)
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -54,7 +68,7 @@ class Opportunity(Base):
     responsibilities: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     requirements: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     benefits: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
-    client_information: Mapped[str | None] = mapped_column(Text, nullable=True)
+    client_information: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     apply_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_job_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     required_proposal_questions: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)

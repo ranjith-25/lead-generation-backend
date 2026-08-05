@@ -31,7 +31,7 @@ class OpportunityBase(BaseModel):
     responsibilities: list[str] | None = []
     requirements: list[str] | None = []
     benefits: list[str] | None = []
-    client_information: str | None = None
+    client_information: dict | None = None
     apply_url: str | None = None
     ai_job_summary: str | None = None
     required_proposal_questions: list[str] | None = []
@@ -45,6 +45,7 @@ class OpportunityBase(BaseModel):
     additional_fields: dict | None = None
     createdBy: UUID | None = None
     updatedBy: UUID | None = None
+    assigned_to: UUID | None = None
 
 
 class OpportunityCreate(BaseModel):
@@ -56,11 +57,17 @@ class OpportunityCreate(BaseModel):
     additional_notes: str | None = None
     is_ai_scraped: bool = False
 
+class OpportunityStatusUpdate(BaseModel):
+    status_id: int
+
 class GetOpportunityContent(BaseModel):
     url : str = Field(...,description="URL that must be scraped")
 
     
 class OpportunityFilterRequest(BaseModel):
+    search: str | None = None
+    page: int = Field(1, ge=1)
+    size: int = Field(10, ge=1, le=100)
     status: list[str] | None = None
     platform: list[str] | None = None
     company: list[str] | None = None
@@ -82,12 +89,36 @@ class OpportunityStatusRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class OpportunityRead(OpportunityBase):
     opportunityID: int
     createdBy: str = Field(validation_alias=AliasChoices("createdByName", "createdBy"))
     updatedBy: str = Field(validation_alias=AliasChoices("updatedByName", "updatedBy"))
+    assignedToName: str | None = Field(default=None, validation_alias=AliasChoices("assignedToName", "assigned_to"))
     createdAt: datetime
     updatedAt: datetime | None = None
-    status: OpportunityStatusRead | None = None
+    status: str | None = Field(default=None, validation_alias=AliasChoices("statusName", "status"))
 
-    model_config = {"from_attributes": True}
+
+class OpportunityListRead(BaseModel):
+    opportunityID: int
+    title: str
+    company: str | None = None
+    client_information: dict | None = None
+    platform: str | None = None
+    createdBy: str = Field(validation_alias=AliasChoices("createdByName", "createdBy"))
+    updatedBy: str = Field(validation_alias=AliasChoices("updatedByName", "updatedBy"))
+    assignedToName: str | None = Field(default=None, validation_alias=AliasChoices("assignedToName", "assigned_to"))
+    createdAt: datetime
+    updatedAt: datetime | None = None
+    status: str | None = Field(default=None, validation_alias=AliasChoices("statusName", "status"))
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OpportunityPaginatedResponse(BaseModel):
+    data: list[OpportunityListRead]
+    total: int
+    page: int
+    size: int
+    total_pages: int
