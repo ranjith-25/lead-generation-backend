@@ -1,14 +1,27 @@
 from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.opportunity import OpportunityRead, OpportunityCreate, OpportunityFilterRequest, OpportunityFilterValuesResponse
+from app.schemas.opportunity import OpportunityRead, OpportunityListRead, OpportunityCreate, OpportunityFilterRequest, OpportunityFilterValuesResponse, OpportunityPaginatedResponse, OpportunityStatusRead
 from app.services.db.opportunity import Opportunity, get_opportunity_by_id, get_all_opportunities, addOpportunity, update_opportunity_db, delete_opportunity_db, get_opportunity_filter_values
 from app.responses.base import BaseResponse
+import math
 
-async def get_all_opportunities_service(db: AsyncSession, user_id: UUID, filters: OpportunityFilterRequest | None = None) -> list[OpportunityRead]:
+async def get_all_opportunities_service(db: AsyncSession, user_id: UUID, filters: OpportunityFilterRequest | None = None) -> OpportunityPaginatedResponse:
 
-    opportunities = await get_all_opportunities(db, user_id, filters)
-    return [OpportunityRead.model_validate(opp) for opp in opportunities]
+    opportunities, total = await get_all_opportunities(db, user_id, filters)
+    data = [OpportunityListRead.model_validate(opp) for opp in opportunities]
+    
+    page = filters.page if filters else 1
+    size = filters.size if filters else 10
+    total_pages = math.ceil(total / size) if total > 0 else 1
+
+    return OpportunityPaginatedResponse(
+        data=data,
+        total=total,
+        page=page,
+        size=size,
+        total_pages=total_pages
+    )
 
 async def get_opportunity_filter_values_service(db: AsyncSession, user_id: UUID) -> OpportunityFilterValuesResponse:
     
@@ -69,3 +82,30 @@ async def delete_opportunity_service(db: AsyncSession, opportunityID: int | str,
         
     await delete_opportunity_db(db, opportunity)
     return BaseResponse(success=True, message="Opportunity deleted successfully")
+
+
+async def get_opportunity_statuses_service(db: AsyncSession) -> list[OpportunityStatusRead]:
+    from app.services.db.opportunity import get_all_opportunity_statuses_db
+    statuses = await get_all_opportunity_statuses_db(db)
+    return [OpportunityStatusRead.model_validate(status) for status in statuses]
+
+async def update_opportunity_status_service(db: AsyncSession, opportunityID: int | str, status_id: int, user_id: UUID) -> OpportunityRead:
+    try:
+        opp_id = int(opportunityID)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid Opportunity ID format")
+
+    opportunity = await get_opportunity_by_id(db, opp_id, user_id)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found or unauthorized")
+        
+    # verify status exists
+    from app.services.db.opportunity import get_all_opportunity_statuses_db
+    statuses = await get_all_opportunity_statuses_db(db)
+    valid_status_ids = [s.id for s in statuses]
+    if status_id not in valid_status_ids:
+        raise HTTPException(status_code=400, detail="Invalid status_id")
+
+    update_dict = {"status_id": status_id, "updatedBy": user_id}
+    updated_opp = await update_opportunity_db(db, opportunity, update_dict)
+    return OpportunityRead.model_validate(updated_opp)

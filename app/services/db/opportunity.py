@@ -5,16 +5,34 @@ from app.models.opportunity_status import OpportunityStatus
 from app.schemas.opportunity import OpportunityFilterRequest
 from app.models.platform import Platform
 
+from sqlalchemy import select, or_, func
+
 async def addOpportunity(opportunity : Opportunity,db: AsyncSession) -> Opportunity:
     db.add(opportunity)
     await db.commit()
     await db.refresh(opportunity)
     return opportunity
 
-async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityFilterRequest | None = None) -> list[Opportunity]:
+async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityFilterRequest | None = None) -> tuple[list[Opportunity], int]:
+    from app.models.opportunity_status import OpportunityStatus
+    from app.models.user import User
+    
     query = select(Opportunity).where(Opportunity.createdBy == user_id)
     
     if filters:
+        if filters.search:
+            search_term = f"%{filters.search.strip()}%"
+            query = query.outerjoin(Opportunity.assigned_user)
+            query = query.where(
+                or_(
+                    Opportunity.title.ilike(search_term),
+                    Opportunity.company.ilike(search_term),
+                    Opportunity.location.ilike(search_term),
+                    Opportunity.platform.ilike(search_term),
+                    User.fullName.ilike(search_term)
+                )
+            )
+
         if filters.platform:
             query = query.where(Opportunity.platform.in_(filters.platform))
         if filters.company:
@@ -26,8 +44,17 @@ async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityF
         if filters.status:
             query = query.join(Opportunity.status).where(OpportunityStatus.status.in_(filters.status))
 
+    # Calculate total count before pagination
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total_count = total_result.scalar() or 0
+
+    # Apply pagination
+    if filters:
+        query = query.offset((filters.page - 1) * filters.size).limit(filters.size)
+
     result = await db.execute(query)
-    return list(result.scalars().all())
+    return list(result.scalars().all()), total_count
 
 async def get_opportunity_filter_values(db: AsyncSession, user_id) -> dict:
     
@@ -54,6 +81,10 @@ async def get_opportunity_filter_values(db: AsyncSession, user_id) -> dict:
 async def get_opportunity_by_id(db: AsyncSession, opportunity_id, user_id) -> Opportunity | None:
     result = await db.execute(select(Opportunity).where(Opportunity.opportunityID == opportunity_id, Opportunity.createdBy == user_id))
     return result.scalars().first()
+
+async def get_all_opportunity_statuses_db(db: AsyncSession) -> list[OpportunityStatus]:
+    result = await db.execute(select(OpportunityStatus).order_by(OpportunityStatus.id))
+    return list(result.scalars().all())
 
 async def update_opportunity_db(db: AsyncSession, opportunity: Opportunity, update_data: dict) -> Opportunity:
     for key, value in update_data.items():
