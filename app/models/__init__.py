@@ -9,6 +9,12 @@ from app.models.permissions import Permission
 from app.models.role_permissions import RolePermission
 from app.models.opportunity_status import OpportunityStatus
 from app.models.platform import Platform
+from app.models.projects import Projects
+from app.models.domains import Domains
+from app.models.techstacks import TechStacks
+from app.models.project_domains import ProjectDomain
+from app.models.project_techstacks import ProjectTechStack
+from app.models.opportunity import Opportunity
 
-__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform"]
 
+__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects", "Domains", "TechStacks", "ProjectDomain", "ProjectTechStack"]
