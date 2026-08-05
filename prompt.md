@@ -20,7 +20,7 @@ Input
 
 I will provide exactly one SQLAlchemy model file, for example:
 
-app/models/permissions.py
+app/models/job_roles.py
 
 Example:
 
@@ -37,15 +37,15 @@ Files You Must Generate
 
 Generate ONLY these files.
 
-app/api/permissions.py
+app/api/job_roles.py
 
-app/schemas/permissions.py
+app/schemas/job_roles.py
 
-app/services/db/permissions.py
+app/services/db/job_roles.py
 
-app/services/permissions.py
+app/services/job_roles.py
 
-app/responses/permissions.py
+app/responses/job_roles.py
 
 Do not generate anything else.
 
@@ -200,6 +200,7 @@ for key, value in update_data.items():
     if key != "id":
         setattr(...)
 
+makesure to provide only the records where is_active is true
 Never use
 
 session.merge()
@@ -305,7 +306,7 @@ ProjectDomain
 
 becomes
 
-permissions.py
+job_roles.py
 
 ProjectDomainCreate
 
@@ -343,7 +344,7 @@ Do not modify UUID fields.
 
 Do not modify foreign keys.
 
-Permissions
+job_roles
 
 Generate APIs using the existing permission style.
 
