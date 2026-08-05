@@ -5,14 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db
 from app.models.user import User
 from app.responses.base import BaseResponse
-from app.responses.role_permisions import (
+from app.responses.role_permissions import (
     RolePermissionCreate,
     GetRolePermissionsResponse,
     GetRolePermissionResponse,
     CreateRolePermissionResponse,
     UpdateRolePermissionResponse,
 )
-from app.services.role_permisions import (
+from app.services.role_permissions import (
     get_all_role_permissions_service,
     get_role_permission_service,
     create_role_permission_service,
