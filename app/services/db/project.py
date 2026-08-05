@@ -1,7 +1,5 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models.domains import Domains
 from app.models.projects import Projects
 from app.models.techstacks import TechStacks
 
@@ -27,12 +25,6 @@ async def get_project_by_name_db(db: AsyncSession, project_name: str) -> Project
     result = await db.execute(select(Projects).where(Projects.project_name == project_name))
     return result.scalars().first()
 
-
-async def get_domains_by_ids_db(db: AsyncSession, domain_ids: list[int]) -> list[Domains]:
-    if not domain_ids:
-        return []
-    result = await db.execute(select(Domains).where(Domains.domain_id.in_(domain_ids)))
-    return list(result.scalars().all())
 
 
 async def get_techstacks_by_ids_db(db: AsyncSession, techstack_ids: list[int]) -> list[TechStacks]:

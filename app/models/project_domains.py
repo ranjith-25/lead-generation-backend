@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Integer, String, func,ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 import uuid
@@ -27,4 +27,8 @@ class ProjectDomain(Base):
     )
     updatedBy: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
+    )
+
+    projects: Mapped[list["Projects"]] = relationship(
+        back_populates="projectDomain"
     )

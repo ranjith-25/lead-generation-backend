@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from sqlalchemy import DateTime, func, String
+from sqlalchemy import DateTime, func, String,ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -33,10 +33,13 @@ class Projects(Base):
     )
 
     # many projects can have many domains
-    domains: Mapped[List["Domains"]] = relationship(
-        secondary="project_domains",
-        back_populates="projects",
-        lazy="selectin"
+    projectDomainID: Mapped[int] = mapped_column(
+    ForeignKey("project_domains.id"),
+    nullable=False
+    )
+
+    projectDomain: Mapped["ProjectDomain"] = relationship(
+        back_populates="projects"
     )
 
     # many projects can have many techstacks

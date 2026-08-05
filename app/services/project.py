@@ -15,7 +15,6 @@ from app.services.db.project import (
     count_projects_db,
     delete_project_db,
     get_all_projects_db,
-    get_domains_by_ids_db,
     get_project_by_id_db,
     get_project_by_name_db,
     get_techstacks_by_ids_db,
