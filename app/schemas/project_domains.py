@@ -18,3 +18,8 @@ class ProjectDomainUpdate(ProjectDomainBase):
     domain : Optional[str]  = Field(None, min_length=1, max_length=100)
     description : Optional[str]  = Field(None, max_length=255)
     is_active : Optional[bool] = Field(None)
+    
+class ProjectDomainRead(ProjectDomainBase):
+    id: int = Field(..., description="Project Domain ID")
+
+    model_config = ConfigDict(from_attributes=True)

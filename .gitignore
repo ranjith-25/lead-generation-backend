@@ -6,3 +6,9 @@ venv/
 .env
 *.db
 .vscode/
+
+CLAUDE.md
+.docs
+
+# uploaded case study documents — only their path belongs in the repo/DB
+case_studies/
