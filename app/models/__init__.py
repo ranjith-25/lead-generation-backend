@@ -16,5 +16,6 @@ from app.models.opportunity import Opportunity
 from app.models.project_domains import ProjectDomain
 from app.models.user_status import UserStatus
 from app.models.job_role import JobRole
+from app.models.user_invitation import UserInvitation
 
-__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain", "TechStacks", "ProjectTechStack", "UserStatus", "JobRole"]
+__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain","UserInvitation", "UserStatus", "JobRole"]

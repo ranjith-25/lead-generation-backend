@@ -6,6 +6,7 @@ engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.ENVIRONMENT == "DEV",
     pool_pre_ping=True,
+    connect_args={"server_settings": {"timezone": "UTC"}}
 )
 
 AsyncSessionLocal = async_sessionmaker(
