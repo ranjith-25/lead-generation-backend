@@ -11,15 +11,30 @@ from app.responses.user_personal_info import (
     GetUserPersonalInfoResponse,
     UpdateUserPersonalInfoResponse,
 )
-from app.schemas.user_personal_info import UserPersonalInfoCreate, UserPersonalInfoUpdate
+from app.schemas.user_personal_info import (
+    UserPersonalInfoCreate,
+    UserPersonalInfoFilterRequest,
+    UserPersonalInfoPaginatedResponse,
+    UserPersonalInfoUpdate,
+)
 from app.services.user_personal_info import (
     handle_create_user_personal_info,
     handle_delete_user_personal_info,
+    handle_get_all_user_personal_info,
     handle_get_user_personal_info,
     handle_update_user_personal_info,
 )
 
 router = APIRouter(prefix="/user-personal-info", tags=["User Personal Info"])
+
+
+@router.post("/all", response_model=UserPersonalInfoPaginatedResponse)
+async def get_all_user_personal_info_filtered(
+    filters: UserPersonalInfoFilterRequest,
+    current_user: User = Depends(require_permission("user_personal_info", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> UserPersonalInfoPaginatedResponse:
+    return await handle_get_all_user_personal_info(db, current_user, filters)
 
 
 @router.get("/{user_id}")
