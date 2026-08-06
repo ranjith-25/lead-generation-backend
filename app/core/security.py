@@ -48,6 +48,9 @@ def require_permission(
         current_user=Depends(get_current_user)
     ):
 
+        # if current_user.role.roleName == "Super Admin":
+        #     return current_user
+
         allowed = await hasPermissions(
             db=db,
             role_id=current_user.role_id,
