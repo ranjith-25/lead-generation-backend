@@ -3,9 +3,10 @@ from sqlalchemy import select
 from app.models.project_domains import ProjectDomain
 from app.exceptions.database import get_database_message
 from sqlalchemy.exc import SQLAlchemyError
+from app.schemas.project_domains import ProjectDomainRead
 
 import logging
-async def get_project_domains(db: AsyncSession):
+async def get_all_project_domain_db(db: AsyncSession) -> list[ProjectDomainRead]:
     try:
         projectDomainsList = await db.execute(select(ProjectDomain))
         projectDomainsList = projectDomainsList.scalars().all()
@@ -15,7 +16,7 @@ async def get_project_domains(db: AsyncSession):
         logging.exception("Could not find Project Domains")
         raise e
 
-async def get_project_domain_by_id(db: AsyncSession, projectDomainID: int):
+async def get_project_domain_by_id(db: AsyncSession, projectDomainID: int) -> ProjectDomainRead:
     try:
         projectDomainsDetails = await db.execute(select(ProjectDomain).where(ProjectDomain.id == projectDomainID))
         projectDomainsDetails = projectDomainsDetails.scalars().first()

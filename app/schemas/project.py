@@ -254,3 +254,10 @@ class ProjectRead(ProjectBase):
     updatedAt: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+class ProjectFilters(BaseModel):
+    search : str | None = None
+    project_domains : list[str] | None = None
+    project_techstacks : list[str] | None = None
+    page: int = 1
+    limit: int = 10

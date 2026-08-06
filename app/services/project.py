@@ -15,14 +15,14 @@ from app.exceptions.project import (
     ProjectDomainNotFoundException,
     ProjectNotFoundException,
     TechStackNotFoundException,
+    CantFetchFilterException
 )
 from app.models.projects import Projects
 from app.responses.base import BaseResponse
 from app.responses.project import ProjectListResponse
-from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
+from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate, ProjectFilters
 from app.services.db.project import (
     add_project_db,
-    count_projects_db,
     delete_project_db,
     get_all_projects_db,
     get_project_by_id_db,
@@ -31,11 +31,13 @@ from app.services.db.project import (
 )
 
 from app.services.db.project_domains import (
-    get_project_domain_by_id
+    get_project_domain_by_id,
+    get_all_project_domain_db
 )
 
 from app.services.db.techstack import (
-    get_techstacks_by_ids_db
+    get_techstacks_by_ids_db,
+    get_all_techstacks_db
 )
 
 
@@ -54,17 +56,18 @@ async def _resolve_techstacks(db: AsyncSession, techstack_ids: list[int]):
     return techstacks
 
 
-async def get_all_projects_service(db: AsyncSession, limit: int, page: int) -> ProjectListResponse:
+async def get_all_projects_service(
+    db: AsyncSession,
+    filters: ProjectFilters,
+) -> ProjectListResponse:
 
-    offset = (page - 1) * limit
-    projects = await get_all_projects_db(db, limit, offset)
-    total = await count_projects_db(db)
+    projects, total = await get_all_projects_db(db, filters)
 
     return ProjectListResponse(
         message="Projects fetched successfully",
         total=total,
-        page=page,
-        limit=limit,
+        page=filters.page,
+        limit=filters.limit,
         projects=[ProjectRead.model_validate(project) for project in projects],
     )
 
@@ -192,3 +195,21 @@ async def get_project_case_study_service(db: AsyncSession, project_id: int) -> P
         raise CaseStudyNotFoundException()
 
     return document
+
+async def get_project_filters(db: AsyncSession):
+    try:
+        all_domains = await get_all_project_domain_db(db)
+        all_techstack = await get_all_techstacks_db(db)
+        
+        response = {
+            "Domains": [],
+            "Techstack": [],
+            "message": "Project filters fetched successfully"
+        }
+        for domain in all_domains:
+            response["Domains"].append(domain.domain)
+        for techstack in all_techstack:
+            response["Techstack"].append(techstack.techstack_name)
+        return response
+    except:
+        raise CantFetchFilterException()
