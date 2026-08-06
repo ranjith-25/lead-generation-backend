@@ -23,6 +23,12 @@ class Projects(Base):
         Text,
         nullable=False
     )
+    
+    is_draft: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default=text("true")
+    )
 
     # free-form label -> URL map: a column per link type would mean a migration every time
     # the business wants to record a new kind of link
