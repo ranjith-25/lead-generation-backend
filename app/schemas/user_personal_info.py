@@ -28,7 +28,7 @@ class UserPersonalInfoBase(BaseModel):
 
 
 class UserPersonalInfoCreate(UserPersonalInfoBase):
-    user_id: UUID
+    pass
 
 
 class UserPersonalInfoUpdate(BaseModel):
