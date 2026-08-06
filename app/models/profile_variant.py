@@ -1,0 +1,59 @@
+import uuid
+from datetime import datetime
+from typing import List, Optional
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.models.base import Base
+from app.models.projects import Projects
+from app.models.user import User
+
+
+class ProfileVariant(Base):
+    __tablename__ = "profile_variants"
+
+    profile_variant_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    role: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    experience: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    highlighted_skills: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
+
+    upload_profile: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    certificate: Mapped[List[str] | None] = mapped_column(ARRAY(String), nullable=True)
+
+    is_draft: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
+
+    created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+
+    updated_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    projects: Mapped[List["Projects"]] = relationship(
+        "Projects",
+        secondary="profile_variant_projects",
+        backref="profile_variants",
+        lazy="selectin"
+    )
+
+    creator: Mapped["User"] = relationship("User", foreign_keys=[created_by], lazy="selectin")
+
+    updater: Mapped["User"] = relationship("User", foreign_keys=[updated_by], lazy="selectin")
+
+
+class ProfileVariantProject(Base):
+    __tablename__ = "profile_variant_projects"
+
+    profile_variant_id: Mapped[int] = mapped_column(Integer, ForeignKey("profile_variants.profile_variant_id", ondelete="CASCADE"), primary_key=True)
+
+    project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.project_id", ondelete="CASCADE"), primary_key=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
