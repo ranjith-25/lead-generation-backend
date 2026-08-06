@@ -78,7 +78,6 @@ class User(Base):
             return f"{first} {last}".strip() if last else first
         return "Unknown User"
 
-
 class Session(Base):
     __tablename__ = "sessions"
 
