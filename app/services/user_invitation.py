@@ -11,7 +11,7 @@ from app.responses.user_invitation import (
     GetUserInvitationResponse,
     UpdateUserInvitationResponse,
 )
-from app.schemas.user_invitation import UserInvitationCreate, UserInvitationDTO, UserInvitationUpdate
+from app.schemas.user_invitation import InvitationStatus, UserInvitationCreate, UserInvitationDTO, UserInvitationUpdate
 from app.services.db.user_invitation import (
     create_user_invitation,
     delete_user_invitation,
