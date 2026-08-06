@@ -21,6 +21,7 @@ from app.api.role_permissions import router as role_permissions_router
 from app.api.project import router as project_router
 
 from app.api.project_domains import project_domain_router
+from app.api.techstack import techstack_router
 from app.api.permissions import permission_router
 from app.api.platform import platform_router
 from app.api.opportunity_status import opportunity_status_router
@@ -67,6 +68,7 @@ app.include_router(sales_enablement_router)
 app.include_router(feature_router)
 app.include_router(role_permissions_router)
 app.include_router(project_domain_router)
+app.include_router(techstack_router)
 app.include_router(project_router)
 app.include_router(permission_router)
 app.include_router(platform_router)
