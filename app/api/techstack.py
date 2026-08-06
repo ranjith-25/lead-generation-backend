@@ -20,6 +20,8 @@ from app.services.techstack import (
     handle_update_techstack,
 )
 
+from app.schemas.techstack import TechStackRead
+
 techstack_router = APIRouter(prefix="/settings/configurations/techstacks", tags=["Tech Stacks"])
 
 
@@ -27,7 +29,7 @@ techstack_router = APIRouter(prefix="/settings/configurations/techstacks", tags=
 async def get_all_techstacks(
     current_user: User = Depends(require_permission("projects", "read")),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[TechStackRead]:
     response: GetTechStackResponse = await handle_get_techstacks(db, current_user)
     return JSONResponse(
         content=response.model_dump(mode="json", exclude_none=True),

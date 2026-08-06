@@ -7,3 +7,7 @@ class ProjectListResponse(BaseResponse):
     page: int
     limit: int
     projects: list[ProjectRead] = []
+
+class ProjectFilterResponse(BaseResponse):
+    Domains: list[str]
+    Techstack: list[str]

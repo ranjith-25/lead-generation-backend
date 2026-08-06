@@ -1,4 +1,4 @@
-from app.services.db.project_domains import get_project_domains,get_project_domain_by_id,create_project_domain,update_project_domain,delete_project_domain
+from app.services.db.project_domains import get_all_project_domain_db,get_project_domain_by_id,create_project_domain,update_project_domain,delete_project_domain
 from app.responses.project_domains import GetProjectDomainResponse,CreateProjectDomainResponse,UpdateProjectDomainResponse,DeleteProjectDomainResponse
 from app.schemas.project_domains import ProjectDomainCreate,ProjectDomainUpdate,ProjectDomainDTO
 from app.models.project_domains import ProjectDomain
@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 async def handle_get_project_domains(db:AsyncSession,current_user : User) -> GetProjectDomainResponse:
     try:
-        projectDomains = await get_project_domains(db)
+        projectDomains = await get_all_project_domain_db(db)
 
         if projectDomains is None:
             raise NotFoundException()
