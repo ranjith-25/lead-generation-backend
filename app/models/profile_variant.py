@@ -28,6 +28,8 @@ class ProfileVariant(Base):
 
     is_draft: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
 
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
 
     updated_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
@@ -44,9 +46,12 @@ class ProfileVariant(Base):
         lazy="selectin"
     )
 
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], lazy="selectin")
+
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by], lazy="selectin")
 
     updater: Mapped["User"] = relationship("User", foreign_keys=[updated_by], lazy="selectin")
+
 
 
 class ProfileVariantProject(Base):
