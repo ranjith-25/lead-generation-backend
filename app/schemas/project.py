@@ -175,6 +175,7 @@ class ProjectBase(BaseModel):
     project_name: str
     description: str
     links: Links = {}
+    is_draft: bool = True
 
 
 class ProjectCreate(ProjectBase):
@@ -188,6 +189,7 @@ class ProjectCreate(ProjectBase):
         project_name: str = Form(...),
         description: str = Form(...),
         projectDomainID: int = Form(...),
+        is_draft: bool = Form(True),
         links: str | None = Form(None, description=LINKS_DESCRIPTION, examples=[LINKS_EXAMPLE]),
         techstack_ids: TechStackIds | None = Form(None, description=TECHSTACK_IDS_DESCRIPTION),
     ) -> "ProjectCreate":
@@ -199,6 +201,7 @@ class ProjectCreate(ProjectBase):
                 "projectDomainID": projectDomainID,
                 "links": _resolve_links(links, await request.form()) or {},
                 "techstack_ids": techstack_ids or [],
+                "is_draft": is_draft
             },
         )
 
@@ -209,6 +212,7 @@ class ProjectUpdate(BaseModel):
     links: Links | None = None
     projectDomainID: int | None = None
     techstack_ids: list[int] | None = None
+    is_draft: bool | None = None
 
     @classmethod
     async def as_form(
@@ -217,6 +221,7 @@ class ProjectUpdate(BaseModel):
         project_name: str | None = Form(None),
         description: str | None = Form(None),
         projectDomainID: int | None = Form(None),
+        is_draft: bool | None = Form(None),
         links: str | None = Form(None, description=LINKS_DESCRIPTION, examples=[LINKS_EXAMPLE]),
         techstack_ids: TechStackIds | None = Form(None, description=TECHSTACK_IDS_DESCRIPTION),
         clear_techstacks: bool = Form(False, description="Remove every techstack from the project"),
@@ -231,6 +236,8 @@ class ProjectUpdate(BaseModel):
             payload["description"] = description
         if projectDomainID is not None:
             payload["projectDomainID"] = projectDomainID
+        if is_draft is not None:
+            payload["is_draft"] = is_draft
 
         parsed_links = _resolve_links(links, await request.form())
         if parsed_links is not None:
