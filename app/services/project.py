@@ -101,6 +101,7 @@ async def create_project_service(
         case_study=stored_path,
         projectDomainID=domain.id,
         techstacks=techstacks,
+        is_draft=project_data.is_draft
     )
 
     try:
@@ -136,6 +137,9 @@ async def update_project_service(
 
     if "description" in payload:
         update_data["description"] = payload["description"]
+
+    if payload.get("is_draft") is not None:
+        update_data["is_draft"] = payload["is_draft"]
 
     if payload.get("links") is not None:
         # the whole map is replaced, not merged — send every link you want to keep
