@@ -63,3 +63,33 @@ class UserPersonalInfoResponse(UserPersonalInfoBase):
     updatedAt: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserPersonalInfoFilterRequest(BaseModel):
+    page: int = Field(1, ge=1)
+    limit: int = Field(10, ge=1, le=100)
+    search: str | None = None
+    primary_role_id: int | None = None
+    working_status_id: int | None = None
+    year_of_passout: int | None = None
+
+
+class UserPersonalInfoListRead(BaseModel):
+    user_id: UUID
+    email: str
+    first_name: str
+    last_name: str | None
+    primary_role_name: str
+    date_of_birth: str
+    highest_qualification: str
+    year_of_passout: int
+    working_status_name: str
+    profiles_count: int
+
+class UserPersonalInfoPaginatedResponse(BaseModel):
+    items: list[UserPersonalInfoListRead]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+
