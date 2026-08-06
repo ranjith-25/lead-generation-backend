@@ -28,7 +28,6 @@ class UserPersonalInfo(Base):
     )
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    work_email: Mapped[str] = mapped_column(String(100), nullable=False)
     date_of_birth: Mapped[str] = mapped_column(String(10), nullable=False)
     primary_role_id: Mapped[int] = mapped_column(Integer, ForeignKey("job_roles.id", ondelete="RESTRICT"), nullable=False)
     branch: Mapped[str] = mapped_column(String(100), nullable=False)

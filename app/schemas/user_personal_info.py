@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 class UserPersonalInfoBase(BaseModel):
     first_name: str = Field(..., max_length=100)
     last_name: str | None = Field(None, max_length=100)
-    work_email: EmailStr = Field(..., max_length=100)
     date_of_birth: str = Field(..., description="Format: DD/MM/YYYY", json_schema_extra={"example": "03/09/2004"})
     primary_role_id: int = Field(...)
     branch: str = Field(..., max_length=100)
@@ -35,7 +34,6 @@ class UserPersonalInfoCreate(UserPersonalInfoBase):
 class UserPersonalInfoUpdate(BaseModel):
     first_name: str | None = Field(None, max_length=100)
     last_name: str | None = Field(None, max_length=100)
-    work_email: EmailStr | None = Field(None, max_length=100)
     date_of_birth: str | None = Field(None, description="Format: DD/MM/YYYY")
     primary_role_id: int | None = Field(None)
     branch: str | None = Field(None, max_length=100)
