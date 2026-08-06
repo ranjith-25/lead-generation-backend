@@ -4,6 +4,8 @@ from app.models.opportunity import Opportunity
 from app.models.opportunity_status import OpportunityStatus
 from app.schemas.opportunity import OpportunityFilterRequest
 from app.models.platform import Platform
+from app.models.user import User
+from app.models.user_personal_info import UserPersonalInfo
 
 from sqlalchemy import select, or_, func
 
@@ -14,9 +16,6 @@ async def addOpportunity(opportunity : Opportunity,db: AsyncSession) -> Opportun
     return opportunity
 
 async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityFilterRequest | None = None) -> tuple[list[Opportunity], int]:
-    from app.models.opportunity_status import OpportunityStatus
-    from app.models.user import User
-    from app.models.user_personal_info import UserPersonalInfo
     
     query = select(Opportunity).where(Opportunity.createdBy == user_id)
     
