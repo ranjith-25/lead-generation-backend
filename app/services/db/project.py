@@ -1,19 +1,74 @@
-from sqlalchemy import func, select
+from sqlalchemy import Select, or_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.projects import Projects
+from app.schemas.project import ProjectFilters
+from app.models.project_domains import ProjectDomain
+from app.models.techstacks import TechStacks
 
 
-async def get_all_projects_db(db: AsyncSession, limit: int, offset: int) -> list[Projects]:
-    result = await db.execute(
-        select(Projects).order_by(Projects.project_id).offset(offset).limit(limit)
-    )
-    return list(result.scalars().all())
+def _apply_project_filters(query: Select, filters: ProjectFilters) -> Select:
+    """The list filters are applied as EXISTS (`has`/`any`) rather than joins.
+
+    A project may sit in several of the requested techstacks; joining the junction
+    would return it once per match, which would both duplicate it in the page and
+    inflate the total. EXISTS matches the row at most once.
+    """
+
+    if filters.search and filters.search != "string":
+        query = query.where(
+            or_(
+                Projects.project_name.ilike(f"%{filters.search}%"),
+                Projects.description.ilike(f"%{filters.search}%")
+            )
+        )
+
+    if filters.project_domains and "string" not in filters.project_domains:
+        query = query.where(
+            Projects.projectDomain.has(
+                ProjectDomain.domain.in_(filters.project_domains)
+            )
+        )
+
+    if filters.project_techstacks and "string" not in filters.project_techstacks:
+        query = query.where(
+            Projects.techstacks.any(
+                TechStacks.techstack_name.in_(filters.project_techstacks)
+            )
+        )
+
+    return query
 
 
-async def count_projects_db(db: AsyncSession) -> int:
-    result = await db.execute(select(func.count()).select_from(Projects))
-    return result.scalar_one()
+async def get_all_projects_db(
+    db: AsyncSession,
+    filters: ProjectFilters,
+) -> tuple[list[Projects], int]:
+
+    total_column = func.count().over().label("total")
+
+    query = _apply_project_filters(
+        select(Projects, total_column), filters
+    ).order_by(Projects.project_id)
+
+    if filters.limit is not None:
+        offset = (filters.page - 1) * filters.limit
+        query = query.offset(offset).limit(filters.limit)
+
+    rows = (await db.execute(query)).all()
+
+    if rows:
+        return [row[0] for row in rows], rows[0].total
+
+    # an empty page carries no window value; only a page past the end can still have a
+    # total, so the extra count is paid for that case alone
+    total = await count_projects_db(db, filters) if filters.page > 1 else 0
+    return [], total
+
+
+async def count_projects_db(db: AsyncSession, filters: ProjectFilters) -> int:
+    query = _apply_project_filters(select(func.count(Projects.project_id)), filters)
+    return (await db.execute(query)).scalar_one()
 
 
 async def get_project_by_id_db(db: AsyncSession, project_id: int) -> Projects | None:

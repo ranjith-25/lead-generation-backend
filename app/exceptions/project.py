@@ -86,3 +86,12 @@ class CaseStudyTooLargeException(AppException):
             error_code=ErrorCode.CASE_STUDY_TOO_LARGE,
             details={"max_size_mb": max_size_mb} if max_size_mb else None,
         )
+
+class CantFetchFilterException(AppException):
+
+    def __init__(self):
+        super().__init__(
+            message="Can't fetch the filters for the project",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code=ErrorCode.CANT_FETCH_PROJECT_FILTERS,
+        )

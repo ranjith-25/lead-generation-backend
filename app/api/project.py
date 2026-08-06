@@ -7,8 +7,8 @@ from app.core.connections.postgres import get_db
 from app.core.security import require_permission
 from app.models.user import User
 from app.responses.base import BaseResponse
-from app.responses.project import ProjectListResponse
-from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
+from app.responses.project import ProjectListResponse, ProjectFilterResponse 
+from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate, ProjectFilters
 from app.services.project import (
     create_project_service,
     delete_project_service,
@@ -16,6 +16,7 @@ from app.services.project import (
     get_project_case_study_service,
     get_project_service,
     update_project_service,
+    get_project_filters
 )
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -28,7 +29,7 @@ async def get_projects(
     current_user: User = Depends(require_permission("projects", "read")),
     db: AsyncSession = Depends(get_db),
 ) -> ProjectListResponse:
-    return await get_all_projects_service(db, limit, page)
+    return await get_all_projects_service(db, ProjectFilters(page=page, limit=limit))
 
 
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
@@ -40,6 +41,20 @@ async def create_project(
 ) -> ProjectRead:
     return await create_project_service(db, project, case_study)
 
+@router.post("/get_all", response_model=ProjectListResponse)
+async def get_all_projects(
+    filters: ProjectFilters,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ProjectListResponse:
+    return await get_all_projects_service(db, filters)
+
+@router.get("/filter-values", response_model=ProjectFilterResponse)
+async def get_filter_values(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("projects", "read"))
+):
+    return await get_project_filters(db)
 
 @router.get("/{project_id}", response_model=ProjectRead)
 async def get_project(
@@ -70,7 +85,6 @@ async def download_case_study(
 ) -> FileResponse:
     document = await get_project_case_study_service(db, project_id)
     return FileResponse(document, filename=document.name)
-
 
 @router.delete("/{project_id}", response_model=BaseResponse)
 async def delete_project(
