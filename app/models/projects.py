@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import DateTime, func, String,ForeignKey, text
+from sqlalchemy import DateTime, func, String,ForeignKey, text  , Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,12 +15,13 @@ class Projects(Base):
         autoincrement=True
     )
     project_name: Mapped[str] = mapped_column(
-        String(100),
+        String(255),
         unique=True,
     )
 
     description: Mapped[str] = mapped_column(
-        String(255)
+        Text,
+        nullable=False
     )
 
     # free-form label -> URL map: a column per link type would mean a migration every time
