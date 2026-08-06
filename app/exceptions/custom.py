@@ -21,3 +21,19 @@ class NotFoundException(AppException):
             status_code=status.HTTP_404_NOT_FOUND,
             error_code=ErrorCode.DATA_NOT_FOUND,
         )
+
+class InvitationCancelledException(AppException):
+    def __init__(self):
+        super().__init__(
+            message="Invitation is cancelled",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code=ErrorCode.INVITATION_CANCELLED,
+        )
+
+class InvitationRegisteredException(AppException):
+    def __init__(self):
+        super().__init__(
+            message="User has already registered using this invitation.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code=ErrorCode.INVITATION_USED,
+        )

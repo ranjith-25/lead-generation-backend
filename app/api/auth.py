@@ -4,15 +4,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.responses import JSONResponse
 from app.api.deps import get_current_user, oauth2_scheme
 from app.core.connections.postgres import get_db
-from app.services.auth import authenticate_user, logout_user
+from app.services.auth import authenticate_user, logout_user,handle_signup_invitation
 from app.models.user import User
-from app.schemas.user import UserRead
+from app.schemas.user import UserRead,UserRegistrationFromInvitation
 from app.responses.authentication import AuthenticationResponse
 from app.responses.base import BaseResponse
+from app.responses.authentication import UserRegistrationFromInvitationResponse
 from app.services.hierarchy import handleGetHierarchy
 from app.responses.authentication import HierarchyResponse
 from app.core.security import require_permission
-
+import uuid
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
@@ -38,6 +39,14 @@ async def get_me(current_user: User = Depends(get_current_user)) -> UserRead:
 async def get_hierarchy(current_user : User = Depends(require_permission("user_hierarchy","read")),db: AsyncSession = Depends(get_db)) : 
 
     response : HierarchyResponse = await handleGetHierarchy(db)
+    return JSONResponse(
+        status_code= 200,
+        content=response.model_dump(mode="json")
+    ) 
+
+@router.post("/signup/{invitationID}")
+async def signup_from_invitation(invitationID: uuid.UUID,registration_data : UserRegistrationFromInvitation,db: AsyncSession = Depends(get_db)):
+    response : UserRegistrationFromInvitationResponse = await handle_signup_invitation(db,invitationID,registration_data)
     return JSONResponse(
         status_code= 200,
         content=response.model_dump(mode="json")

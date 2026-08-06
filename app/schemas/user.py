@@ -1,18 +1,23 @@
 from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
-
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from app.schemas.user_personal_info import UserPersonalInfoCreate
+from pydantic import BaseModel, ConfigDict, EmailStr, Field,model_validator
 
 
 class UserBase(BaseModel):
-    first_name: str = Field(..., max_length=100)
-    last_name: str | None = Field(None, max_length=100)
     email: EmailStr = Field(..., max_length=100)
 
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
+    confirmPassword : str = Field(...,min_length=8)
+
+    @model_validator(mode="after")
+    def checkPasswords(self):
+        if self.password != self.confirmPassword:
+            raise ValueError("Password and Confirm password cannot be same")
+        return self
 
 
 class UserRead(UserBase):
@@ -34,4 +39,9 @@ class UserHierarchy(BaseModel):
 
 UserHierarchy.model_rebuild()
 
+
+class UserRegistrationFromInvitation(BaseModel):
+    user_details : UserCreate
+    user_personal_details : UserPersonalInfoCreate
+    
     

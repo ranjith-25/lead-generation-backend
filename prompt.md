@@ -20,7 +20,7 @@ Input
 
 I will provide exactly one SQLAlchemy model file, for example:
 
-app/models/opportunity_status.py
+app/models/user_invitation.py
 
 Example:
 
@@ -37,15 +37,15 @@ Files You Must Generate
 
 Generate ONLY these files.
 
-app/api/opportunity_status.py
+app/api/user_invitation.py
 
-app/schemas/opportunity_status.py
+app/schemas/user_invitation.py
 
-app/services/db/opportunity_status.py
+app/services/db/user_invitation.py
 
-app/services/opportunity_status.py
+app/services/user_invitation.py
 
-app/responses/opportunity_status.py
+app/responses/user_invitation.py
 
 Do not generate anything else.
 
@@ -185,7 +185,7 @@ Use only
 select()
 
 AsyncSession
-
+Field : "is_active" is also implemented for display purpose.Hence consider this for Read, Create , Update endpoints .  
 commit()
 
 refresh()
@@ -305,7 +305,7 @@ ProjectDomain
 
 becomes
 
-opportunity_status.py
+user_invitation.py
 
 ProjectDomainCreate
 
@@ -343,7 +343,7 @@ Do not modify UUID fields.
 
 Do not modify foreign keys.
 
-opportunity_status
+user_invitation
 
 Generate APIs using the existing permission style.
 

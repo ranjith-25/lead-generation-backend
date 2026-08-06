@@ -49,7 +49,7 @@ async def handle_create_user_personal_info(
     db: AsyncSession, current_user: User, personal_info_create: UserPersonalInfoCreate
 ) -> CreateUserPersonalInfoResponse:
     try:
-        new_personal_info = UserPersonalInfo(**personal_info_create.model_dump())
+        new_personal_info = UserPersonalInfo(**personal_info_create.model_dump(),user_id = current_user.user_id)
         created_personal_info = await create_user_personal_info(db, new_personal_info)
         return CreateUserPersonalInfoResponse(
             personalInfo=UserPersonalInfoResponse.model_validate(created_personal_info),
