@@ -16,6 +16,7 @@ async def addOpportunity(opportunity : Opportunity,db: AsyncSession) -> Opportun
 async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityFilterRequest | None = None) -> tuple[list[Opportunity], int]:
     from app.models.opportunity_status import OpportunityStatus
     from app.models.user import User
+    from app.models.user_personal_info import UserPersonalInfo
     
     query = select(Opportunity).where(Opportunity.createdBy == user_id)
     
@@ -23,13 +24,15 @@ async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityF
         if filters.search:
             search_term = f"%{filters.search.strip()}%"
             query = query.outerjoin(Opportunity.assigned_user)
+            query = query.outerjoin(UserPersonalInfo, User.user_id == UserPersonalInfo.user_id)
             query = query.where(
                 or_(
                     Opportunity.title.ilike(search_term),
                     Opportunity.company.ilike(search_term),
                     Opportunity.location.ilike(search_term),
                     Opportunity.platform.ilike(search_term),
-                    User.fullName.ilike(search_term)
+                    UserPersonalInfo.first_name.ilike(search_term),
+                    UserPersonalInfo.last_name.ilike(search_term)
                 )
             )
 

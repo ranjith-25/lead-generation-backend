@@ -10,6 +10,7 @@ from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.menu import Menu
+    from app.models.user_personal_info import UserPersonalInfo
 
 
 class Role(Base):
@@ -40,7 +41,6 @@ class User(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    fullName: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     hashedPassword: Mapped[str | None] = mapped_column(String(150), nullable=True)
     refUID: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -57,6 +57,11 @@ class User(Base):
     )
 
     role: Mapped["Role"] = relationship(backref="users", lazy="selectin")
+    personal_info: Mapped["UserPersonalInfo | None"] = relationship(
+        "UserPersonalInfo",
+        back_populates="user",
+        lazy="selectin",
+    )
     reportingUser: Mapped["User | None"] = relationship(
         "User",
         foreign_keys=[reporting_to],
@@ -64,6 +69,14 @@ class User(Base):
         backref="subordinates",
         lazy="selectin",
     )
+
+    @property
+    def fullName(self) -> str:
+        if self.personal_info:
+            first = self.personal_info.first_name
+            last = self.personal_info.last_name
+            return f"{first} {last}".strip() if last else first
+        return "Unknown User"
 
 
 class Session(Base):
