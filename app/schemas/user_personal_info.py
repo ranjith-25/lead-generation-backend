@@ -5,14 +5,16 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserPersonalInfoBase(BaseModel):
+    first_name: str = Field(..., max_length=100)
+    last_name: str | None = Field(None, max_length=100)
     work_email: EmailStr = Field(..., max_length=100)
     date_of_birth: str = Field(..., description="Format: DD/MM/YYYY", json_schema_extra={"example": "03/09/2004"})
-    primary_role: str = Field(..., max_length=100)
+    primary_role_id: int = Field(...)
     branch: str = Field(..., max_length=100)
     highest_qualification: str = Field(..., max_length=100)
     specialization: str = Field(..., max_length=100)
     year_of_passout: int = Field(...)
-    working_status: str = Field(..., max_length=50)
+    working_status_id: int = Field(...)
 
     @field_validator("date_of_birth")
     @classmethod
@@ -31,14 +33,16 @@ class UserPersonalInfoCreate(UserPersonalInfoBase):
 
 
 class UserPersonalInfoUpdate(BaseModel):
+    first_name: str | None = Field(None, max_length=100)
+    last_name: str | None = Field(None, max_length=100)
     work_email: EmailStr | None = Field(None, max_length=100)
     date_of_birth: str | None = Field(None, description="Format: DD/MM/YYYY")
-    primary_role: str | None = Field(None, max_length=100)
+    primary_role_id: int | None = Field(None)
     branch: str | None = Field(None, max_length=100)
     highest_qualification: str | None = Field(None, max_length=100)
     specialization: str | None = Field(None, max_length=100)
     year_of_passout: int | None = Field(None)
-    working_status: str | None = Field(None, max_length=50)
+    working_status_id: int | None = Field(None)
 
     @field_validator("date_of_birth")
     @classmethod

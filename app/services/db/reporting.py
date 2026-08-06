@@ -7,12 +7,13 @@ async def getReportingUsers(db, userID):
         WITH RECURSIVE reporting_tree AS (
             SELECT
                 u.user_id,
-                u."fullName",
+                upi.first_name || ' ' || COALESCE(upi.last_name, '') as "fullName",
                 u.reporting_to,
                 u.specialization,
                 u.role_id,
                 r."roleName"
             FROM users u
+            LEFT JOIN user_personal_info upi ON u.user_id = upi.user_id
             LEFT JOIN roles r
                 ON u.role_id = r.role_id
             WHERE u.user_id = :user_id
@@ -21,12 +22,13 @@ async def getReportingUsers(db, userID):
 
             SELECT
                 u.user_id,
-                u."fullName",
+                upi.first_name || ' ' || COALESCE(upi.last_name, '') as "fullName",
                 u.reporting_to,
                 u.specialization,
                 u.role_id,
                 r."roleName"
             FROM users u
+            LEFT JOIN user_personal_info upi ON u.user_id = upi.user_id
             LEFT JOIN roles r
                 ON u.role_id = r.role_id
             JOIN reporting_tree rt
