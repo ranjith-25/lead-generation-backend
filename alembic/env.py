@@ -30,8 +30,10 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+LOCK_TIMEOUT = "5s"
 
 def do_run_migrations(connection: Connection) -> None:
+    connection.exec_driver_sql(f"SET lock_timeout = '{LOCK_TIMEOUT}'")
     context.configure(connection=connection, target_metadata=target_metadata,compare_server_default=True,)
     with context.begin_transaction():
         context.run_migrations()
