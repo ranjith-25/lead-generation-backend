@@ -6,8 +6,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field,model_validator
 
 
 class UserBase(BaseModel):
-    first_name: str = Field(..., max_length=100)
-    last_name: str | None = Field(None, max_length=100)
     email: EmailStr = Field(..., max_length=100)
 
 
