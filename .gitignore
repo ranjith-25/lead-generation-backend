@@ -12,3 +12,6 @@ CLAUDE.md
 
 # uploaded case study documents — only their path belongs in the repo/DB
 case_studies/
+
+.idea/
+*.iml
