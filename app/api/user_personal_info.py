@@ -16,6 +16,7 @@ from app.schemas.user_personal_info import (
     UserPersonalInfoFilterRequest,
     UserPersonalInfoPaginatedResponse,
     UserPersonalInfoUpdate,
+    UserProfileFiltersResponse,
 )
 from app.services.user_personal_info import (
     handle_create_user_personal_info,
@@ -23,6 +24,7 @@ from app.services.user_personal_info import (
     handle_get_all_user_personal_info,
     handle_get_user_personal_info,
     handle_update_user_personal_info,
+    handle_get_user_profile_filters,
 )
 
 router = APIRouter(prefix="/user-personal-info", tags=["User Profile"])
@@ -35,6 +37,14 @@ async def get_all_user_personal_info_filtered(
     db: AsyncSession = Depends(get_db),
 ) -> UserPersonalInfoPaginatedResponse:
     return await handle_get_all_user_personal_info(db, current_user, filters)
+
+
+@router.get("/filters", response_model=UserProfileFiltersResponse)
+async def get_user_profile_filters(
+    current_user: User = Depends(require_permission("user_personal_info", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> UserProfileFiltersResponse:
+    return await handle_get_user_profile_filters(db, current_user)
 
 
 @router.get("/{user_id}")

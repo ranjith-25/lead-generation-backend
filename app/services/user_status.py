@@ -10,7 +10,7 @@ from app.responses.user_status import (
     GetUserStatusResponse,
     UpdateUserStatusResponse,
 )
-from app.schemas.user_status import UserStatusCreate, UserStatusDTO, UserStatusUpdate
+from app.schemas.user_status import UserStatusCreate, UserStatusDTO, UserStatusUpdate, UserStatusListRead
 from app.services.db.user_status import (
     create_user_status,
     delete_user_status,
@@ -20,14 +20,16 @@ from app.services.db.user_status import (
 )
 
 
-async def handle_get_all_user_statuses(db: AsyncSession, current_user: User) -> GetUserStatusResponse:
+async def handle_get_all_user_statuses(db: AsyncSession, current_user: User, search: str | None = None, page: int = 1, limit: int = 10) -> GetUserStatusResponse:
     try:
-        user_statuses = await get_all_user_statuses(db)
-        if user_statuses is None:
-            raise NotFoundException()
+        user_statuses, total = await get_all_user_statuses(db, search, page, limit)
 
         return GetUserStatusResponse(
-            userStatusList=[UserStatusDTO.model_validate(status) for status in user_statuses],
+            userStatusList=[UserStatusListRead.model_validate(status) for status in user_statuses],
+            total=total,
+            page=page,
+            limit=limit,
+            total_pages=(total + limit - 1) // limit if total > 0 else 1,
             message="User Statuses fetched successfully",
             status_code=200,
         )

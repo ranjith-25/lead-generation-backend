@@ -25,10 +25,13 @@ router = APIRouter(prefix="/user-status", tags=["User Status"])
 
 @router.get("/")
 async def get_all_user_statuses(
+    search: str | None = None,
+    page: int = 1,
+    limit: int = 10,
     current_user: User = Depends(require_permission("user_status", "read")),
     db: AsyncSession = Depends(get_db),
 ):
-    response: GetUserStatusResponse = await handle_get_all_user_statuses(db, current_user)
+    response: GetUserStatusResponse = await handle_get_all_user_statuses(db, current_user, search, page, limit)
     return JSONResponse(
         content=response.model_dump(mode="json", exclude_none=True),
         status_code=200,

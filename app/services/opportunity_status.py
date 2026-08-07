@@ -10,7 +10,7 @@ from app.responses.opportunity_status import (
     GetOpportunityStatusResponse,
     UpdateOpportunityStatusResponse,
 )
-from app.schemas.opportunity_status import OpportunityStatusCreate, OpportunityStatusDTO, OpportunityStatusUpdate
+from app.schemas.opportunity_status import OpportunityStatusCreate, OpportunityStatusDTO, OpportunityStatusUpdate, OpportunityStatusListRead
 from app.services.db.opportunity_status import (
     create_opportunity_status,
     delete_opportunity_status,
@@ -20,14 +20,16 @@ from app.services.db.opportunity_status import (
 )
 
 
-async def handle_get_all_opportunity_statuses(db: AsyncSession, current_user: User) -> GetOpportunityStatusResponse:
+async def handle_get_all_opportunity_statuses(db: AsyncSession, current_user: User, search: str | None = None, page: int = 1, limit: int = 10) -> GetOpportunityStatusResponse:
     try:
-        opportunity_statuses = await get_all_opportunity_statuses(db)
-        if opportunity_statuses is None:
-            raise NotFoundException()
+        opportunity_statuses, total = await get_all_opportunity_statuses(db, search, page, limit)
 
         return GetOpportunityStatusResponse(
-            opportunityStatusList=[OpportunityStatusDTO.model_validate(status) for status in opportunity_statuses],
+            opportunityStatusList=[OpportunityStatusListRead.model_validate(status) for status in opportunity_statuses],
+            total=total,
+            page=page,
+            limit=limit,
+            total_pages=(total + limit - 1) // limit if total > 0 else 1,
             message="Opportunity Statuses fetched successfully",
             status_code=200,
         )

@@ -2,12 +2,16 @@ from typing import Optional
 from pydantic import Field
 
 from app.responses.base import BaseResponse
-from app.schemas.user_status import UserStatusDTO
+from app.schemas.user_status import UserStatusDTO, UserStatusListRead
 
 
 class GetUserStatusResponse(BaseResponse):
     userStatus: Optional[UserStatusDTO] = Field(None, description="User Status")
-    userStatusList: Optional[list[UserStatusDTO]] = Field(None, description="User Status List")
+    userStatusList: Optional[list[UserStatusListRead]] = Field(None, description="User Status List")
+    total: int = Field(0)
+    page: int = Field(1)
+    limit: int = Field(10)
+    total_pages: int = Field(1)
     status_code: int = Field(200)
 
 
