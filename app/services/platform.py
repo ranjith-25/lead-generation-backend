@@ -10,7 +10,7 @@ from app.responses.platform import (
     GetPlatformResponse,
     UpdatePlatformResponse,
 )
-from app.schemas.platform import PlatformCreate, PlatformDTO, PlatformUpdate
+from app.schemas.platform import PlatformCreate, PlatformDTO, PlatformUpdate, PlatformListRead
 from app.services.db.platform import (
     create_platform,
     delete_platform,
@@ -20,15 +20,16 @@ from app.services.db.platform import (
 )
 
 
-async def handle_get_all_platforms(db: AsyncSession, current_user: User) -> GetPlatformResponse:
+async def handle_get_all_platforms(db: AsyncSession, current_user: User, search: str | None = None, page: int = 1, limit: int = 10) -> GetPlatformResponse:
     try:
-        platforms = await get_all_platforms(db)
-        if platforms is None:
-            raise NotFoundException()
-
+        platforms, total = await get_all_platforms(db, search, page, limit)
         return GetPlatformResponse(
-            platformList=[PlatformDTO.model_validate(platform) for platform in platforms],
-            message="Platforms fetched successfully",
+            platformList=[PlatformListRead.model_validate(p) for p in platforms],
+            total=total,
+            page=page,
+            limit=limit,
+            total_pages=(total + limit - 1) // limit if total > 0 else 1,
+            message="Platform list fetched successfully",
             status_code=200,
         )
     except NotFoundException as e:

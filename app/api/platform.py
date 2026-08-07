@@ -25,10 +25,13 @@ platform_router = APIRouter(prefix="/platform", tags=["Platform"])
 
 @platform_router.get("/")
 async def get_all_platforms(
+    search: str | None = None,
+    page: int = 1,
+    limit: int = 10,
     current_user: User = Depends(require_permission("platform", "read")),
     db: AsyncSession = Depends(get_db),
 ):
-    response: GetPlatformResponse = await handle_get_all_platforms(db, current_user)
+    response: GetPlatformResponse = await handle_get_all_platforms(db, current_user, search, page, limit)
     return JSONResponse(
         content=response.model_dump(mode="json", exclude_none=True),
         status_code=200,

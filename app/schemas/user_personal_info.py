@@ -73,6 +73,11 @@ class UserPersonalInfoFilterRequest(BaseModel):
     working_status_id: int | None = None
     year_of_passout: int | None = None
 
+class UserManagementFilterRequest(BaseModel):
+    page: int = Field(1, ge=1)
+    limit: int = Field(10, ge=1, le=100)
+    search: str | None = None
+    role_id: int | None = None
 
 class UserPersonalInfoListRead(BaseModel):
     user_id: UUID

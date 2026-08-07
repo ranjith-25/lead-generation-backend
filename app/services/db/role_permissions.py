@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.role_permissions import RolePermission
-from app.models.user import Role
+from app.models.role import Role
 from app.models.feature import Feature
 from app.models.permissions import Permission
 import logging

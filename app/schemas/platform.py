@@ -24,3 +24,11 @@ class PlatformUpdate(PlatformBase):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = Field(None, max_length=255)
     is_active: Optional[bool] = Field(None)
+
+class PlatformListRead(BaseModel):
+    platform_id: int
+    name: str
+    is_account_linked: bool
+    count: int
+
+    model_config = ConfigDict(from_attributes=True)
