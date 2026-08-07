@@ -15,13 +15,14 @@ class UserInvitationBase(BaseModel):
     work_email: str = Field(..., min_length=1, max_length=100)
     roleID: int = Field(..., description="Role ID")
     reporting_to: uuid.UUID = Field(..., description="Reporting To User ID")
-    status: InvitationStatus = Field(InvitationStatus.PENDING)
-    user_id: Optional[uuid.UUID] = Field(None)
-    is_deleted: bool = Field(False)
+    
+    
+    
 
 class UserInvitationDTO(UserInvitationBase):
     id: uuid.UUID = Field(..., description="User Invitation ID")
-
+    user_id: Optional[uuid.UUID] = Field(None)
+    status: InvitationStatus = Field(InvitationStatus.PENDING)
     model_config = ConfigDict(from_attributes=True)
 
 

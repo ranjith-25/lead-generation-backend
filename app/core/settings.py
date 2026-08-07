@@ -19,4 +19,6 @@ class Settings(BaseSettings):
     MAX_CASE_STUDY_SIZE_MB: int = 10
     CASE_STUDY_DIR: str = "case_studies"
 
+    FRONTEND_BASE_URL : str
+
 settings = Settings()
