@@ -18,14 +18,25 @@ from app.services.db.job_role import (
     get_job_role_by_id,
     update_job_role,
 )
+from app.services.db.user import (
+    getAllUsers
+)
+from app.schemas.job_role import JobRoleFilters
 
-
-async def handle_get_all_job_roles(db: AsyncSession, current_user: User) -> GetJobRoleResponse:
+async def handle_get_all_job_roles(db: AsyncSession, current_user: User, page: int = 0, limit : int | None = None) -> GetJobRoleResponse: 
     try:
-        job_roles = await get_all_job_roles(db)
+        job_roles = await get_all_job_roles(db, JobRoleFilters(page = page, limit=limit))
         if job_roles is None:
             raise NotFoundException()
 
+        all_users = await getAllUsers(db)
+        for job_role in job_roles:
+            count = 0
+            for all_user in all_users:
+                if all_user.role_id == job_role.id:
+                    count += 1
+            job_role.user_count = count
+            
         return GetJobRoleResponse(
             jobRoleList=[JobRoleDTO.model_validate(role) for role in job_roles],
             message="Job Roles fetched successfully",

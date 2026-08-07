@@ -13,7 +13,7 @@ async def connect_ai():
         timeout=60.0,
         headers={
             "Authorization": f"Bearer {settings.AI_BASE_URL}",
-            "Content-Type": "application/json",
+            # "Content-Type": "application/json",
         },
     )
 

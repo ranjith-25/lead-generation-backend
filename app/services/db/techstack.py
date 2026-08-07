@@ -2,6 +2,8 @@ from sqlalchemy import func, select
 from app.models.techstacks import TechStacks
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.schemas.techstack import TechstackFilters
+
 async def get_techstacks_by_ids_db(db: AsyncSession, techstack_ids: list[int]) -> list[TechStacks]:
     if not techstack_ids:
         return []
@@ -15,10 +17,13 @@ async def get_techstack_by_id_db(db: AsyncSession, techstack_id: int) -> TechSta
     return result.scalars().first()
 
 
-async def get_all_techstacks_db(db: AsyncSession, limit: int | None = None, offset: int = 0) -> list[TechStacks]:
-    statement = select(TechStacks).order_by(TechStacks.techstack_id).offset(offset)
-    if limit is not None:
-        statement = statement.limit(limit)
+async def get_all_techstacks_db(db: AsyncSession, filters: TechstackFilters) -> list[TechStacks]:
+    offset = 0
+    if filters.limit:
+        offset = (filters.page - 1) * filters.limit
+    statement = select(TechStacks).order_by(TechStacks.techstack_id).offset(offset).limit(filters.limit)
+    if filters.limit is not None:
+        statement = statement.limit(filters.limit)
     result = await db.execute(statement)
     return list(result.scalars().all())
 

@@ -4,11 +4,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.job_role import JobRole
+from app.schemas.job_role import JobRoleFilters, JobRoleRead
 
-
-async def get_all_job_roles(db: AsyncSession):
+async def get_all_job_roles(db: AsyncSession, filters : JobRoleFilters) -> list[JobRoleRead]:
     try:
-        result = await db.execute(select(JobRole).where(JobRole.is_active == True))
+        offset = 0
+        if filters.limit:
+            offset = (filters.page - 1) * filters.limit
+        result = await db.execute(select(JobRole).where(JobRole.is_active == True).offset(offset).limit(filters.limit))
         return result.scalars().all()
     except SQLAlchemyError as e:
         await db.rollback()

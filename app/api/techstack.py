@@ -29,8 +29,10 @@ techstack_router = APIRouter(prefix="/settings/configurations/techstacks", tags=
 async def get_all_techstacks(
     current_user: User = Depends(require_permission("projects", "read")),
     db: AsyncSession = Depends(get_db),
+    page: int = 1,
+    limit: int | None = None
 ) -> list[TechStackRead]:
-    response: GetTechStackResponse = await handle_get_techstacks(db, current_user)
+    response: GetTechStackResponse = await handle_get_techstacks(db, current_user, page, limit)
     return JSONResponse(
         content=response.model_dump(mode="json", exclude_none=True),
         status_code=200,

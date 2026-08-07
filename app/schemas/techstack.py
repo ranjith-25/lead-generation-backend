@@ -35,3 +35,8 @@ class TechStackRead(TechStackBase):
     techstack_id: int = Field(..., description="Tech Stack ID")
 
     model_config = ConfigDict(from_attributes=True)
+
+class TechstackFilters(BaseModel):
+    search: str | None = None
+    page: int | None = None
+    limit: int | None = None

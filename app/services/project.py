@@ -1,8 +1,14 @@
 from pathlib import Path
+import json 
+import logging
 
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.types import (
+    ProjectHelpers
+)
+from app.exceptions.ai_exception import handle_ai_exception
 from app.core.storage import (
     delete_case_study,
     has_upload,
@@ -29,7 +35,7 @@ from app.services.db.project import (
     get_project_by_name_db,
     update_project_db,
 )
-
+from app.core.connections.ai_connection import get_ai_client
 from app.services.db.project_domains import (
     get_project_domain_by_id,
     get_all_project_domain_db
@@ -55,6 +61,40 @@ async def _resolve_techstacks(db: AsyncSession, techstack_ids: list[int]):
         raise TechStackNotFoundException(sorted(missing))
     return techstacks
 
+async def ingest_project_to_ai(project) -> dict | None:
+    AI_PROJECT_INGEST_URL = "/api/v1/projects/ingest"
+    
+    document: Path | None = resolve_case_study(project.case_study)
+    if document is None:
+        return None
+    projectData = ProjectRead.model_validate(project).model_dump()
+    payload = {
+        "project_id": str(projectData["project_id"]),
+        "project_name": projectData["project_name"],
+        "description": projectData["description"],
+        "domain": projectData["projectDomain"]["domain"],
+        "techstacks": [techstack["techstack_name"] for techstack in projectData["techstacks"]],
+        "links": json.dumps(projectData["links"])
+    }
+    try:
+        client = get_ai_client()
+        with document.open("rb") as handle:
+            response = await client.post(
+                AI_PROJECT_INGEST_URL,
+                data={"payload": json.dumps(payload)},
+                files={
+                    "case_study": (
+                        document.name,
+                        handle,
+                        ProjectHelpers.content_type_for(document),
+                    )
+                },
+            )
+        response.raise_for_status()
+        return response.json()
+    except Exception as exc:
+        logging.exception("Could not ingest project %s into the AI service", project.project_id)
+        raise handle_ai_exception(exc) from exc
 
 async def get_all_projects_service(
     db: AsyncSession,
@@ -107,10 +147,10 @@ async def create_project_service(
     try:
         saved_project = await add_project_db(db, new_project)
     except Exception:
-        # a failed insert must not leave the uploaded document orphaned on disk
         delete_case_study(stored_path)
         raise
 
+    await ingest_project_to_ai(saved_project)
     return ProjectRead.model_validate(saved_project)
 
 
