@@ -4,3 +4,4 @@ class GetScrapedURLDataResponse(BaseModel):
     status : str = Field(...,description="Status of AI Execution.")
     job_details : dict = Field(...,description="Scraped job details of URL.")
     platform : str = Field(...,description="Platform from which data is scraped.")
+    company_profile: dict | None = Field(None, description="Company profile data")
