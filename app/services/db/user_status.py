@@ -1,15 +1,45 @@
 import logging
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user_status import UserStatus
+from app.models.user_personal_info import UserPersonalInfo
 
 
-async def get_all_user_statuses(db: AsyncSession):
+async def get_all_user_statuses(db: AsyncSession, search: str | None = None, page: int = 1, limit: int = 10):
     try:
-        result = await db.execute(select(UserStatus).where(UserStatus.is_active == True))
-        return result.scalars().all()
+        query = select(
+            UserStatus.id,
+            UserStatus.displayName.label('status'),
+            func.count(UserPersonalInfo.id).label('count')
+        ).outerjoin(
+            UserPersonalInfo, UserStatus.id == UserPersonalInfo.working_status_id
+        ).where(
+            UserStatus.is_active == True
+        ).group_by(
+            UserStatus.id, UserStatus.displayName
+        )
+
+        if search:
+            query = query.where(UserStatus.displayName.ilike(f"%{search.strip()}%"))
+
+        count_query = select(func.count()).select_from(query.subquery())
+        total = await db.scalar(count_query)
+
+        query = query.offset((page - 1) * limit).limit(limit)
+
+        result = await db.execute(query)
+        rows = result.fetchall()
+        items = [
+            {
+                "id": row.id,
+                "status": row.status,
+                "count": row.count,
+            }
+            for row in rows
+        ]
+        return items, total or 0
     except SQLAlchemyError as e:
         await db.rollback()
         logging.exception("Could not find User Statuses")

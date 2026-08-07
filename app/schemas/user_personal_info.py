@@ -9,7 +9,7 @@ class UserPersonalInfoBase(BaseModel):
     last_name: str | None = Field(None, max_length=100)
     date_of_birth: str = Field(..., description="Format: DD/MM/YYYY", json_schema_extra={"example": "03/09/2004"})
     primary_role_id: int = Field(...)
-    branch: str = Field(..., max_length=100)
+    branch_id: int | None = Field(None)
     highest_qualification: str = Field(..., max_length=100)
     specialization: str = Field(..., max_length=100)
     year_of_passout: int = Field(...)
@@ -36,7 +36,7 @@ class UserPersonalInfoUpdate(BaseModel):
     last_name: str | None = Field(None, max_length=100)
     date_of_birth: str | None = Field(None, description="Format: DD/MM/YYYY")
     primary_role_id: int | None = Field(None)
-    branch: str | None = Field(None, max_length=100)
+    branch_id: int | None = Field(None)
     highest_qualification: str | None = Field(None, max_length=100)
     specialization: str | None = Field(None, max_length=100)
     year_of_passout: int | None = Field(None)
@@ -97,4 +97,14 @@ class UserPersonalInfoPaginatedResponse(BaseModel):
     page: int
     limit: int
     total_pages: int
+
+
+class FilterItem(BaseModel):
+    id: int
+    name: str
+
+class UserProfileFiltersResponse(BaseModel):
+    user_status: list[FilterItem]
+    primary_role: list[FilterItem]
+    year_of_passout: list[int]
 

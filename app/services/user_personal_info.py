@@ -18,6 +18,7 @@ from app.schemas.user_personal_info import (
     UserPersonalInfoPaginatedResponse,
     UserPersonalInfoResponse,
     UserPersonalInfoUpdate,
+    UserProfileFiltersResponse,
 )
 from app.services.db.user_personal_info import (
     create_user_personal_info,
@@ -25,6 +26,7 @@ from app.services.db.user_personal_info import (
     get_all_user_personal_info,
     get_user_personal_info_by_user_id,
     update_user_personal_info,
+    get_user_profile_filters,
 )
 
 
@@ -64,6 +66,16 @@ async def handle_get_all_user_personal_info(
         )
     except Exception as e:
         logging.exception("Some error occurred while getting all User Personal Info")
+        raise e
+
+async def handle_get_user_profile_filters(
+    db: AsyncSession, current_user: User
+) -> UserProfileFiltersResponse:
+    try:
+        filters = await get_user_profile_filters(db)
+        return UserProfileFiltersResponse(**filters)
+    except Exception as e:
+        logging.exception("Some error occurred while getting user profile filters")
         raise e
 
 

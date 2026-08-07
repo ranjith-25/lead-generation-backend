@@ -20,15 +20,18 @@ from app.services.opportunity_status import (
     handle_update_opportunity_status,
 )
 
-opportunity_status_router = APIRouter(prefix="/opportunity-status", tags=["Opportunity Status"])
+opportunity_status_router = APIRouter(prefix="/opportunity-status", tags=["Pipeline Status"])
 
 
 @opportunity_status_router.get("/")
 async def get_all_opportunity_statuses(
+    search: str | None = None,
+    page: int = 1,
+    limit: int = 10,
     current_user: User = Depends(require_permission("pipeline_status", "read")),
     db: AsyncSession = Depends(get_db),
 ):
-    response: GetOpportunityStatusResponse = await handle_get_all_opportunity_statuses(db, current_user)
+    response: GetOpportunityStatusResponse = await handle_get_all_opportunity_statuses(db, current_user, search, page, limit)
     return JSONResponse(
         content=response.model_dump(mode="json", exclude_none=True),
         status_code=200,
