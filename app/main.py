@@ -31,6 +31,7 @@ from app.api.user_invitation import user_invitation_router
 from app.api.user_management import router as user_management_router
 from app.api.role import router as role_router
 from app.api.branch import branch_router
+from app.api.profile_variant import router as profile_variant_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -85,3 +86,4 @@ app.include_router(user_invitation_router)
 app.include_router(user_management_router)
 app.include_router(role_router)
 app.include_router(branch_router)
+app.include_router(profile_variant_router)
