@@ -19,7 +19,6 @@ from app.api.sales_enablement import router as sales_enablement_router
 from app.api.feature import router as feature_router
 from app.api.role_permissions import router as role_permissions_router
 from app.api.project import router as project_router
-
 from app.api.project_domains import project_domain_router
 from app.api.techstack import techstack_router
 from app.api.permissions import permission_router
@@ -29,6 +28,8 @@ from app.api.user_status import router as user_status_router
 from app.api.job_role import router as job_role_router
 from app.api.user_personal_info import router as user_personal_info_router
 from app.api.user_invitation import user_invitation_router
+from app.api.user_management import router as user_management_router
+from app.api.role import router as role_router
 from app.api.profile_variant import router as profile_variant_router
 
 @asynccontextmanager
@@ -81,4 +82,6 @@ app.include_router(user_status_router)
 app.include_router(job_role_router)
 app.include_router(user_personal_info_router)
 app.include_router(user_invitation_router)
+app.include_router(user_management_router)
+app.include_router(role_router)
 app.include_router(profile_variant_router)

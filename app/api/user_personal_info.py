@@ -25,7 +25,7 @@ from app.services.user_personal_info import (
     handle_update_user_personal_info,
 )
 
-router = APIRouter(prefix="/user-personal-info", tags=["User Personal Info"])
+router = APIRouter(prefix="/user-personal-info", tags=["User Profile"])
 
 
 @router.post("/all", response_model=UserPersonalInfoPaginatedResponse)
