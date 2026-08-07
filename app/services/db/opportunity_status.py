@@ -1,15 +1,45 @@
 import logging
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.opportunity_status import OpportunityStatus
+from app.models.opportunity import Opportunity
 
 
-async def get_all_opportunity_statuses(db: AsyncSession):
+async def get_all_opportunity_statuses(db: AsyncSession, search: str | None = None, page: int = 1, limit: int = 10):
     try:
-        result = await db.execute(select(OpportunityStatus).where(OpportunityStatus.is_active == True))
-        return result.scalars().all()
+        query = select(
+            OpportunityStatus.id,
+            OpportunityStatus.status,
+            func.count(Opportunity.opportunityID).label('count')
+        ).outerjoin(
+            Opportunity, OpportunityStatus.id == Opportunity.status_id
+        ).where(
+            OpportunityStatus.is_active == True
+        ).group_by(
+            OpportunityStatus.id, OpportunityStatus.status
+        )
+
+        if search:
+            query = query.where(OpportunityStatus.status.ilike(f"%{search.strip()}%"))
+
+        count_query = select(func.count()).select_from(query.subquery())
+        total = await db.scalar(count_query)
+
+        query = query.offset((page - 1) * limit).limit(limit)
+
+        result = await db.execute(query)
+        rows = result.fetchall()
+        items = [
+            {
+                "id": row.id,
+                "status": row.status,
+                "count": row.count,
+            }
+            for row in rows
+        ]
+        return items, total or 0
     except SQLAlchemyError as e:
         await db.rollback()
         logging.exception("Could not find Opportunity Statuses")

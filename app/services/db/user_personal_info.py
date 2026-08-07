@@ -143,3 +143,27 @@ async def delete_user_personal_info(db: AsyncSession, user_id: UUID) -> UserPers
         await db.rollback()
         logging.exception(f"Could not delete User Personal Info for user_id: {user_id}")
         raise e
+
+async def get_user_profile_filters(db: AsyncSession) -> dict:
+    try:
+        user_status_result = await db.execute(select(UserStatus.id, UserStatus.displayName.label('name')).where(UserStatus.is_active == True))
+        user_statuses = [{"id": row.id, "name": row.name} for row in user_status_result]
+        
+        job_role_result = await db.execute(select(JobRole.id, JobRole.roleName.label('name')).where(JobRole.is_active == True))
+        primary_roles = [{"id": row.id, "name": row.name} for row in job_role_result]
+        
+        passout_result = await db.execute(
+            select(UserPersonalInfo.year_of_passout)
+            .distinct()
+            .order_by(UserPersonalInfo.year_of_passout.desc())
+        )
+        years_of_passout = [row[0] for row in passout_result]
+        
+        return {
+            "user_status": user_statuses,
+            "primary_role": primary_roles,
+            "year_of_passout": years_of_passout
+        }
+    except SQLAlchemyError as e:
+        logging.exception("Could not fetch user profile filters")
+        raise e

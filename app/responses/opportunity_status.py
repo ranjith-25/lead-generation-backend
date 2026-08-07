@@ -2,12 +2,16 @@ from typing import Optional
 from pydantic import Field
 
 from app.responses.base import BaseResponse
-from app.schemas.opportunity_status import OpportunityStatusDTO
+from app.schemas.opportunity_status import OpportunityStatusDTO, OpportunityStatusListRead
 
 
 class GetOpportunityStatusResponse(BaseResponse):
     opportunityStatus: Optional[OpportunityStatusDTO] = Field(None, description="Opportunity Status")
-    opportunityStatusList: Optional[list[OpportunityStatusDTO]] = Field(None, description="Opportunity Status List")
+    opportunityStatusList: Optional[list[OpportunityStatusListRead]] = Field(None, description="Opportunity Status List")
+    total: int = Field(0)
+    page: int = Field(1)
+    limit: int = Field(10)
+    total_pages: int = Field(1)
     status_code: int = Field(200)
 
 

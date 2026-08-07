@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.user import User
     from app.models.job_role import JobRole
     from app.models.user_status import UserStatus
+    from app.models.branch import Branch
 
 
 class UserPersonalInfo(Base):
@@ -30,7 +31,7 @@ class UserPersonalInfo(Base):
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     date_of_birth: Mapped[str] = mapped_column(String(10), nullable=False)
     primary_role_id: Mapped[int] = mapped_column(Integer, ForeignKey("job_roles.id", ondelete="RESTRICT"), nullable=False)
-    branch: Mapped[str] = mapped_column(String(100), nullable=False)
+    branch_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=True)
     highest_qualification: Mapped[str] = mapped_column(String(100), nullable=False)
     specialization: Mapped[str] = mapped_column(String(100), nullable=False)
     year_of_passout: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -46,3 +47,4 @@ class UserPersonalInfo(Base):
     user: Mapped["User"] = relationship(back_populates="personal_info", lazy="selectin")
     jobRole: Mapped["JobRole"] = relationship(lazy="selectin")
     userStatus: Mapped["UserStatus"] = relationship(lazy="selectin")
+    branch: Mapped["Branch"] = relationship(lazy="selectin")
