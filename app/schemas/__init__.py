@@ -6,6 +6,7 @@ from app.schemas.user_personal_info import (
     UserPersonalInfoResponse,
 )
 from app.schemas.opportunity import OpportunityCreate, OpportunityRead
+from app.schemas.profile_variant import ProfileVariantCreate, ProfileVariantUpdate, ProfileVariantDTO
 
 __all__ = [
     "UserCreate",
@@ -17,5 +18,8 @@ __all__ = [
     "Token",
     "OpportunityCreate",
     "OpportunityRead",
+    "ProfileVariantCreate",
+    "ProfileVariantUpdate",
+    "ProfileVariantDTO",
 ]
 
