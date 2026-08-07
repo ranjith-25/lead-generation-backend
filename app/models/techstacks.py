@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -7,6 +7,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
+
+if TYPE_CHECKING:
+    from app.models.projects import Projects
 
 class TechStacks(Base):
     __tablename__ = 'tech_stacks'
