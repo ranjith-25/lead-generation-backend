@@ -1,15 +1,44 @@
 import logging
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.platform import Platform
+from app.models.opportunity import Opportunity
 
-
-async def get_all_platforms(db: AsyncSession):
+async def get_all_platforms(db: AsyncSession, search: str | None = None, page: int = 1, limit: int = 10):
     try:
-        result = await db.execute(select(Platform))
-        return result.scalars().all()
+        query = select(
+            Platform.id.label('platform_id'),
+            Platform.name,
+            Platform.is_account_linked,
+            func.count(Opportunity.opportunityID).label('count')
+        ).outerjoin(
+            Opportunity, Platform.name == Opportunity.platform
+        ).group_by(
+            Platform.id, Platform.name, Platform.is_account_linked
+        )
+
+        if search:
+            query = query.where(Platform.name.ilike(f"%{search.strip()}%"))
+
+        count_query = select(func.count()).select_from(query.subquery())
+        total = await db.scalar(count_query)
+
+        query = query.offset((page - 1) * limit).limit(limit)
+
+        result = await db.execute(query)
+        rows = result.fetchall()
+        items = [
+            {
+                "platform_id": row.platform_id,
+                "name": row.name,
+                "is_account_linked": row.is_account_linked,
+                "count": row.count,
+            }
+            for row in rows
+        ]
+        return items, total or 0
     except SQLAlchemyError as e:
         await db.rollback()
         logging.exception("Could not find Platforms")
