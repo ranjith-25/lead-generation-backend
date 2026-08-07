@@ -14,7 +14,7 @@ from app.responses.techstack import (
     GetTechStackResponse,
     UpdateTechStackResponse,
 )
-from app.schemas.techstack import TechStackCreate, TechStackDTO, TechStackUpdate
+from app.schemas.techstack import TechStackCreate, TechStackDTO, TechStackUpdate, TechstackFilters
 from app.services.db.techstack import (
     add_techstack_db,
     delete_techstack_db,
@@ -33,9 +33,9 @@ def _techstack_already_exists() -> AppException:
     )
 
 
-async def handle_get_techstacks(db: AsyncSession, current_user: User) -> GetTechStackResponse:
+async def handle_get_techstacks(db: AsyncSession, current_user: User, page: int, limit : int) -> GetTechStackResponse:
     try:
-        techstacks = await get_all_techstacks_db(db)
+        techstacks = await get_all_techstacks_db(db, TechstackFilters(page=page, limit=limit))
 
         return GetTechStackResponse(
             techStackList=[TechStackDTO.model_validate(techstack) for techstack in techstacks],

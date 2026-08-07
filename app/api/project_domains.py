@@ -13,9 +13,11 @@ project_domain_router = APIRouter(prefix="/settings/configurations/project-domai
 @project_domain_router.get("/")
 async def get_all_project_domains(
     current_user : User = Depends(require_permission("user_hierarchy","read")),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    page: int = 1,
+    limit: int | None = None
     ):
-    response : GetProjectDomainResponse = await handle_get_project_domains(db,current_user)
+    response : GetProjectDomainResponse = await handle_get_project_domains(db,current_user, page, limit)
     return JSONResponse(
         content=response.model_dump(mode="json",exclude_none=True),
         status_code=200
