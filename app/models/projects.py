@@ -1,11 +1,15 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import DateTime, func, String,ForeignKey, text  , Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+
+if TYPE_CHECKING:
+    from app.models.project_domains import ProjectDomain
+    from app.models.techstacks import TechStacks
 
 class Projects(Base):
     __tablename__= 'projects'
