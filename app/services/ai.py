@@ -26,6 +26,7 @@ async def handleGetScrapedData(url: str, db: AsyncSession, user_id) -> CreateOpp
 
         opportunityBase = OpportunityBase(
             **aiResponse.job_details,
+            company_profile=aiResponse.company_profile,
             job_posting_url=url,
             is_ai_scraped=True,
             platform=aiResponse.platform,

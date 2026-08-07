@@ -24,7 +24,7 @@ class OpportunityBase(BaseModel):
     duration: str | None = None
     level: str | None = None
     salary: str | None = None
-    posted_date: str | None = None
+    posted_date: str | None = Field(None, validation_alias=AliasChoices("posted_at", "posted_date"))
     required_skills: list[str] | None = []
     preferred_skills: list[str] | None = []
     benefits: list[str] | None = []
