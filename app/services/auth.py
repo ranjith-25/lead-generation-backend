@@ -101,23 +101,6 @@ async def handle_signup_invitation(db : AsyncSession , invitation_id : uuid.UUID
         return UserRegistrationFromInvitationResponse(
             message = "User registration was successful."            
         )
-
-    except InvitationCancelledException as e:
-        await db.rollback()
-        raise e
-
-    except InvitationRegisteredException as e:
-        await db.rollback()
-        raise e
-        
-    except SQLAlchemyError as e:
-        await db.rollback()
-        raise 
-
-    except NotFoundException as e:
-        await db.rollback()
-        logging.exception("Could not find Invitation")
-        raise e
     except Exception as e:
         db.rollback()
         logging.exception("Some error occurred while getting Invitation")

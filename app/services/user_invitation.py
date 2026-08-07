@@ -20,6 +20,7 @@ from app.services.db.user_invitation import (
     update_user_invitation,
     
 )
+from app.core.settings import settings
 
 
 async def handle_get_all_user_invitations(db: AsyncSession, current_user: User) -> GetUserInvitationResponse:
@@ -75,6 +76,7 @@ async def handle_create_user_invitation(
         return CreateUserInvitationResponse(
             newUserInvitation=UserInvitationDTO.model_validate(created_user_invitation),
             message="User Invitation created successfully",
+            invitationURL = f"{settings.FRONTEND_BASE_URL}/register?invitation_id={created_user_invitation.id}&work_email={created_user_invitation.work_email}",
             status_code=200,
         )
     except Exception as e:
