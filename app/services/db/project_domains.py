@@ -3,12 +3,15 @@ from sqlalchemy import select
 from app.models.project_domains import ProjectDomain
 from app.exceptions.database import get_database_message
 from sqlalchemy.exc import SQLAlchemyError
-from app.schemas.project_domains import ProjectDomainRead
+from app.schemas.project_domains import ProjectDomainRead, ProjectDomainFilters
 
 import logging
-async def get_all_project_domain_db(db: AsyncSession) -> list[ProjectDomainRead]:
+async def get_all_project_domain_db(db: AsyncSession, filters: ProjectDomainFilters) -> list[ProjectDomainRead]:
     try:
-        projectDomainsList = await db.execute(select(ProjectDomain))
+        offset = 0
+        if filters.limit:
+            offset = (filters.page - 1) * filters.limit
+        projectDomainsList = await db.execute(select(ProjectDomain).offset(offset).limit(filters.limit))
         projectDomainsList = projectDomainsList.scalars().all()
         return projectDomainsList
     except SQLAlchemyError as e:

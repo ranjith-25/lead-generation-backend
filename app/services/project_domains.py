@@ -1,20 +1,45 @@
-from app.services.db.project_domains import get_all_project_domain_db,get_project_domain_by_id,create_project_domain,update_project_domain,delete_project_domain
-from app.responses.project_domains import GetProjectDomainResponse,CreateProjectDomainResponse,UpdateProjectDomainResponse,DeleteProjectDomainResponse
-from app.schemas.project_domains import ProjectDomainCreate,ProjectDomainUpdate,ProjectDomainDTO
+from app.services.db.project_domains import (
+    get_all_project_domain_db,
+    get_project_domain_by_id,
+    create_project_domain,
+    update_project_domain,
+    delete_project_domain
+)
+from app.responses.project_domains import (
+    GetProjectDomainResponse,
+    CreateProjectDomainResponse,
+    UpdateProjectDomainResponse,
+    DeleteProjectDomainResponse
+)
+from app.schemas.project_domains import (
+    ProjectDomainCreate,
+    ProjectDomainUpdate,
+    ProjectDomainDTO
+)
+from app.services.db.project import (
+    count_projects_db
+)
+from app.schemas.project import ProjectFilters
+from app.schemas.project_domains import ProjectDomainFilters
 from app.models.project_domains import ProjectDomain
-from app.core.security import require_permission
 from app.models.user import User
 from app.exceptions.custom import NotFoundException
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
-async def handle_get_project_domains(db:AsyncSession,current_user : User) -> GetProjectDomainResponse:
+async def handle_get_project_domains(db:AsyncSession, current_user : User, page: int, limit: int) -> GetProjectDomainResponse:
     try:
-        projectDomains = await get_all_project_domain_db(db)
+        projectDomains = await get_all_project_domain_db(db, ProjectDomainFilters(page=page, limit=limit))
 
         if projectDomains is None:
             raise NotFoundException()
 
+        for projectDomain in projectDomains:
+            filters = ProjectFilters(
+                project_domains = [projectDomain.domain]
+            )
+            projectDomain.count = await count_projects_db(db, filters)
+            
         projectDomainsResponse = GetProjectDomainResponse(
             projectDomainList= [ProjectDomainDTO.model_validate(projectDomain) for projectDomain in projectDomains] ,
             message="Project Domains fetched successfully",
