@@ -75,6 +75,10 @@ async def get_project_by_id_db(db: AsyncSession, project_id: int) -> Projects | 
     result = await db.execute(select(Projects).where(Projects.project_id == project_id))
     return result.scalars().first()
 
+async def get_project_by_ids_list_db(db: AsyncSession, project_ids: list[int]) -> list[Projects] | None:
+    result = await db.execute(select(Projects).where(Projects.project_id.in_(project_ids)))
+    return list(result.scalars().all())
+
 
 async def get_project_by_name_db(db: AsyncSession, project_name: str) -> Projects | None:
     result = await db.execute(select(Projects).where(Projects.project_name == project_name))

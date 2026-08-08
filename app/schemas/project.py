@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import Form, Request
 from fastapi.exceptions import RequestValidationError
-from pydantic import AfterValidator, BaseModel, ConfigDict, TypeAdapter, ValidationError
+from pydantic import AfterValidator, BaseModel, ConfigDict, TypeAdapter, ValidationError, Field
 from pydantic_core import core_schema
 
 MAX_LINK_KEY_LENGTH = 50
@@ -268,3 +268,9 @@ class ProjectFilters(BaseModel):
     project_techstacks : list[str] | None = None
     page: int = 1
     limit: int = 10
+
+class AIProjectRequest(BaseModel):
+    project_name : str = Field(...,description="Project Name")
+    domain : str = Field(...,description="Project Domain")
+    tech_stack : list[str] = Field(...,description="Tech Stack")
+    description : str = Field(...,description="Project Description")
