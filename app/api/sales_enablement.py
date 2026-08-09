@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.api.deps import get_db, get_current_user
 from app.models.user import User
@@ -28,7 +29,7 @@ async def create_sales_enablement(
 
 @router.get("/opportunity/{opportunityID}", response_model=SalesEnablementRead)
 async def get_sales_enablement_by_opp(
-    opportunityID: int,
+    opportunityID: UUID,
     current_user: User = Depends(require_permission("sales_enablement","read")), db: AsyncSession = Depends(get_db)
 ) -> SalesEnablementRead:
     return await get_sales_enablement_by_opp_service(db, opportunityID, current_user.user_id)
@@ -36,7 +37,7 @@ async def get_sales_enablement_by_opp(
 
 @router.get("/{id}", response_model=SalesEnablementRead)
 async def get_sales_enablement(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("sales_enablement","read")), 
     db: AsyncSession = Depends(get_db)
 ) -> SalesEnablementRead:
@@ -45,7 +46,7 @@ async def get_sales_enablement(
 
 @router.put("/{id}", response_model=SalesEnablementRead)
 async def update_sales_enablement(
-    id: int,
+    id: UUID,
     se_data: SalesEnablementCreate,
     current_user: User = Depends(require_permission("sales_enablement","update")), 
     db: AsyncSession = Depends(get_db)
@@ -55,7 +56,7 @@ async def update_sales_enablement(
 
 @router.delete("/{id}", response_model=BaseResponse)
 async def delete_sales_enablement(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("sales_enablement","delete")), 
     db: AsyncSession = Depends(get_db)
 ) -> BaseResponse:

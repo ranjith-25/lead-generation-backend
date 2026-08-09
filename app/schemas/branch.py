@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -10,7 +11,7 @@ class BranchBase(BaseModel):
 
 
 class BranchDTO(BranchBase):
-    id: int = Field(..., description="Branch ID")
+    id: UUID = Field(..., description="Branch ID")
     createdAt: Optional[datetime] = Field(None)
     updatedAt: Optional[datetime] = Field(None)
     model_config = ConfigDict(from_attributes=True)

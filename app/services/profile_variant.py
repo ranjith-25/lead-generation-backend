@@ -1,5 +1,6 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 from app.exceptions.custom import NotFoundException
 from app.models.profile_variant import ProfileVariant
 from app.models.user import User
@@ -37,7 +38,7 @@ async def handle_get_all_profile_variants(db: AsyncSession, current_user: User) 
         raise e
 
 
-async def handle_get_profile_variant_by_id(db: AsyncSession, current_user: User, profile_variant_id: int) -> GetProfileVariantResponse:
+async def handle_get_profile_variant_by_id(db: AsyncSession, current_user: User, profile_variant_id: UUID) -> GetProfileVariantResponse:
     try:
         profile_variant = await get_profile_variant_by_id(db, profile_variant_id)
         if profile_variant is None:
@@ -78,7 +79,7 @@ async def handle_create_profile_variant(
 
 
 async def handle_update_profile_variant(
-    db: AsyncSession, current_user: User, profile_variant_update: ProfileVariantUpdate, profile_variant_id: int
+    db: AsyncSession, current_user: User, profile_variant_update: ProfileVariantUpdate, profile_variant_id: UUID
 ) -> UpdateProfileVariantResponse:
     try:
         update_data = profile_variant_update.model_dump(exclude={"projects"}, exclude_unset=True, exclude_none=True)
@@ -103,7 +104,7 @@ async def handle_update_profile_variant(
 
 
 async def handle_delete_profile_variant(
-    db: AsyncSession, current_user: User, profile_variant_id: int
+    db: AsyncSession, current_user: User, profile_variant_id: UUID
 ) -> DeleteProfileVariantResponse:
     try:
         deleted_profile_variant = await delete_profile_variant(db, profile_variant_id)

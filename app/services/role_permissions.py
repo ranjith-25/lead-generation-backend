@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.responses.role_permissions import (
     RolePermissionCreate,
@@ -33,10 +34,10 @@ async def get_all_role_permissions_service(db: AsyncSession) -> GetRolePermissio
     )
 
 async def get_role_permission_service(
-    db: AsyncSession, rp_id: int | str
+    db: AsyncSession, rp_id: UUID | str
 ) -> GetRolePermissionResponse:
     try:
-        parsed_id = int(rp_id)
+        parsed_id = UUID(str(rp_id))
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid Role Permission ID format")
 
@@ -79,10 +80,10 @@ async def create_role_permission_service(
     )
 
 async def update_role_permission_service(
-    db: AsyncSession, rp_id: int | str, rp_data: RolePermissionCreate
+    db: AsyncSession, rp_id: UUID | str, rp_data: RolePermissionCreate
 ) -> UpdateRolePermissionResponse:
     try:
-        parsed_id = int(rp_id)
+        parsed_id = UUID(str(rp_id))
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid Role Permission ID format")
 
@@ -114,10 +115,10 @@ async def update_role_permission_service(
     )
 
 async def delete_role_permission_service(
-    db: AsyncSession, rp_id: int | str
+    db: AsyncSession, rp_id: UUID | str
 ) -> BaseResponse:
     try:
-        parsed_id = int(rp_id)
+        parsed_id = UUID(str(rp_id))
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid Role Permission ID format")
 

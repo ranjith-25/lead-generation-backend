@@ -2,6 +2,7 @@ import logging
 from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.models.opportunity_status import OpportunityStatus
 from app.models.opportunity import Opportunity
@@ -46,7 +47,7 @@ async def get_all_opportunity_statuses(db: AsyncSession, search: str | None = No
         raise e
 
 
-async def get_opportunity_status_by_id(db: AsyncSession, opportunity_status_id: int):
+async def get_opportunity_status_by_id(db: AsyncSession, opportunity_status_id: UUID):
     try:
         result = await db.execute(select(OpportunityStatus).where(OpportunityStatus.id == opportunity_status_id,OpportunityStatus.is_active == True))
         return result.scalars().first()
@@ -68,7 +69,7 @@ async def create_opportunity_status(db: AsyncSession, opportunity_status: Opport
         raise e
 
 
-async def update_opportunity_status(db: AsyncSession, update_data: dict, opportunity_status_id: int):
+async def update_opportunity_status(db: AsyncSession, update_data: dict, opportunity_status_id: UUID):
     try:
         result = await db.execute(select(OpportunityStatus).where(OpportunityStatus.id == opportunity_status_id,OpportunityStatus.is_active == True))
         db_opportunity_status = result.scalars().first()
@@ -89,7 +90,7 @@ async def update_opportunity_status(db: AsyncSession, update_data: dict, opportu
         raise e
 
 
-async def delete_opportunity_status(db: AsyncSession, opportunity_status_id: int):
+async def delete_opportunity_status(db: AsyncSession, opportunity_status_id: UUID):
     try:
         result = await db.execute(select(OpportunityStatus).where(OpportunityStatus.id == opportunity_status_id))
         db_opportunity_status = result.scalars().first()

@@ -1,5 +1,6 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.exceptions.custom import NotFoundException
 from app.models.branch import Branch
@@ -36,7 +37,7 @@ async def handle_get_all_branches(
         raise e
 
 
-async def handle_get_branch_by_id(db: AsyncSession, current_user: User, branch_id: int) -> GetBranchResponse:
+async def handle_get_branch_by_id(db: AsyncSession, current_user: User, branch_id: UUID) -> GetBranchResponse:
     try:
         branch = await get_branch_by_id(db, branch_id)
         if branch is None:
@@ -76,7 +77,7 @@ async def handle_create_branch(
 
 
 async def handle_update_branch(
-    db: AsyncSession, current_user: User, branch_update: BranchUpdate, branch_id: int
+    db: AsyncSession, current_user: User, branch_update: BranchUpdate, branch_id: UUID
 ) -> UpdateBranchResponse:
     try:
         update_data = branch_update.model_dump(exclude_unset=True, exclude_none=True)
@@ -99,7 +100,7 @@ async def handle_update_branch(
 
 
 async def handle_delete_branch(
-    db: AsyncSession, current_user: User, branch_id: int
+    db: AsyncSession, current_user: User, branch_id: UUID
 ) -> DeleteBranchResponse:
     try:
         deleted_branch = await delete_branch(db, branch_id)

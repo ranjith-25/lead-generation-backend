@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 class UserPersonalInfo(Base):
     __tablename__ = "user_personal_info"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -30,12 +30,12 @@ class UserPersonalInfo(Base):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     date_of_birth: Mapped[str] = mapped_column(String(10), nullable=False)
-    primary_role_id: Mapped[int] = mapped_column(Integer, ForeignKey("job_roles.id", ondelete="RESTRICT"), nullable=False)
-    branch_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=True)
+    primary_role_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("job_roles.id", ondelete="RESTRICT"), nullable=False)
+    branch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("branches.id", ondelete="RESTRICT"), nullable=True)
     highest_qualification: Mapped[str] = mapped_column(String(100), nullable=False)
     specialization: Mapped[str] = mapped_column(String(100), nullable=False)
     year_of_passout: Mapped[int] = mapped_column(Integer, nullable=False)
-    working_status_id: Mapped[int] = mapped_column(Integer, ForeignKey("user_status.id", ondelete="RESTRICT"), nullable=False)
+    working_status_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user_status.id", ondelete="RESTRICT"), nullable=False)
 
     createdAt: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False

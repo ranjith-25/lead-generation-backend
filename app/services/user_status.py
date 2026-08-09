@@ -1,5 +1,6 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.exceptions.custom import NotFoundException
 from app.models.user_status import UserStatus
@@ -41,7 +42,7 @@ async def handle_get_all_user_statuses(db: AsyncSession, current_user: User, sea
         raise e
 
 
-async def handle_get_user_status_by_id(db: AsyncSession, current_user: User, user_status_id: int) -> GetUserStatusResponse:
+async def handle_get_user_status_by_id(db: AsyncSession, current_user: User, user_status_id: UUID) -> GetUserStatusResponse:
     try:
         user_status = await get_user_status_by_id(db, user_status_id)
         if user_status is None:
@@ -81,7 +82,7 @@ async def handle_create_user_status(
 
 
 async def handle_update_user_status(
-    db: AsyncSession, current_user: User, user_status_update: UserStatusUpdate, user_status_id: int
+    db: AsyncSession, current_user: User, user_status_update: UserStatusUpdate, user_status_id: UUID
 ) -> UpdateUserStatusResponse:
     try:
         update_data = user_status_update.model_dump(exclude_unset=True, exclude_none=True)
@@ -104,7 +105,7 @@ async def handle_update_user_status(
 
 
 async def handle_delete_user_status(
-    db: AsyncSession, current_user: User, user_status_id: int
+    db: AsyncSession, current_user: User, user_status_id: UUID
 ) -> DeleteUserStatusResponse:
     try:
         deleted_user_status = await delete_user_status(db, user_status_id)

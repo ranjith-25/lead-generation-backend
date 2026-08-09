@@ -2,6 +2,7 @@ import json
 import re
 from datetime import datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Form, Request
 from fastapi.exceptions import RequestValidationError
@@ -45,7 +46,7 @@ _LINKS_ADAPTER = TypeAdapter(Links)
 
 
 class ProjectDomainRead(BaseModel):
-    id: int
+    id: UUID
     domain: str
     description: str | None = None
     is_active: bool
@@ -54,7 +55,7 @@ class ProjectDomainRead(BaseModel):
 
 
 class TechStackRead(BaseModel):
-    techstack_id: int
+    techstack_id: UUID
     techstack_name: str
     description: str | None = None
 
@@ -155,7 +156,7 @@ class TechStackIds(list):
     def __get_pydantic_core_schema__(cls, source, handler):
         return core_schema.no_info_before_validator_function(
             _split_comma_separated,
-            handler.generate_schema(list[int]),
+            handler.generate_schema(list[UUID]),
         )
 
 
@@ -179,8 +180,8 @@ class ProjectBase(BaseModel):
 
 
 class ProjectCreate(ProjectBase):
-    projectDomainID: int
-    techstack_ids: list[int] = []
+    projectDomainID: UUID
+    techstack_ids: list[UUID] = []
 
     @classmethod
     async def as_form(
@@ -188,7 +189,7 @@ class ProjectCreate(ProjectBase):
         request: Request,
         project_name: str = Form(...),
         description: str = Form(...),
-        projectDomainID: int = Form(...),
+        projectDomainID: UUID = Form(...),
         is_draft: bool = Form(True),
         links: str | None = Form(None, description=LINKS_DESCRIPTION, examples=[LINKS_EXAMPLE]),
         techstack_ids: TechStackIds | None = Form(None, description=TECHSTACK_IDS_DESCRIPTION),
@@ -210,8 +211,8 @@ class ProjectUpdate(BaseModel):
     project_name: str | None = None
     description: str | None = None
     links: Links | None = None
-    projectDomainID: int | None = None
-    techstack_ids: list[int] | None = None
+    projectDomainID: UUID | None = None
+    techstack_ids: list[UUID] | None = None
     is_draft: bool | None = None
 
     @classmethod
@@ -220,7 +221,7 @@ class ProjectUpdate(BaseModel):
         request: Request,
         project_name: str | None = Form(None),
         description: str | None = Form(None),
-        projectDomainID: int | None = Form(None),
+        projectDomainID: UUID | None = Form(None),
         is_draft: bool | None = Form(None),
         links: str | None = Form(None, description=LINKS_DESCRIPTION, examples=[LINKS_EXAMPLE]),
         techstack_ids: TechStackIds | None = Form(None, description=TECHSTACK_IDS_DESCRIPTION),
@@ -253,7 +254,7 @@ class ProjectUpdate(BaseModel):
 
 
 class ProjectRead(ProjectBase):
-    project_id: int
+    project_id: UUID
     projectDomain: ProjectDomainRead | None = None
     techstacks: list[TechStackRead] = []
     case_study: str | None = None

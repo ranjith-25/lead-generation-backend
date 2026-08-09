@@ -13,7 +13,7 @@ class InvitationStatus(str, Enum):
 
 class UserInvitationBase(BaseModel):
     work_email: str = Field(..., min_length=1, max_length=100)
-    roleID: int = Field(..., description="Role ID")
+    roleID: uuid.UUID = Field(..., description="Role ID")
     reporting_to: uuid.UUID = Field(..., description="Reporting To User ID")
     
     

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.api.deps import get_db
 from app.models.user import User
@@ -38,7 +39,7 @@ async def get_role_permissions(
 
 @router.get("/{id}", response_model=GetRolePermissionResponse)
 async def get_role_permission(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("role_permissions", "read")),
     db: AsyncSession = Depends(get_db)
 ) -> JSONResponse:
@@ -64,7 +65,7 @@ async def create_role_permission(
 
 @router.put("/{id}", response_model=UpdateRolePermissionResponse)
 async def update_role_permission(
-    id: int,
+    id: UUID,
     rp_data: RolePermissionCreate,
     current_user: User = Depends(require_permission("role_permissions", "update")),
     db: AsyncSession = Depends(get_db)
@@ -78,7 +79,7 @@ async def update_role_permission(
 
 @router.delete("/{id}", response_model=BaseResponse)
 async def delete_role_permission(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("role_permissions", "delete")),
     db: AsyncSession = Depends(get_db)
 ) -> JSONResponse:

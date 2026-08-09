@@ -2,6 +2,7 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.models.job_role import JobRole
 from app.schemas.job_role import JobRoleFilters, JobRoleRead
@@ -19,7 +20,7 @@ async def get_all_job_roles(db: AsyncSession, filters : JobRoleFilters) -> list[
         raise e
 
 
-async def get_job_role_by_id(db: AsyncSession, job_role_id: int):
+async def get_job_role_by_id(db: AsyncSession, job_role_id: UUID):
     try:
         result = await db.execute(
             select(JobRole).where(
@@ -46,7 +47,7 @@ async def create_job_role(db: AsyncSession, job_role: JobRole):
         raise e
 
 
-async def update_job_role(db: AsyncSession, update_data: dict, job_role_id: int):
+async def update_job_role(db: AsyncSession, update_data: dict, job_role_id: UUID):
     try:
         result = await db.execute(
             select(JobRole).where(
@@ -72,7 +73,7 @@ async def update_job_role(db: AsyncSession, update_data: dict, job_role_id: int)
         raise e
 
 
-async def delete_job_role(db: AsyncSession, job_role_id: int):
+async def delete_job_role(db: AsyncSession, job_role_id: UUID):
     try:
         result = await db.execute(select(JobRole).where(JobRole.id == job_role_id))
         db_job_role = result.scalars().first()

@@ -16,7 +16,7 @@ class UserInvitation(Base):
     
     work_email : Mapped[str] = mapped_column(String(100), nullable=False, unique=False)
 
-    roleID : Mapped[int] = mapped_column(Integer,
+    roleID : Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),
     ForeignKey("roles.role_id", ondelete="CASCADE"), nullable=False)
 
 

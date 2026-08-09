@@ -38,7 +38,7 @@ class OpportunityBase(BaseModel):
     additional_notes: str | None = None
     is_ai_scraped: bool = True
     platform: str | None = None
-    status_id: int = 1
+    status_id: UUID
     additional_fields: dict | None = None
     createdBy: UUID | None = None
     updatedBy: UUID | None = None
@@ -55,7 +55,7 @@ class OpportunityCreate(BaseModel):
     is_ai_scraped: bool = False
 
 class OpportunityStatusUpdate(BaseModel):
-    status_id: int
+    status_id: UUID
 
 class GetOpportunityContent(BaseModel):
     url : str = Field(...,description="URL that must be scraped")
@@ -79,7 +79,7 @@ class OpportunityFilterValuesResponse(BaseModel):
     location: list[str]
 
 class OpportunityStatusRead(BaseModel):
-    id: int
+    id: UUID
     status: str
     description: str | None = None
     is_active: bool
@@ -88,7 +88,7 @@ class OpportunityStatusRead(BaseModel):
 
 
 class OpportunityRead(OpportunityBase):
-    opportunityID: int
+    opportunityID: UUID
     createdBy: str = Field(validation_alias=AliasChoices("createdByName", "createdBy"))
     updatedBy: str = Field(validation_alias=AliasChoices("updatedByName", "updatedBy"))
     assignedToName: str | None = Field(default=None, validation_alias=AliasChoices("assignedToName", "assigned_to"))
@@ -98,7 +98,7 @@ class OpportunityRead(OpportunityBase):
 
 
 class OpportunityListRead(BaseModel):
-    opportunityID: int
+    opportunityID: UUID
     title: str
     company: str | None = None
     client_information: dict | None = None

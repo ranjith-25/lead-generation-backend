@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
+from uuid import UUID
 
 from app.services.db.permissions import (
     get_permissions,
@@ -47,7 +48,7 @@ async def handle_get_permissions(db: AsyncSession, current_user: User) -> GetPer
         raise e
 
 
-async def handle_get_permission_by_id(db: AsyncSession, current_user: User, permission_id: int) -> GetPermissionResponse:
+async def handle_get_permission_by_id(db: AsyncSession, current_user: User, permission_id: UUID) -> GetPermissionResponse:
     try:
         permission_details = await get_permission_by_id(db, permission_id)
 
@@ -86,7 +87,7 @@ async def handle_create_permission(db: AsyncSession, current_user: User, permiss
         raise e
 
 
-async def handle_update_permission(db: AsyncSession, current_user: User, permission_update: PermissionUpdate, permission_id: int) -> UpdatePermissionResponse:
+async def handle_update_permission(db: AsyncSession, current_user: User, permission_update: PermissionUpdate, permission_id: UUID) -> UpdatePermissionResponse:
     try:
         updated_data = permission_update.model_dump(exclude_unset=True, exclude_none=True)
         updated_permission = await update_permission(db, updated_data, permission_id)
@@ -110,7 +111,7 @@ async def handle_update_permission(db: AsyncSession, current_user: User, permiss
         raise e
 
 
-async def handle_delete_permission(db: AsyncSession, current_user: User, permission_id: int) -> DeletePermissionResponse:
+async def handle_delete_permission(db: AsyncSession, current_user: User, permission_id: UUID) -> DeletePermissionResponse:
     try:
         deleted_permission = await delete_permission(db, permission_id)
 

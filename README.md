@@ -67,5 +67,7 @@ Start the FastAPI application using Uvicorn:
 python -m uvicorn app.main:app --port 8001 --reload
 ```
 
+ psql -h leadgeneration-service-leadgeneration-29072026.e.aivencloud.com -p 23557 -U avnadmin -d defaultdb
+
 The API will be available at `http://localhost:8001`.
 You can view the interactive API documentation (Swagger UI) at `http://localhost:8001/docs`.

@@ -1,4 +1,6 @@
-from sqlalchemy import String, DateTime, func
+import uuid
+from sqlalchemy import String, DateTime, func, text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -7,9 +9,10 @@ from app.models.base import Base
 class Permission(Base):
     __tablename__ = "permissions"
 
-    permission_id: Mapped[int] = mapped_column(
+    permission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         primary_key=True,
-        autoincrement=True
+        server_default=text("gen_random_uuid()")
     )
 
     permission_key: Mapped[str] = mapped_column(

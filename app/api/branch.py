@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.core.connections.postgres import get_db
 from app.core.security import require_permission
@@ -37,7 +38,7 @@ async def get_all_branches(
 
 @branch_router.get("/{id}")
 async def get_branch_by_id(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("branch", "read")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -63,7 +64,7 @@ async def create_branch(
 
 @branch_router.patch("/{id}")
 async def update_branch(
-    id: int,
+    id: UUID,
     branch: BranchUpdate,
     current_user: User = Depends(require_permission("branch", "update")),
     db: AsyncSession = Depends(get_db),
@@ -77,7 +78,7 @@ async def update_branch(
 
 @branch_router.delete("/{id}")
 async def delete_branch(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("branch", "delete")),
     db: AsyncSession = Depends(get_db),
 ):

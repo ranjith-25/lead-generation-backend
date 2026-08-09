@@ -1,5 +1,6 @@
 from pydantic import BaseModel,Field,ConfigDict
 from typing import Optional
+from uuid import UUID
 
 class ProjectDomainBase(BaseModel):
     domain: str = Field(..., min_length=1, max_length=100)
@@ -8,7 +9,7 @@ class ProjectDomainBase(BaseModel):
     is_active: bool = Field(True)
 
 class ProjectDomainDTO(ProjectDomainBase):
-    id: int = Field(...,description="Project Domain ID")
+    id: UUID = Field(...,description="Project Domain ID")
     model_config = ConfigDict(from_attributes=True)
 
 class ProjectDomainCreate(ProjectDomainBase):
@@ -21,7 +22,7 @@ class ProjectDomainUpdate(ProjectDomainBase):
     is_active : Optional[bool] = Field(None)
     
 class ProjectDomainRead(ProjectDomainBase):
-    id: int = Field(..., description="Project Domain ID")
+    id: UUID = Field(..., description="Project Domain ID")
 
     model_config = ConfigDict(from_attributes=True)
     

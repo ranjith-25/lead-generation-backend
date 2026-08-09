@@ -1,5 +1,6 @@
 from sqlalchemy import Select, or_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.models.projects import Projects
 from app.schemas.project import ProjectFilters
@@ -71,11 +72,11 @@ async def count_projects_db(db: AsyncSession, filters: ProjectFilters) -> int:
     return (await db.execute(query)).scalar_one()
 
 
-async def get_project_by_id_db(db: AsyncSession, project_id: int) -> Projects | None:
+async def get_project_by_id_db(db: AsyncSession, project_id: UUID) -> Projects | None:
     result = await db.execute(select(Projects).where(Projects.project_id == project_id))
     return result.scalars().first()
 
-async def get_project_by_ids_list_db(db: AsyncSession, project_ids: list[int]) -> list[Projects] | None:
+async def get_project_by_ids_list_db(db: AsyncSession, project_ids: list[UUID]) -> list[Projects] | None:
     result = await db.execute(select(Projects).where(Projects.project_id.in_(project_ids)))
     return list(result.scalars().all())
 

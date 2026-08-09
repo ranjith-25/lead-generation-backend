@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 from app.core.connections.postgres import get_db
 from app.core.security import require_permission
 from app.models.user import User
@@ -32,7 +33,7 @@ async def get_all_profile_variants(
 
 @router.get("/{id}")
 async def get_profile_variant_by_id(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("profile_variants", "read")),
     db: AsyncSession = Depends(get_db),
 ) -> GetProfileVariantResponse:
@@ -50,7 +51,7 @@ async def create_profile_variant(
 
 @router.put("/{id}")
 async def update_profile_variant(
-    id: int,
+    id: UUID,
     profile_variant: ProfileVariantUpdate,
     current_user: User = Depends(require_permission("profile_variants", "update")),
     db: AsyncSession = Depends(get_db),
@@ -60,7 +61,7 @@ async def update_profile_variant(
 
 @router.delete("/{id}")
 async def delete_profile_variant(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("profile_variants", "delete")),
     db: AsyncSession = Depends(get_db),
 ) -> DeleteProfileVariantResponse:

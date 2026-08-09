@@ -2,6 +2,7 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 from app.models.profile_variant import ProfileVariant, ProfileVariantProject
 
 
@@ -15,7 +16,7 @@ async def get_all_profile_variants(db: AsyncSession):
         raise e
 
 
-async def get_profile_variant_by_id(db: AsyncSession, profile_variant_id: int):
+async def get_profile_variant_by_id(db: AsyncSession, profile_variant_id: UUID):
     try:
         result = await db.execute(
             select(ProfileVariant).where(ProfileVariant.profile_variant_id == profile_variant_id)
@@ -51,7 +52,7 @@ async def create_profile_variant(db: AsyncSession, profile_variant: ProfileVaria
         raise e
 
 
-async def update_profile_variant(db: AsyncSession, update_data: dict, projects_data: list | None, profile_variant_id: int):
+async def update_profile_variant(db: AsyncSession, update_data: dict, projects_data: list | None, profile_variant_id: UUID):
     try:
         result = await db.execute(
             select(ProfileVariant).where(ProfileVariant.profile_variant_id == profile_variant_id)
@@ -92,7 +93,7 @@ async def update_profile_variant(db: AsyncSession, update_data: dict, projects_d
         raise e
 
 
-async def delete_profile_variant(db: AsyncSession, profile_variant_id: int):
+async def delete_profile_variant(db: AsyncSession, profile_variant_id: UUID):
     try:
         result = await db.execute(
             select(ProfileVariant).where(ProfileVariant.profile_variant_id == profile_variant_id)

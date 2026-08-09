@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.responses.feature import (
     FeatureCreate,
@@ -28,9 +29,9 @@ async def get_all_features_service(db: AsyncSession) -> GetFeaturesResponse:
         features=features_read
     )
 
-async def get_feature_service(db: AsyncSession, feature_id: int | str) -> GetFeatureResponse:
+async def get_feature_service(db: AsyncSession, feature_id: UUID | str) -> GetFeatureResponse:
     try:
-        parsed_id = int(feature_id)
+        parsed_id = UUID(str(feature_id))
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid Feature ID format")
 
@@ -62,10 +63,10 @@ async def create_feature_service(db: AsyncSession, feature_data: FeatureCreate) 
     )
 
 async def update_feature_service(
-    db: AsyncSession, feature_id: int | str, feature_data: FeatureCreate
+    db: AsyncSession, feature_id: UUID | str, feature_data: FeatureCreate
 ) -> UpdateFeatureResponse:
     try:
-        parsed_id = int(feature_id)
+        parsed_id = UUID(str(feature_id))
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid Feature ID format")
 
@@ -92,9 +93,9 @@ async def update_feature_service(
         feature=FeatureRead.model_validate(updated_feature)
     )
 
-async def delete_feature_service(db: AsyncSession, feature_id: int | str) -> BaseResponse:
+async def delete_feature_service(db: AsyncSession, feature_id: UUID | str) -> BaseResponse:
     try:
-        parsed_id = int(feature_id)
+        parsed_id = UUID(str(feature_id))
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid Feature ID format")
 

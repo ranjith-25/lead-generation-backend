@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.api.deps import get_db
 from app.core.security import require_permission
@@ -41,7 +42,7 @@ async def get_all_techstacks(
 
 @techstack_router.get("/{techstack_id}")
 async def get_techstack_by_id(
-    techstack_id: int,
+    techstack_id: UUID,
     current_user: User = Depends(require_permission("projects", "read")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -67,7 +68,7 @@ async def create_techstack(
 
 @techstack_router.put("/{techstack_id}")
 async def update_techstack(
-    techstack_id: int,
+    techstack_id: UUID,
     techstack: TechStackUpdate,
     current_user: User = Depends(require_permission("projects", "update")),
     db: AsyncSession = Depends(get_db),
@@ -83,7 +84,7 @@ async def update_techstack(
 
 @techstack_router.delete("/{techstack_id}")
 async def delete_techstack(
-    techstack_id: int,
+    techstack_id: UUID,
     current_user: User = Depends(require_permission("projects", "delete")),
     db: AsyncSession = Depends(get_db),
 ):

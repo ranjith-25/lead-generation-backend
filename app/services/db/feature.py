@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 from app.models.feature import Feature
 
@@ -13,7 +14,7 @@ async def add_feature_db(db: AsyncSession, feature: Feature) -> Feature:
         await db.rollback()
         raise
 
-async def get_feature_by_id_db(db: AsyncSession, feature_id: int) -> Feature | None:
+async def get_feature_by_id_db(db: AsyncSession, feature_id: UUID) -> Feature | None:
     result = await db.execute(select(Feature).where(Feature.feature_id == feature_id))
     return result.scalars().first()
 

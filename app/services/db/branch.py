@@ -2,6 +2,7 @@ import logging
 from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.models.branch import Branch
 from app.models.user_personal_info import UserPersonalInfo
@@ -17,7 +18,7 @@ async def get_all_branches(db: AsyncSession):
         raise e
 
 
-async def get_branch_by_id(db: AsyncSession, branch_id: int):
+async def get_branch_by_id(db: AsyncSession, branch_id: UUID):
     try:
         result = await db.execute(select(Branch).where(Branch.id == branch_id, Branch.is_active == True))
         return result.scalars().first()
@@ -39,7 +40,7 @@ async def create_branch(db: AsyncSession, branch: Branch):
         raise e
 
 
-async def update_branch(db: AsyncSession, update_data: dict, branch_id: int):
+async def update_branch(db: AsyncSession, update_data: dict, branch_id: UUID):
     try:
         result = await db.execute(select(Branch).where(Branch.id == branch_id, Branch.is_active == True))
         db_branch = result.scalars().first()
@@ -60,7 +61,7 @@ async def update_branch(db: AsyncSession, update_data: dict, branch_id: int):
         raise e
 
 
-async def delete_branch(db: AsyncSession, branch_id: int):
+async def delete_branch(db: AsyncSession, branch_id: UUID):
     try:
         result = await db.execute(select(Branch).where(Branch.id == branch_id))
         db_branch = result.scalars().first()

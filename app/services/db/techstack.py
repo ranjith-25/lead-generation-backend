@@ -1,10 +1,11 @@
 from sqlalchemy import func, select
 from app.models.techstacks import TechStacks
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.schemas.techstack import TechstackFilters
 
-async def get_techstacks_by_ids_db(db: AsyncSession, techstack_ids: list[int]) -> list[TechStacks]:
+async def get_techstacks_by_ids_db(db: AsyncSession, techstack_ids: list[UUID]) -> list[TechStacks]:
     if not techstack_ids:
         return []
     result = await db.execute(
@@ -12,7 +13,7 @@ async def get_techstacks_by_ids_db(db: AsyncSession, techstack_ids: list[int]) -
     )
     return list(result.scalars().all())
 
-async def get_techstack_by_id_db(db: AsyncSession, techstack_id: int) -> TechStacks | None:
+async def get_techstack_by_id_db(db: AsyncSession, techstack_id: UUID) -> TechStacks | None:
     result = await db.execute(select(TechStacks).where(TechStacks.techstack_id == techstack_id))
     return result.scalars().first()
 

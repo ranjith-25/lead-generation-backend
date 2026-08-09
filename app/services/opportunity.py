@@ -28,10 +28,10 @@ async def get_opportunity_filter_values_service(db: AsyncSession, user_id: UUID)
     filter_data = await get_opportunity_filter_values(db, user_id)
     return OpportunityFilterValuesResponse(**filter_data)
 
-async def get_opportunity_service(db: AsyncSession, opportunityID: int | str, user_id: UUID) -> OpportunityRead:
+async def get_opportunity_service(db: AsyncSession, opportunityID: UUID | str, user_id: UUID) -> OpportunityRead:
 
     try:
-        opp_id = int(opportunityID)
+        opp_id = UUID(str(opportunityID))
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid Opportunity ID format")
 
@@ -53,10 +53,10 @@ async def create_opportunity_service(db: AsyncSession, opp_data: OpportunityCrea
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Error creating opportunity: {str(exc)}")
 
-async def update_opportunity_service(db: AsyncSession, opportunityID: int | str, opp_data: OpportunityCreate, user_id: UUID) -> OpportunityRead:
+async def update_opportunity_service(db: AsyncSession, opportunityID: UUID | str, opp_data: OpportunityCreate, user_id: UUID) -> OpportunityRead:
 
     try:
-        opp_id = int(opportunityID)
+        opp_id = UUID(str(opportunityID))
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid Opportunity ID format")
 
@@ -69,10 +69,10 @@ async def update_opportunity_service(db: AsyncSession, opportunityID: int | str,
     updated_opp = await update_opportunity_db(db, opportunity, update_dict)
     return OpportunityRead.model_validate(updated_opp)
 
-async def delete_opportunity_service(db: AsyncSession, opportunityID: int | str, user_id: UUID) -> BaseResponse:
+async def delete_opportunity_service(db: AsyncSession, opportunityID: UUID | str, user_id: UUID) -> BaseResponse:
 
     try:
-        opp_id = int(opportunityID)
+        opp_id = UUID(str(opportunityID))
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid Opportunity ID format")
 
@@ -89,9 +89,9 @@ async def get_opportunity_statuses_service(db: AsyncSession) -> list[Opportunity
     statuses = await get_all_opportunity_statuses_db(db)
     return [OpportunityStatusRead.model_validate(status) for status in statuses]
 
-async def update_opportunity_status_service(db: AsyncSession, opportunityID: int | str, status_id: int, user_id: UUID) -> OpportunityRead:
+async def update_opportunity_status_service(db: AsyncSession, opportunityID: UUID | str, status_id: UUID, user_id: UUID) -> OpportunityRead:
     try:
-        opp_id = int(opportunityID)
+        opp_id = UUID(str(opportunityID))
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid Opportunity ID format")
 

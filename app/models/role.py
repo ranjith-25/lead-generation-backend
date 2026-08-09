@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Integer, String, func
+import uuid
+from sqlalchemy import DateTime, Integer, String, func, text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -14,8 +16,8 @@ if TYPE_CHECKING:
 class Role(Base):
     __tablename__ = "roles"
 
-    role_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     roleName: Mapped[str] = mapped_column(String(50), nullable=False)
     createdAt: Mapped[datetime] = mapped_column(

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.api.deps import get_db
 from app.core.security import require_permission
@@ -40,7 +41,7 @@ async def get_all_platforms(
 
 @platform_router.get("/{id}")
 async def get_platform_by_id(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("platform", "read")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -66,7 +67,7 @@ async def create_platform(
 
 @platform_router.put("/{id}")
 async def update_platform(
-    id: int,
+    id: UUID,
     platform: PlatformUpdate,
     current_user: User = Depends(require_permission("platform", "update")),
     db: AsyncSession = Depends(get_db),
@@ -80,7 +81,7 @@ async def update_platform(
 
 @platform_router.delete("/{id}")
 async def delete_platform(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("platform", "delete")),
     db: AsyncSession = Depends(get_db),
 ):
