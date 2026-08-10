@@ -22,6 +22,7 @@ from app.services.pipeline_execution_status import (
     handle_get_all_pipeline_execution_statuses,
     handle_get_pipeline_execution_status_by_id,
     handle_update_pipeline_execution_status,
+    handle_get_pipeline_execution_status_by_opportunity_id
 )
 
 pipeline_execution_status_router = APIRouter(prefix="/pipeline-execution-status", tags=["Pipeline Execution Status"])
@@ -48,6 +49,19 @@ async def get_pipeline_execution_status_by_id(
     db: AsyncSession = Depends(get_db),
 ):
     response: GetPipelineExecutionStatusResponse = await handle_get_pipeline_execution_status_by_id(db, current_user, id)
+    return JSONResponse(
+        content=response.model_dump(mode="json", exclude_none=True),
+        status_code=200,
+    )
+
+
+@pipeline_execution_status_router.get("/opportunity/{opportunity_id}")
+async def get_pipeline_execution_status_by_opportunity_id(
+    opportunity_id: UUID,
+    current_user: User = Depends(require_permission("pipeline_execution_status", "read")),
+    db: AsyncSession = Depends(get_db),
+):
+    response: GetPipelineExecutionStatusResponse = await handle_get_pipeline_execution_status_by_opportunity_id(db, current_user, opportunity_id)
     return JSONResponse(
         content=response.model_dump(mode="json", exclude_none=True),
         status_code=200,

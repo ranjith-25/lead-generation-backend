@@ -22,6 +22,7 @@ from app.services.db.pipeline_execution_status import (
     get_all_pipeline_execution_statuses,
     get_pipeline_execution_status_by_id,
     update_pipeline_execution_status,
+    get_pipeline_execution_status_by_opportunity_id
 )
 
 
@@ -55,6 +56,27 @@ async def handle_get_pipeline_execution_status_by_id(
 ) -> GetPipelineExecutionStatusResponse:
     try:
         pipeline_execution_status = await get_pipeline_execution_status_by_id(db, pipeline_execution_status_id)
+        if pipeline_execution_status is None:
+            raise NotFoundException()
+
+        return GetPipelineExecutionStatusResponse(
+            pipelineExecutionStatus=PipelineExecutionStatusDTO.model_validate(pipeline_execution_status),
+            message="Pipeline Execution Status fetched successfully",
+            status_code=200,
+        )
+    except NotFoundException as e:
+        logging.exception("Could not find Pipeline Execution Status")
+        raise e
+    except Exception as e:
+        logging.exception("Some error occurred while getting Pipeline Execution Status details")
+        raise e
+
+
+async def handle_get_pipeline_execution_status_by_opportunity_id(
+    db: AsyncSession, current_user: User, opportunity_id: UUID
+) -> GetPipelineExecutionStatusResponse:
+    try:
+        pipeline_execution_status = await get_pipeline_execution_status_by_opportunity_id(db, opportunity_id)
         if pipeline_execution_status is None:
             raise NotFoundException()
 
