@@ -21,8 +21,8 @@ class DeleteProfileVariantResponse(BaseResponse):
 
 
 class RoleItem(BaseModel):
-    job_role_name: str = Field(..., description="Job Role Name")
     job_role_id: str = Field(..., description="Job Role ID")
+    job_role_name: str = Field(..., description="Job Role Name")
 
 class JobRoleSkillsData(BaseModel):
     role: List[RoleItem] = Field(..., description="List of Job Roles")
