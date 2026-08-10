@@ -9,6 +9,7 @@ from app.models.job_role import JobRole
 from app.models.user_status import UserStatus
 from app.models.user_personal_info import UserPersonalInfo
 from app.models.profile_variant import ProfileVariant
+from app.models.branch import Branch
 from app.schemas.user_personal_info import UserPersonalInfoFilterRequest
 
 
@@ -52,10 +53,12 @@ async def get_all_user_personal_info(
             UserPersonalInfo.highest_qualification,
             UserPersonalInfo.year_of_passout,
             UserStatus.displayName.label('working_status_name'),
+            Branch.name.label('branch_name'),
             profiles_count_subquery.label('profiles_count')
         ).outerjoin(User, UserPersonalInfo.user_id == User.user_id) \
          .outerjoin(JobRole, UserPersonalInfo.primary_role_id == JobRole.id) \
-         .outerjoin(UserStatus, UserPersonalInfo.working_status_id == UserStatus.id)
+         .outerjoin(UserStatus, UserPersonalInfo.working_status_id == UserStatus.id) \
+         .outerjoin(Branch, UserPersonalInfo.branch_id == Branch.id)
 
         if filters.search:
             search_term = f"%{filters.search.strip()}%"
@@ -71,12 +74,16 @@ async def get_all_user_personal_info(
                 )
             )
 
-        if filters.primary_role_id:
-            query = query.where(UserPersonalInfo.primary_role_id == filters.primary_role_id)
-        if filters.working_status_id:
-            query = query.where(UserPersonalInfo.working_status_id == filters.working_status_id)
+        if filters.primary_role:
+            query = query.where(JobRole.roleName.in_(filters.primary_role))
+        if filters.working_status:
+            query = query.where(UserStatus.displayName.in_(filters.working_status))
         if filters.year_of_passout:
-            query = query.where(UserPersonalInfo.year_of_passout == filters.year_of_passout)
+            query = query.where(UserPersonalInfo.year_of_passout.in_(filters.year_of_passout))
+        if filters.team:
+            query = query.where(User.fullName.in_(filters.team))
+        if filters.branch:
+            query = query.where(Branch.name.in_(filters.branch))
 
         count_query = select(func.count()).select_from(query.subquery())
         total = await db.scalar(count_query)
@@ -96,6 +103,7 @@ async def get_all_user_personal_info(
                 "highest_qualification": row.highest_qualification,
                 "year_of_passout": row.year_of_passout,
                 "working_status_name": row.working_status_name,
+                "branch_name": row.branch_name,
                 "profiles_count": row.profiles_count
             })
 
@@ -146,11 +154,11 @@ async def delete_user_personal_info(db: AsyncSession, user_id: UUID) -> UserPers
 
 async def get_user_profile_filters(db: AsyncSession) -> dict:
     try:
-        user_status_result = await db.execute(select(UserStatus.id, UserStatus.displayName.label('name')).where(UserStatus.is_active == True))
-        user_statuses = [{"id": row.id, "name": row.name} for row in user_status_result]
+        user_status_result = await db.execute(select(UserStatus.displayName).where(UserStatus.is_active == True))
+        user_statuses = [row[0] for row in user_status_result]
         
-        job_role_result = await db.execute(select(JobRole.id, JobRole.roleName.label('name')).where(JobRole.is_active == True))
-        primary_roles = [{"id": row.id, "name": row.name} for row in job_role_result]
+        job_role_result = await db.execute(select(JobRole.roleName).where(JobRole.is_active == True))
+        primary_roles = [row[0] for row in job_role_result]
         
         passout_result = await db.execute(
             select(UserPersonalInfo.year_of_passout)
@@ -159,10 +167,14 @@ async def get_user_profile_filters(db: AsyncSession) -> dict:
         )
         years_of_passout = [row[0] for row in passout_result]
         
+        branch_result = await db.execute(select(Branch.name).where(Branch.is_active == True))
+        branches = [row[0] for row in branch_result]
+        
         return {
             "user_status": user_statuses,
             "primary_role": primary_roles,
-            "year_of_passout": years_of_passout
+            "year_of_passout": years_of_passout,
+            "branch": branches
         }
     except SQLAlchemyError as e:
         logging.exception("Could not fetch user profile filters")

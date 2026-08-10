@@ -18,6 +18,7 @@ from app.schemas.user_personal_info import (
     UserPersonalInfoPaginatedResponse,
     UserPersonalInfoResponse,
     UserPersonalInfoUpdate,
+    UserPersonalInfoStatusUpdate,
     UserProfileFiltersResponse,
 )
 from app.services.db.user_personal_info import (
@@ -28,6 +29,7 @@ from app.services.db.user_personal_info import (
     update_user_personal_info,
     get_user_profile_filters,
 )
+from app.services.hierarchy import handleGetHierarchyByUser
 
 
 async def handle_get_user_personal_info(
@@ -73,6 +75,19 @@ async def handle_get_user_profile_filters(
 ) -> UserProfileFiltersResponse:
     try:
         filters = await get_user_profile_filters(db)
+        
+        hierarchy_res = await handleGetHierarchyByUser(db, current_user.user_id)
+        team_list = []
+        if hierarchy_res.hierarchy:
+            def extract_team(node):
+                if node.fullName not in team_list:
+                    team_list.append(node.fullName)
+                for child in node.children:
+                    extract_team(child)
+            extract_team(hierarchy_res.hierarchy)
+            
+        filters["team"] = team_list
+        
         return UserProfileFiltersResponse(**filters)
     except Exception as e:
         logging.exception("Some error occurred while getting user profile filters")
@@ -114,6 +129,28 @@ async def handle_update_user_personal_info(
         raise e
     except Exception as e:
         logging.exception("Some error occurred while updating User Personal Info")
+        raise e
+
+
+async def handle_update_user_personal_info_status(
+    db: AsyncSession, current_user: User, status_update: UserPersonalInfoStatusUpdate, user_id: UUID
+) -> UpdateUserPersonalInfoResponse:
+    try:
+        update_data = {"working_status_id": status_update.working_status_id}
+        updated_personal_info = await update_user_personal_info(db, update_data, user_id)
+        if updated_personal_info is None:
+            raise NotFoundException()
+
+        return UpdateUserPersonalInfoResponse(
+            personalInfo=UserPersonalInfoResponse.model_validate(updated_personal_info),
+            message="User status updated successfully",
+            status_code=200,
+        )
+    except NotFoundException as e:
+        logging.exception("Could not find User Personal Info")
+        raise e
+    except Exception as e:
+        logging.exception("Some error occurred while updating user status")
         raise e
 
 

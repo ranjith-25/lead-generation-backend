@@ -4,6 +4,8 @@ from app.schemas.user import UserHierarchy
 from app.models.user import User
 from app.responses.authentication import HierarchyResponse
 import logging
+from uuid import UUID
+
 async def handleGetHierarchy(db) -> HierarchyResponse:
     try:
         users = await getAllUsers(db)  # Fetch all users
@@ -40,4 +42,40 @@ async def handleGetHierarchy(db) -> HierarchyResponse:
 
     except Exception as e:
         logging.error(f"Error in getHierarchy: {e}")
+        raise
+
+
+async def handleGetHierarchyByUser(db, current_user_id: UUID) -> HierarchyResponse:
+    try:
+        users = await getAllUsers(db)  # Fetch all users
+
+        # Create nodes
+        nodes = {}
+
+        for user in users:
+            nodes[user.user_id] = UserHierarchy(
+                user_id=user.user_id,
+                fullName=user.fullName,
+                roleName=user.role.roleName,
+                specialization=user.specialization,
+                children=[]
+            )
+
+        # Build tree
+        for user in users:
+            parent_id = user.reporting_to
+
+            if parent_id and parent_id in nodes:
+                nodes[parent_id].children.append(nodes[user.user_id])
+
+        # Find root of the hierarchy for this user
+        root = nodes.get(current_user_id)
+
+        return HierarchyResponse(
+            message="User Hierarchy fetched successfully",
+            hierarchy=root
+        )
+
+    except Exception as e:
+        logging.error(f"Error in handleGetHierarchyByUser: {e}")
         raise
