@@ -14,7 +14,19 @@ from time import perf_counter
 import asyncio
 from app.services.db.project import get_project_by_ids_list_db
 from app.schemas.project import AIProjectRequest
+from app.models.pipeline_execution_status import PipelineExecutionStatusModel
+from app.models.pipeline_opportunity_project import PipelineOpportunityProjectModel
+from app.schemas.pipeline_execution_status import PipelineExecutionStatus,PipelineExecutionStatusCreate,PipelineExecutionStatusUpdate
 
+from app.services.db.pipeline_execution_status import create_pipeline_execution_status,update_pipeline_execution_status
+
+from app.services.db.pipeline_opportunity_project import create_multiple_pipeline_opportunity_project
+
+from app.core.connections.postgres import get_db 
+from app.core.connections.ai_connection import get_ai_client
+
+
+from uuid import UUID
 async def handleSalesEnablement(project_id_list : list[int],jobDetails: dict,client : httpx.AsyncClient,db: AsyncSession):
     try:
         projectDetails = await get_project_by_ids_list_db(db,project_id_list)
@@ -50,8 +62,13 @@ async def handleSalesEnablement(project_id_list : list[int],jobDetails: dict,cli
         logging.exception("Could not get Projects for corresponding Opportunity")
         return
 
-async def handleGetRelaventProjects(jobDetails : dict,client : httpx.AsyncClient ,db: AsyncSession):
+async def handleGetRelaventProjects(jobDetails : dict,executionStatusID : UUID):
     try:
+        db = await get_db()
+        client = get_ai_client()
+
+        executionStatus = await get_pipeline_execution_status_by_id_db(db,executionStatusID)
+        
 
         body : dict = {
         "job_details" : json.dumps(jobDetails)
@@ -64,16 +81,55 @@ async def handleGetRelaventProjects(jobDetails : dict,client : httpx.AsyncClient
         print("Response from AI", response.json())
 
         projectResponse : GetRelaventProjectResponse = GetRelaventProjectResponse(**response.json())
+
+        result = await create_multiple_pipeline_opportunity_project(
+            db=db,
+            pipeline_opportunity_projects = [
+                PipelineOpportunityProjectModel(
+                    opportunity_id = executionStatus.opportunity_id,
+                    project_id = row.project_id,
+                    project_name = row.project_name,
+                    match_score = row.match_score,
+                    justification = row.justification,
+                    matched_evidence = row.matched_evidence,
+                    createdBy = executionStatus.createdBy,
+                    updatedBy = executionStatus.createdBy
+                )
+                for row in projectResponse.matches
+            ]
+        )
+
+        await update_pipeline_execution_status(
+            db=db,
+            update_data=PipelineExecutionStatusUpdate(
+                projects = PipelineExecutionStatus.COMPLETED,
+                salesEnablement = PipelineExecutionStatus.PENDING,
+                resourceMatch = PipelineExecutionStatus.PENDING,
+                technicalPreperation = PipelineExecutionStatus.PENDING,
+                execution_message = f"{PipelineExecutionStatus.COMPLETED.status_text} : Updated projects."
+            ).model_dump(exclude_unset=True,exclude_none=True),
+            pipeline_execution_status_id=executionStatus.id
+        )
+
        
         await handleSalesEnablement([match.project_id for match in projectResponse.matches],jobDetails,client,db)
 
         response.raise_for_status()
 
         return projectResponse
-       
 
-       
     except Exception as exc:
+        await update_pipeline_execution_status(
+            db=db,
+            update_data=PipelineExecutionStatusUpdate(
+                projects = PipelineExecutionStatus.FAILED,
+                salesEnablement = PipelineExecutionStatus.FAILED,
+                resourceMatch = PipelineExecutionStatus.FAILED,
+                technicalPreperation = PipelineExecutionStatus.FAILED,
+                execution_message = f"{PipelineExecutionStatus.FAILED.status_text} : Could not fetch relavent projects."
+            ).model_dump(exclude_unset=True,exclude_none=True),
+            pipeline_execution_status_id=executionStatus.id
+        )
         logging.exception("Could not get Projects for corresponding Opportunity")
         return
 
@@ -94,12 +150,7 @@ async def handleGetScrapedData(url: str, db: AsyncSession, user_id , backgroundT
 
         aiResponse = GetScrapedURLDataResponse(**response.json())
 
-        backgroundTasks.add_task(
-            handleGetRelaventProjects ,
-            aiResponse.job_details,
-            client,
-            db
-        )
+        
 
 
         opportunityBase = OpportunityBase(
@@ -114,7 +165,24 @@ async def handleGetScrapedData(url: str, db: AsyncSession, user_id , backgroundT
 
         opportunity = Opportunity( **opportunityBase.model_dump() )
 
-        # result: Opportunity = await addOpportunity(opportunity, db)
+        result: Opportunity = await addOpportunity(opportunity, db)
+
+        result_pipeline_executionStatus : Pipe = await create_pipeline_execution_status(
+            db=db,
+            pipeline_execution_status=PipelineExecutionStatusModel(
+                execution_message = PipelineExecutionStatus.PENDING.status_text,
+                opportunity_id = result.opportunityID,
+                createdBy = user_id,
+                updatedBy = user_id
+            )
+        )
+        backgroundTasks.add_task(
+            handleGetRelaventProjects ,
+            result_pipeline_executionStatus,
+            aiResponse.job_details,
+            client,
+            db
+        )
 
         endpref = perf_counter()
         print(f" Time required Scrape ai execution : {endpref-startpref}")
