@@ -20,7 +20,7 @@ Input
 
 I will provide exactly one SQLAlchemy model file, for example:
 
-app/models/user_invitation.py
+app/models/pipeline_opportunity_project.py
 
 Example:
 
@@ -37,15 +37,15 @@ Files You Must Generate
 
 Generate ONLY these files.
 
-app/api/user_invitation.py
+app/api/pipeline_opportunity_project.py
 
-app/schemas/user_invitation.py
+app/schemas/pipeline_opportunity_project.py
 
-app/services/db/user_invitation.py
+app/services/db/pipeline_opportunity_project.py
 
-app/services/user_invitation.py
+app/services/pipeline_opportunity_project.py
 
-app/responses/user_invitation.py
+app/responses/pipeline_opportunity_project.py
 
 Do not generate anything else.
 
@@ -305,7 +305,7 @@ ProjectDomain
 
 becomes
 
-user_invitation.py
+pipeline_opportunity_project.py
 
 ProjectDomainCreate
 
@@ -343,7 +343,7 @@ Do not modify UUID fields.
 
 Do not modify foreign keys.
 
-user_invitation
+pipeline_opportunity_project
 
 Generate APIs using the existing permission style.
 
