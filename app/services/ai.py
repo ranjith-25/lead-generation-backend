@@ -289,7 +289,7 @@ async def handleGetScrapedData(url: str, db: AsyncSession, user_id , backgroundT
 
         return CreateOpportunityResponse(
             message="Opportunity fetched from AI successfully",
-            opportunityID=16
+            opportunityID=result.opportunityID
         )
 
     except Exception as exc:
