@@ -9,9 +9,11 @@ from app.responses.profile_variant import (
     DeleteProfileVariantResponse,
     GetProfileVariantResponse,
     UpdateProfileVariantResponse, JobRoleSkillsResponse, RoleItem, JobRoleSkillsData,
+    ProjectsDomainsResponse, ProjectDomainRelationItem, ProjectItem, ProjectDomainItem,
 )
 from app.schemas.job_role import JobRoleFilters
 from app.schemas.profile_variant import ProfileVariantCreate, ProfileVariantDTO, ProfileVariantUpdate
+from app.schemas.project import ProjectFilters
 from app.schemas.techstack import TechstackFilters
 from app.services.db.job_role import get_all_job_roles
 from app.services.db.profile_variant import (
@@ -22,6 +24,7 @@ from app.services.db.profile_variant import (
     update_profile_variant,
 )
 from app.services.db.techstack import get_all_techstacks_db
+from app.services.db.project import get_all_projects_db
 
 
 async def handle_get_all_profile_variants(db: AsyncSession, current_user: User) -> GetProfileVariantResponse:
@@ -162,4 +165,45 @@ async def handle_get_job_role_skills(
         )
     except Exception as e:
         logging.exception("Some error occurred while fetching job roles and skills")
+        raise e
+
+
+async def handle_get_projects_and_domains(
+    db: AsyncSession,
+    current_user: User
+) -> ProjectsDomainsResponse:
+    try:
+        # Fetch all projects (reusing existing query from db layers)
+        projects, _ = await get_all_projects_db(db, ProjectFilters(page=1, limit=None))
+        
+        data_list = []
+        for project in projects:
+            # Map project to ProjectItem
+            proj_item = ProjectItem(
+                project_name=project.project_name,
+                project_id=str(project.project_id)
+            )
+
+            # Map project domain to ProjectDomainItem (ORM relation loaded via selectin)
+            domain_item = None
+            if project.projectDomain:
+                domain_item = ProjectDomainItem(
+                    project_domain_name=project.projectDomain.domain,
+                    project_domain_id=str(project.projectDomain.id)
+                )
+
+            data_list.append(
+                ProjectDomainRelationItem(
+                    project=proj_item,
+                    project_domain=domain_item
+                )
+            )
+            
+        return ProjectsDomainsResponse(
+            status=True,
+            message="Projects and Domains fetched successfully",
+            data=data_list
+        )
+    except Exception as e:
+        logging.exception("Some error occurred while fetching projects and domains")
         raise e
