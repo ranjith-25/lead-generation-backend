@@ -8,7 +8,7 @@ from app.responses.profile_variant import (
     CreateProfileVariantResponse,
     DeleteProfileVariantResponse,
     GetProfileVariantResponse,
-    UpdateProfileVariantResponse,
+    UpdateProfileVariantResponse, JobRoleSkillsResponse,
 )
 from app.schemas.profile_variant import ProfileVariantCreate, ProfileVariantUpdate
 from app.services.profile_variant import (
@@ -16,7 +16,7 @@ from app.services.profile_variant import (
     handle_delete_profile_variant,
     handle_get_all_profile_variants,
     handle_get_profile_variant_by_id,
-    handle_update_profile_variant,
+    handle_update_profile_variant, handle_get_job_role_skills,
 )
 
 
@@ -66,3 +66,11 @@ async def delete_profile_variant(
     db: AsyncSession = Depends(get_db),
 ) -> DeleteProfileVariantResponse:
     return await handle_delete_profile_variant(db, current_user, id)
+
+
+@router.get("/configurations/roles-skills/")
+async def get_job_role_skills(
+    current_user: User = Depends(require_permission("profile_variants", "read")),
+    db: AsyncSession = Depends(get_db)
+) -> JobRoleSkillsResponse:
+    return await handle_get_job_role_skills(db, current_user)
