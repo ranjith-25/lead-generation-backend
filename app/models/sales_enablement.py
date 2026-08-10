@@ -19,7 +19,6 @@ class SalesEnablement(Base):
     suggested_questions: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     sales_talking_points: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     outreach_template: Mapped[str | None] = mapped_column(Text, nullable=True)
-    relevant_projects: Mapped[list[dict] | None] = mapped_column(JSONB, nullable=True)
     
     createdBy: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False

@@ -34,6 +34,9 @@ from app.api.branch import branch_router
 from app.api.profile_variant import router as profile_variant_router
 from app.api.dashboard import router as dashboard_router
 from app.api.pipeline_execution_status import pipeline_execution_status_router
+from app.api.pipeline_opportunity_project import pipeline_opportunity_project_router
+from app.api.settings import router as settings_router
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application Started")
@@ -90,3 +93,5 @@ app.include_router(branch_router)
 app.include_router(profile_variant_router)
 app.include_router(dashboard_router)
 app.include_router(pipeline_execution_status_router)
+app.include_router(pipeline_opportunity_project_router)
+app.include_router(settings_router)

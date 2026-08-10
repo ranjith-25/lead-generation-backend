@@ -39,6 +39,18 @@ async def get_pipeline_execution_status_by_id(db: AsyncSession, pipeline_executi
         raise e
 
 
+async def get_pipeline_execution_status_by_opportunity_id(db: AsyncSession, opportunity_id: UUID):
+    try:
+        result = await db.execute(
+            select(PipelineExecutionStatusModel).where(PipelineExecutionStatusModel.opportunity_id == opportunity_id)
+        )
+        return result.scalars().first()
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception("Could not find Pipeline Execution Status")
+        raise e
+
+
 async def create_pipeline_execution_status(db: AsyncSession, pipeline_execution_status: PipelineExecutionStatusModel):
     try:
         db.add(pipeline_execution_status)

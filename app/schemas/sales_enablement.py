@@ -8,7 +8,6 @@ class SalesEnablementBase(BaseModel):
     suggested_questions: list[str] | None = None
     sales_talking_points: list[str] | None = None
     outreach_template: str | None = None
-    relevant_projects: list[dict] | None = None
 
 class SalesEnablementCreate(SalesEnablementBase):
     pass
