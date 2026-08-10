@@ -268,7 +268,7 @@ class ProjectFilters(BaseModel):
     project_domains : list[str] | None = None
     project_techstacks : list[str] | None = None
     page: int = 1
-    limit: int = 10
+    limit: int | None = 10
 
 class AIProjectRequest(BaseModel):
     project_name : str = Field(...,description="Project Name")
