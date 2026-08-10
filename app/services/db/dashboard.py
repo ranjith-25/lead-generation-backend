@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.opportunity import Opportunity
+from app.models.user import User
+from app.schemas.opportunity import OpportunityListRead
 from app.models.opportunity_status import OpportunityStatus
 from app.models.pipeline_opportunity_project import PipelineOpportunityProjectModel
 from app.models.pipeline_execution_status import PipelineExecutionStatusModel
@@ -12,6 +14,9 @@ from app.models.user_status import UserStatus
 from app.schemas.pipeline_execution_status import PipelineExecutionStatus
 from app.schemas.dashboard import DashboardTimeRange
 from datetime import datetime, timedelta
+from app.services.hierarchy import handleGetHierarchyByUser
+from app.schemas.user import UserHierarchy
+from uuid import UUID
 
 def get_start_date(time_range: DashboardTimeRange | None) -> datetime | None:
     if not time_range:
@@ -159,7 +164,7 @@ async def get_dashboard_metrics(db: AsyncSession, time_range: DashboardTimeRange
         pipeline_status_query = pipeline_status_query.group_by(OpportunityStatus.status)
         
         status_result = await db.execute(pipeline_status_query)
-        pipeline_statuses = {row[0]: row[1] for row in status_result}
+        pipeline_statuses = [{"status_name": row[0], "count": row[1]} for row in status_result]
 
         # 6. Bench Allocation
         bench_query = (
@@ -280,4 +285,74 @@ async def get_dashboard_metrics(db: AsyncSession, time_range: DashboardTimeRange
         raise e
     except Exception as e:
         logging.exception("Error while fetching dashboard metrics")
+        raise e
+
+
+def extract_hierarchy_user_ids(node: UserHierarchy) -> list[UUID]:
+    if not node:
+        return []
+    ids = [node.user_id]
+    for child in node.children:
+        ids.extend(extract_hierarchy_user_ids(child))
+    return ids
+
+async def get_dashboard_summary_metrics(db: AsyncSession, current_user: User, view: str) -> dict:
+    try:
+        target_user_ids = [current_user.user_id]
+        if view == "Team view":
+            hierarchy_res = await handleGetHierarchyByUser(db, current_user.user_id)
+            if hierarchy_res.hierarchy:
+                target_user_ids = extract_hierarchy_user_ids(hierarchy_res.hierarchy)
+
+        # 1. Total Opportunities
+        opps_query = select(func.count(Opportunity.opportunityID)).where(Opportunity.createdBy.in_(target_user_ids))
+        total_opportunities = (await db.execute(opps_query)).scalar() or 0
+
+        # 2. Active Pipelines
+        active_pipelines_query = (
+            select(func.count(Opportunity.opportunityID))
+            .join(OpportunityStatus, Opportunity.status_id == OpportunityStatus.id)
+            .where(
+                OpportunityStatus.status.notin_(["New", "Not Qualified", "Selected", "Rejected"]),
+                Opportunity.createdBy.in_(target_user_ids)
+            )
+        )
+        active_pipelines = (await db.execute(active_pipelines_query)).scalar() or 0
+
+        # 3. Total Profiles
+        profiles_query = select(func.count(UserPersonalInfo.id)).where(UserPersonalInfo.user_id.in_(target_user_ids))
+        total_profiles = (await db.execute(profiles_query)).scalar() or 0
+
+        # 4. Average Match Score
+        avg_score_query = (
+            select(func.avg(PipelineOpportunityProjectModel.match_score))
+            .join(Opportunity, PipelineOpportunityProjectModel.opportunity_id == Opportunity.opportunityID)
+            .where(Opportunity.createdBy.in_(target_user_ids))
+        )
+        average_match_score = (await db.execute(avg_score_query)).scalar() or 0.0
+
+        # 5. Latest 5 Opportunities
+        latest_opps_query = (
+            select(Opportunity)
+            .where(Opportunity.createdBy.in_(target_user_ids))
+            .order_by(Opportunity.createdAt.desc())
+            .limit(5)
+        )
+        latest_opps_result = await db.execute(latest_opps_query)
+        latest_opportunities_db = latest_opps_result.scalars().all()
+        
+        latest_opportunities = [OpportunityListRead.model_validate(opp) for opp in latest_opportunities_db]
+
+        return {
+            "total_opportunities": total_opportunities,
+            "active_pipelines": active_pipelines,
+            "total_profiles": total_profiles,
+            "average_match_score": float(average_match_score),
+            "latest_opportunities": latest_opportunities
+        }
+    except SQLAlchemyError as e:
+        logging.exception("Database error while fetching dashboard summary metrics")
+        raise e
+    except Exception as e:
+        logging.exception("Error while fetching dashboard summary metrics")
         raise e
