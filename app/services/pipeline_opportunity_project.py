@@ -22,6 +22,7 @@ from app.services.db.pipeline_opportunity_project import (
     get_all_pipeline_opportunity_projects,
     get_pipeline_opportunity_project_by_id,
     update_pipeline_opportunity_project,
+    get_pipeline_opportunity_project_by_opportunity_id
 )
 
 
@@ -60,6 +61,25 @@ async def handle_get_pipeline_opportunity_project_by_id(
 
         return GetPipelineOpportunityProjectResponse(
             pipelineOpportunityProject=PipelineOpportunityProjectDTO.model_validate(pipeline_opportunity_project),
+            message="Pipeline Opportunity Project fetched successfully",
+            status_code=200,
+        )
+    except NotFoundException as e:
+        logging.exception("Could not find Pipeline Opportunity Project")
+        raise e
+    except Exception as e:
+        logging.exception("Some error occurred while getting Pipeline Opportunity Project details")
+        raise e
+
+
+async def handle_get_pipeline_opportunity_project_by_opportunity_id(
+    db: AsyncSession, current_user: User, pipeline_opportunity_id: UUID
+) -> GetPipelineOpportunityProjectResponse:
+    try:
+        pipeline_opportunity_projects = await get_pipeline_opportunity_project_by_opportunity_id(db, pipeline_opportunity_id)
+
+        return GetPipelineOpportunityProjectResponse(
+            pipelineOpportunityProjectList=[PipelineOpportunityProjectDTO.model_validate(project) for project in pipeline_opportunity_projects],
             message="Pipeline Opportunity Project fetched successfully",
             status_code=200,
         )

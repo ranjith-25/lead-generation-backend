@@ -22,6 +22,7 @@ from app.services.pipeline_opportunity_project import (
     handle_get_all_pipeline_opportunity_projects,
     handle_get_pipeline_opportunity_project_by_id,
     handle_update_pipeline_opportunity_project,
+    handle_get_pipeline_opportunity_project_by_opportunity_id
 )
 
 pipeline_opportunity_project_router = APIRouter(prefix="/pipeline-opportunity-project", tags=["Pipeline Opportunity Project"])
@@ -52,6 +53,20 @@ async def get_pipeline_opportunity_project_by_id(
         content=response.model_dump(mode="json", exclude_none=True),
         status_code=200,
     )
+
+
+@pipeline_opportunity_project_router.get("/opportunity/{opportunity_id}")
+async def get_pipeline_opportunity_project_by_opportunity_id(
+    opportunity_id: UUID,
+    current_user: User = Depends(require_permission("pipeline_opportunity_project", "read")),
+    db: AsyncSession = Depends(get_db),
+):
+    response: GetPipelineOpportunityProjectResponse = await handle_get_pipeline_opportunity_project_by_opportunity_id(db, current_user, opportunity_id)
+    return JSONResponse(
+        content=response.model_dump(mode="json", exclude_none=True),
+        status_code=200,
+    )
+
 
 
 @pipeline_opportunity_project_router.post("/")

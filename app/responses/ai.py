@@ -17,3 +17,18 @@ class AIProjectResponse(BaseModel):
 class GetRelaventProjectResponse(BaseModel):
     status : str = Field(...,description="Status of AI Execution.")
     matches : list[AIProjectResponse] = Field(default_factory=list,description="Matched Projects.")
+
+class AISalesEnablementResponse(BaseModel):
+    status : str = Field(...,description="Status of AI Execution.")
+    discovery_questions : list[str] = Field(
+        default_factory=list,
+        description="Questions to gather additional information about the opportunity."
+    )
+    talking_points : list[str] = Field(
+        default_factory=list,
+        description="Key talking points for sales outreach."
+    )
+    outreach_template : str = Field(
+        ...,
+        description="Generated outreach message template."
+    )
