@@ -37,3 +37,19 @@ class InvitationRegisteredException(AppException):
             status_code=status.HTTP_400_BAD_REQUEST,
             error_code=ErrorCode.INVITATION_USED,
         )
+        
+class IncorrectPasswordException(AppException):
+    def __init__(self):
+        super().__init__(
+            message = "Enter the correct password", 
+            status_code = status.HTTP_401_UNAUTHORIZED,
+            error_code = ErrorCode.INCORRECT_PASSWORD,
+        )
+        
+class ConfirmPasswordMismatchException(AppException):
+    def __init__(self):
+        super().__init__(
+            message="Passwords do not match",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code=ErrorCode.CONFIRM_PASSWORD_MISMATCH,
+        )

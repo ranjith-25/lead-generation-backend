@@ -18,13 +18,8 @@ async def get_techstack_by_id_db(db: AsyncSession, techstack_id: UUID) -> TechSt
     return result.scalars().first()
 
 
-async def get_all_techstacks_db(db: AsyncSession, filters: TechstackFilters) -> list[TechStacks]:
-    offset = 0
-    if filters.limit:
-        offset = (filters.page - 1) * filters.limit
-    statement = select(TechStacks).order_by(TechStacks.techstack_id).offset(offset).limit(filters.limit)
-    if filters.limit is not None:
-        statement = statement.limit(filters.limit)
+async def get_all_techstacks_db(db: AsyncSession) -> list[TechStacks]:
+    statement = select(TechStacks).order_by(TechStacks.techstack_id)
     result = await db.execute(statement)
     return list(result.scalars().all())
 
