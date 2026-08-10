@@ -1,11 +1,16 @@
 from pydantic import BaseModel
 from enum import Enum
+from app.schemas.opportunity import OpportunityListRead
 
 class DashboardTimeRange(str, Enum):
     TODAY = "today"
     LAST_7_DAYS = "last_7_days"
     LAST_30_DAYS = "last_30_days"
     THIS_YEAR = "this_year"
+
+class PipelineStatusCount(BaseModel):
+    status_name: str
+    count: int
 
 class BenchAllocation(BaseModel):
     status_name: str
@@ -29,7 +34,14 @@ class DashboardResponse(BaseModel):
     require_clarification_count: int
     success_rate: float
     success_rate_trend: float | None = None
-    pipeline_statuses: dict[str, int]
+    pipeline_statuses: list[PipelineStatusCount]
     bench_allocation: list[BenchAllocation]
     top_demanding_skills: list[SkillDemand]
     opportunity_analytics: list[PlatformAnalytics]
+
+class DashboardSummaryResponse(BaseModel):
+    total_opportunities: int
+    active_pipelines: int
+    total_profiles: int
+    average_match_score: float
+    latest_opportunities: list[OpportunityListRead]

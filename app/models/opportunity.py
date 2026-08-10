@@ -83,6 +83,6 @@ class Opportunity(Base):
     createdAt: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
-    updatedAt: Mapped[datetime | None] = mapped_column(
-        DateTime, onupdate=func.now(), nullable=True
+    updatedAt: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
