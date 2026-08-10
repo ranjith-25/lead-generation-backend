@@ -18,6 +18,7 @@ from app.services.db.opportunity_status import (
     get_all_opportunity_statuses,
     get_opportunity_status_by_id,
     update_opportunity_status,
+    fetch_new_opportunity_status_id,
 )
 
 
@@ -116,4 +117,19 @@ async def handle_delete_opportunity_status(
         raise e
     except Exception as e:
         logging.exception("Some error occurred while deleting Opportunity Status")
+        raise e
+
+
+async def get_new_opportunity_status_id(db: AsyncSession):
+    try:
+        status_id = await fetch_new_opportunity_status_id(db)
+        if status_id:
+            return status_id
+        else:
+            raise NotFoundException("Could not find Opportunity Status")
+    except NotFoundException as e:
+        logging.exception("Could not find Opportunity Status")
+        raise e
+    except Exception as e:
+        logging.exception("Could not find Opportunity Status")
         raise e

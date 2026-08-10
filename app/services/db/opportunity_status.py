@@ -103,3 +103,13 @@ async def delete_opportunity_status(db: AsyncSession, opportunity_status_id: UUI
         await db.rollback()
         logging.exception("Could not delete Opportunity Status")
         raise e
+
+
+async def fetch_new_opportunity_status_id(db: AsyncSession):
+    try:
+        result = await db.execute(select(OpportunityStatus).where(OpportunityStatus.status == "New"))
+        return result.scalars().first().id
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception("Could not find Opportunity Status")
+        raise e
