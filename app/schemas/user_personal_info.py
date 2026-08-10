@@ -56,6 +56,10 @@ class UserPersonalInfoUpdate(BaseModel):
         return v
 
 
+class UserPersonalInfoStatusUpdate(BaseModel):
+    working_status_id: UUID
+
+
 class UserPersonalInfoResponse(UserPersonalInfoBase):
     id: UUID
     user_id: UUID
@@ -69,9 +73,11 @@ class UserPersonalInfoFilterRequest(BaseModel):
     page: int = Field(1, ge=1)
     limit: int = Field(10, ge=1, le=100)
     search: str | None = None
-    primary_role_id: UUID | None = None
-    working_status_id: UUID | None = None
-    year_of_passout: int | None = None
+    primary_role: list[str] | None = None
+    working_status: list[str] | None = None
+    year_of_passout: list[int] | None = None
+    team: list[str] | None = None
+    branch: list[str] | None = None
 
 class UserManagementFilterRequest(BaseModel):
     page: int = Field(1, ge=1)
@@ -89,6 +95,7 @@ class UserPersonalInfoListRead(BaseModel):
     highest_qualification: str
     year_of_passout: int
     working_status_name: str
+    branch_name: str | None = None
     profiles_count: int
 
 class UserPersonalInfoPaginatedResponse(BaseModel):
@@ -99,12 +106,10 @@ class UserPersonalInfoPaginatedResponse(BaseModel):
     total_pages: int
 
 
-class FilterItem(BaseModel):
-    id: UUID
-    name: str
-
 class UserProfileFiltersResponse(BaseModel):
-    user_status: list[FilterItem]
-    primary_role: list[FilterItem]
+    user_status: list[str]
+    primary_role: list[str]
     year_of_passout: list[int]
+    team: list[str]
+    branch: list[str]
 

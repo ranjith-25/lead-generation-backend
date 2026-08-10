@@ -16,6 +16,7 @@ from app.schemas.user_personal_info import (
     UserPersonalInfoFilterRequest,
     UserPersonalInfoPaginatedResponse,
     UserPersonalInfoUpdate,
+    UserPersonalInfoStatusUpdate,
     UserProfileFiltersResponse,
 )
 from app.services.user_personal_info import (
@@ -24,6 +25,7 @@ from app.services.user_personal_info import (
     handle_get_all_user_personal_info,
     handle_get_user_personal_info,
     handle_update_user_personal_info,
+    handle_update_user_personal_info_status,
     handle_get_user_profile_filters,
 )
 
@@ -73,6 +75,16 @@ async def update_user_personal_info(
     db: AsyncSession = Depends(get_db),
 ) -> UpdateUserPersonalInfoResponse:
     return await handle_update_user_personal_info(db, current_user, personal_info, user_id)
+
+
+@router.patch("/{user_id}/status")
+async def update_user_personal_info_status(
+    user_id: UUID,
+    status_update: UserPersonalInfoStatusUpdate,
+    current_user: User = Depends(require_permission("user_personal_info", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> UpdateUserPersonalInfoResponse:
+    return await handle_update_user_personal_info_status(db, current_user, status_update, user_id)
 
 
 @router.delete("/{user_id}")
