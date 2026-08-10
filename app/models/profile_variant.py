@@ -14,11 +14,11 @@ from app.models.user import User
 class ProfileVariant(Base):
     __tablename__ = "profile_variants"
 
-    profile_variant_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    profile_variant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    role: Mapped[int] = mapped_column(Integer, ForeignKey("job_roles.id", ondelete="RESTRICT"), nullable=False)
+    role: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("job_roles.id", ondelete="RESTRICT"), nullable=False)
 
     experience: Mapped[str] = mapped_column(String(255), nullable=False)
 
@@ -57,22 +57,22 @@ class ProfileVariant(Base):
     job_role_details: Mapped["JobRole"] = relationship("JobRole", foreign_keys=[role], lazy="selectin")
 
     @property
-    def project_ids(self) -> List[int]:
+    def project_ids(self) -> List[uuid.UUID]:
         return [p.project_id for p in self.projects] if self.projects else []
 
 
 class ProfileVariantProject(Base):
     __tablename__ = "profile_variant_projects"
 
-    profile_variant_id: Mapped[int] = mapped_column(Integer, ForeignKey("profile_variants.profile_variant_id", ondelete="CASCADE"), primary_key=True)
+    profile_variant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("profile_variants.profile_variant_id", ondelete="CASCADE"), primary_key=True)
 
-    project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.project_id", ondelete="CASCADE"), primary_key=True)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.project_id", ondelete="CASCADE"), primary_key=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     project_name: Mapped[str] = mapped_column(String(255), unique=True)
 
-    projectDomainID: Mapped[int] = mapped_column(ForeignKey("project_domains.id", ondelete="RESTRICT"), nullable=False)
+    projectDomainID: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("project_domains.id", ondelete="RESTRICT"), nullable=False)
 
     techstacks: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
 

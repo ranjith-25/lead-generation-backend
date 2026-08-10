@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -15,7 +16,7 @@ class RoleUpdate(BaseModel):
 
 
 class RoleRead(RoleBase):
-    role_id: int
+    role_id: UUID
     createdAt: datetime
 
     model_config = ConfigDict(from_attributes=True)

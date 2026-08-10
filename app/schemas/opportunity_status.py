@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -10,7 +11,7 @@ class OpportunityStatusBase(BaseModel):
 
 
 class OpportunityStatusDTO(OpportunityStatusBase):
-    id: int = Field(..., description="Opportunity Status ID")
+    id: UUID = Field(..., description="Opportunity Status ID")
     createdAt: Optional[datetime] = Field(None)
     updatedAt: Optional[datetime] = Field(None)
     model_config = ConfigDict(from_attributes=True)
@@ -26,7 +27,7 @@ class OpportunityStatusUpdate(OpportunityStatusBase):
     is_active: Optional[bool] = Field(None)
 
 class OpportunityStatusListRead(BaseModel):
-    id: int
+    id: UUID
     status: str
     count: int
 

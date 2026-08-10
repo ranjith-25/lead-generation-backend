@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -10,7 +11,7 @@ class PlatformBase(BaseModel):
 
 
 class PlatformDTO(PlatformBase):
-    id: int = Field(..., description="Platform ID")
+    id: UUID = Field(..., description="Platform ID")
     createdAt: Optional[datetime] = Field(None)
     updatedAt: Optional[datetime] = Field(None)
     model_config = ConfigDict(from_attributes=True)
@@ -26,7 +27,7 @@ class PlatformUpdate(PlatformBase):
     is_active: Optional[bool] = Field(None)
 
 class PlatformListRead(BaseModel):
-    platform_id: int
+    platform_id: UUID
     name: str
     is_account_linked: bool
     count: int

@@ -1,11 +1,12 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
+from uuid import UUID
 from app.responses.base import BaseResponse
 
 class RolePermissionBase(BaseModel):
-    role_id: int
-    feature_id: int
-    permission_id: int
+    role_id: UUID
+    feature_id: UUID
+    permission_id: UUID
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -13,7 +14,7 @@ class RolePermissionCreate(RolePermissionBase):
     pass
 
 class RolePermissionRead(RolePermissionBase):
-    role_permission_id: int
+    role_permission_id: UUID
     isDeleted: bool
     created_at: datetime
 

@@ -1,5 +1,6 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.exceptions.custom import NotFoundException
 from app.models.platform import Platform
@@ -40,7 +41,7 @@ async def handle_get_all_platforms(db: AsyncSession, current_user: User, search:
         raise e
 
 
-async def handle_get_platform_by_id(db: AsyncSession, current_user: User, platform_id: int) -> GetPlatformResponse:
+async def handle_get_platform_by_id(db: AsyncSession, current_user: User, platform_id: UUID) -> GetPlatformResponse:
     try:
         platform = await get_platform_by_id(db, platform_id)
         if platform is None:
@@ -76,7 +77,7 @@ async def handle_create_platform(
 
 
 async def handle_update_platform(
-    db: AsyncSession, current_user: User, platform_update: PlatformUpdate, platform_id: int
+    db: AsyncSession, current_user: User, platform_update: PlatformUpdate, platform_id: UUID
 ) -> UpdatePlatformResponse:
     try:
         update_data = platform_update.model_dump(exclude_unset=True, exclude_none=True)
@@ -98,7 +99,7 @@ async def handle_update_platform(
 
 
 async def handle_delete_platform(
-    db: AsyncSession, current_user: User, platform_id: int
+    db: AsyncSession, current_user: User, platform_id: UUID
 ) -> DeletePlatformResponse:
     try:
         deleted_platform = await delete_platform(db, platform_id)

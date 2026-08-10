@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, func, ForeignKey
+from sqlalchemy import DateTime, Integer, String, Text, func, ForeignKey, text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -10,11 +10,11 @@ from app.models.base import Base
 class SalesEnablement(Base):
     __tablename__ = "sales_enablement"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
-    opportunityID: Mapped[int] = mapped_column(
-        Integer, ForeignKey("opportunities.opportunityID", ondelete="CASCADE"), nullable=False, unique=True
+    opportunityID: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("opportunities.opportunityID", ondelete="CASCADE"), nullable=False, unique=True
     )
     suggested_questions: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     sales_talking_points: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)

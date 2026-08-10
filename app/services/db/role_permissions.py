@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from uuid import UUID
 from app.models.role_permissions import RolePermission
 from app.models.role import Role
 from app.models.feature import Feature
@@ -7,7 +8,7 @@ from app.models.permissions import Permission
 import logging
 async def get_feature_names_by_role_id(
     db: AsyncSession,
-    role_id: int,
+    role_id: UUID,
 ) -> list[str]:
     query = (
         select(Feature.display_name)
@@ -21,7 +22,7 @@ async def get_feature_names_by_role_id(
 
 
 
-async def hasPermissions(db: AsyncSession, role_id: int, feature_key: str, permission_name: str) -> bool: 
+async def hasPermissions(db: AsyncSession, role_id: UUID, feature_key: str, permission_name: str) -> bool: 
     try : 
         stmt = (
             select(RolePermission)
@@ -48,7 +49,7 @@ async def add_role_permission_db(db: AsyncSession, role_permission: RolePermissi
     await db.refresh(role_permission)
     return role_permission
 
-async def get_role_permission_by_id_db(db: AsyncSession, rp_id: int) -> RolePermission | None:
+async def get_role_permission_by_id_db(db: AsyncSession, rp_id: UUID) -> RolePermission | None:
     result = await db.execute(
         select(RolePermission).where(
             RolePermission.role_permission_id == rp_id,
@@ -64,7 +65,7 @@ async def get_all_role_permissions_db(db: AsyncSession) -> list[RolePermission]:
     return list(result.scalars().all())
 
 async def get_role_permission_by_details_db(
-    db: AsyncSession, role_id: int, feature_id: int, permission_id: int
+    db: AsyncSession, role_id: UUID, feature_id: UUID, permission_id: UUID
 ) -> RolePermission | None:
     result = await db.execute(
         select(RolePermission).where(

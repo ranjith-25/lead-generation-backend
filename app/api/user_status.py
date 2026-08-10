@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.api.deps import get_db
 from app.core.security import require_permission
@@ -40,7 +41,7 @@ async def get_all_user_statuses(
 
 @router.get("/{id}")
 async def get_user_status_by_id(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("user_status", "read")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -66,7 +67,7 @@ async def create_user_status(
 
 @router.put("/{id}")
 async def update_user_status(
-    id: int,
+    id: UUID,
     user_status: UserStatusUpdate,
     current_user: User = Depends(require_permission("user_status", "update")),
     db: AsyncSession = Depends(get_db),
@@ -80,7 +81,7 @@ async def update_user_status(
 
 @router.delete("/{id}")
 async def delete_user_status(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("user_status", "delete")),
     db: AsyncSession = Depends(get_db),
 ):

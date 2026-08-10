@@ -1,11 +1,13 @@
 from datetime import datetime
 from typing import Optional
 
+import uuid
 from sqlalchemy import (
     String,
     DateTime,
-    ForeignKey,func
+    ForeignKey,func,text
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -14,9 +16,10 @@ from app.models.base import Base
 class Feature(Base):
     __tablename__ = "features"
 
-    feature_id: Mapped[int] = mapped_column(
+    feature_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         primary_key=True,
-        autoincrement=True
+        server_default=text("gen_random_uuid()")
     )
 
     feature_key: Mapped[str] = mapped_column(
@@ -35,7 +38,8 @@ class Feature(Base):
         nullable=True
     )
 
-    parent_feature_id: Mapped[Optional[int]] = mapped_column(
+    parent_feature_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
         ForeignKey("features.feature_id"),
         nullable=True
     )

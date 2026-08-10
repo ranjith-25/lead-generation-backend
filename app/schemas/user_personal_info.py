@@ -8,12 +8,12 @@ class UserPersonalInfoBase(BaseModel):
     first_name: str = Field(..., max_length=100)
     last_name: str | None = Field(None, max_length=100)
     date_of_birth: str = Field(..., description="Format: DD/MM/YYYY", json_schema_extra={"example": "03/09/2004"})
-    primary_role_id: int = Field(...)
-    branch_id: int | None = Field(None)
+    primary_role_id: UUID = Field(...)
+    branch_id: UUID | None = Field(None)
     highest_qualification: str = Field(..., max_length=100)
     specialization: str = Field(..., max_length=100)
     year_of_passout: int = Field(...)
-    working_status_id: int = Field(...)
+    working_status_id: UUID = Field(...)
 
     @field_validator("date_of_birth")
     @classmethod
@@ -35,12 +35,12 @@ class UserPersonalInfoUpdate(BaseModel):
     first_name: str | None = Field(None, max_length=100)
     last_name: str | None = Field(None, max_length=100)
     date_of_birth: str | None = Field(None, description="Format: DD/MM/YYYY")
-    primary_role_id: int | None = Field(None)
-    branch_id: int | None = Field(None)
+    primary_role_id: UUID | None = Field(None)
+    branch_id: UUID | None = Field(None)
     highest_qualification: str | None = Field(None, max_length=100)
     specialization: str | None = Field(None, max_length=100)
     year_of_passout: int | None = Field(None)
-    working_status_id: int | None = Field(None)
+    working_status_id: UUID | None = Field(None)
 
     @field_validator("date_of_birth")
     @classmethod
@@ -57,7 +57,7 @@ class UserPersonalInfoUpdate(BaseModel):
 
 
 class UserPersonalInfoResponse(UserPersonalInfoBase):
-    id: int
+    id: UUID
     user_id: UUID
     createdAt: datetime
     updatedAt: datetime | None = None
@@ -69,15 +69,15 @@ class UserPersonalInfoFilterRequest(BaseModel):
     page: int = Field(1, ge=1)
     limit: int = Field(10, ge=1, le=100)
     search: str | None = None
-    primary_role_id: int | None = None
-    working_status_id: int | None = None
+    primary_role_id: UUID | None = None
+    working_status_id: UUID | None = None
     year_of_passout: int | None = None
 
 class UserManagementFilterRequest(BaseModel):
     page: int = Field(1, ge=1)
     limit: int = Field(10, ge=1, le=100)
     search: str | None = None
-    role_id: int | None = None
+    role_id: UUID | None = None
 
 class UserPersonalInfoListRead(BaseModel):
     user_id: UUID
@@ -100,7 +100,7 @@ class UserPersonalInfoPaginatedResponse(BaseModel):
 
 
 class FilterItem(BaseModel):
-    id: int
+    id: UUID
     name: str
 
 class UserProfileFiltersResponse(BaseModel):

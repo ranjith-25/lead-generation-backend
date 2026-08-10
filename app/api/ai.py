@@ -9,9 +9,10 @@ from app.core.connections.postgres import get_db
 from app.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import require_permission
+from fastapi import BackgroundTasks
 router = APIRouter(prefix="/ai",tags=["AI"])
 
 @router.post("")
-async def get_scrapped_data(request : GetOpportunityContent,current_user : User = Depends(require_permission("ai_discovery","create")),db: AsyncSession = Depends(get_db)):
-    response : CreateOpportunityResponse = await handleGetScrapedData(request.url,db, current_user.user_id)
+async def get_scrapped_data(request : GetOpportunityContent,backgroundTasks : BackgroundTasks,current_user : User = Depends(require_permission("ai_discovery","create")),db: AsyncSession = Depends(get_db)):
+    response : CreateOpportunityResponse = await handleGetScrapedData(request.url,db, current_user.user_id,backgroundTasks=backgroundTasks)
     return response

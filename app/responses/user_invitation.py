@@ -12,6 +12,7 @@ class GetUserInvitationResponse(BaseResponse):
 
 class CreateUserInvitationResponse(BaseResponse):
     newUserInvitation: UserInvitationDTO = Field(..., description="New User Invitation Created")
+    invitationURL : str = Field(...,description="Invitation frontend URL that user will use for registration.")
     status_code: int = Field(200)
 
 

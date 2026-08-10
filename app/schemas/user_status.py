@@ -11,7 +11,7 @@ class UserStatusBase(BaseModel):
 
 
 class UserStatusDTO(UserStatusBase):
-    id: int = Field(..., description="User Status ID")
+    id: uuid.UUID = Field(..., description="User Status ID")
     createdAt: Optional[datetime] = Field(None)
     updatedAt: Optional[datetime] = Field(None)
     createdBy: Optional[uuid.UUID] = Field(None)
@@ -29,7 +29,7 @@ class UserStatusUpdate(UserStatusBase):
     is_active: Optional[bool] = Field(None)
 
 class UserStatusListRead(BaseModel):
-    id: int
+    id: uuid.UUID
     status: str
     count: int
 

@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import UUID
 import json 
 import logging
 
@@ -47,14 +48,14 @@ from app.services.db.techstack import (
 )
 
 
-async def _resolve_domain(db: AsyncSession, project_domain_id: int):
+async def _resolve_domain(db: AsyncSession, project_domain_id: UUID):
     domain = await get_project_domain_by_id(db, project_domain_id)
     if not domain:
         raise ProjectDomainNotFoundException(project_domain_id)
     return domain
 
 
-async def _resolve_techstacks(db: AsyncSession, techstack_ids: list[int]):
+async def _resolve_techstacks(db: AsyncSession, techstack_ids: list[UUID]):
     techstacks = await get_techstacks_by_ids_db(db, techstack_ids)
     missing = set(techstack_ids) - {techstack.techstack_id for techstack in techstacks}
     if missing:
@@ -112,7 +113,7 @@ async def get_all_projects_service(
     )
 
 
-async def get_project_service(db: AsyncSession, project_id: int) -> ProjectRead:
+async def get_project_service(db: AsyncSession, project_id: UUID) -> ProjectRead:
 
     project = await get_project_by_id_db(db, project_id)
     if not project:
@@ -156,7 +157,7 @@ async def create_project_service(
 
 async def update_project_service(
     db: AsyncSession,
-    project_id: int,
+    project_id: UUID,
     project_data: ProjectUpdate,
     case_study: UploadFile | None = None,
     remove_case_study: bool = False,
@@ -214,7 +215,7 @@ async def update_project_service(
     return ProjectRead.model_validate(updated_project)
 
 
-async def delete_project_service(db: AsyncSession, project_id: int) -> BaseResponse:
+async def delete_project_service(db: AsyncSession, project_id: UUID) -> BaseResponse:
 
     project = await get_project_by_id_db(db, project_id)
     if not project:
@@ -228,7 +229,7 @@ async def delete_project_service(db: AsyncSession, project_id: int) -> BaseRespo
     return BaseResponse(message="Project deleted successfully")
 
 
-async def get_project_case_study_service(db: AsyncSession, project_id: int) -> Path:
+async def get_project_case_study_service(db: AsyncSession, project_id: UUID) -> Path:
 
     project = await get_project_by_id_db(db, project_id)
     if not project:

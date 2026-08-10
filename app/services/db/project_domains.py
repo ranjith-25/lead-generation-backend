@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from uuid import UUID
 from app.models.project_domains import ProjectDomain
 from app.exceptions.database import get_database_message
 from sqlalchemy.exc import SQLAlchemyError
@@ -19,7 +20,7 @@ async def get_all_project_domain_db(db: AsyncSession, filters: ProjectDomainFilt
         logging.exception("Could not find Project Domains")
         raise e
 
-async def get_project_domain_by_id(db: AsyncSession, projectDomainID: int) -> ProjectDomainRead:
+async def get_project_domain_by_id(db: AsyncSession, projectDomainID: UUID) -> ProjectDomainRead:
     try:
         projectDomainsDetails = await db.execute(select(ProjectDomain).where(ProjectDomain.id == projectDomainID))
         projectDomainsDetails = projectDomainsDetails.scalars().first()
@@ -45,7 +46,7 @@ async def create_project_domain(db: AsyncSession, projectDomain: ProjectDomain):
 async def update_project_domain(
     db: AsyncSession,
     project_domain: dict,
-    domain_id : int
+    domain_id : UUID
 ):
     try:
         result = await db.execute(
@@ -73,7 +74,7 @@ async def update_project_domain(
         logging.exception("Could not update Project Domain")
         raise
 
-async def delete_project_domain(db: AsyncSession, projectDomainID: int):
+async def delete_project_domain(db: AsyncSession, projectDomainID: UUID):
     try:
         projectDomainsDetails = await db.execute(select(ProjectDomain).where(ProjectDomain.id == projectDomainID))
         projectDomainsDetails = projectDomainsDetails.scalars().first()

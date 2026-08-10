@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
 
 
 class PermissionBase(BaseModel):
@@ -10,7 +11,7 @@ class PermissionBase(BaseModel):
 
 
 class PermissionDTO(PermissionBase):
-    permission_id: int = Field(..., description="Permission ID")
+    permission_id: UUID = Field(..., description="Permission ID")
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)

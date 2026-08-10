@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.core.security import require_permission
 from app.models.user import User
@@ -37,7 +38,7 @@ async def get_all_permissions(
 
 @permission_router.get("/{permission_id}")
 async def get_permission_by_id(
-    permission_id: int,
+    permission_id: UUID,
     current_user: User = Depends(require_permission("permissions", "read")),
     db: AsyncSession = Depends(get_db)
 ):
@@ -63,7 +64,7 @@ async def create_permission(
 
 @permission_router.put("/{permission_id}")
 async def update_permission(
-    permission_id: int,
+    permission_id: UUID,
     permission: PermissionUpdate,
     current_user: User = Depends(require_permission("permissions", "update")),
     db: AsyncSession = Depends(get_db)
@@ -77,7 +78,7 @@ async def update_permission(
 
 @permission_router.delete("/{permission_id}")
 async def delete_permission(
-    permission_id: int,
+    permission_id: UUID,
     current_user: User = Depends(require_permission("permissions", "delete")),
     db: AsyncSession = Depends(get_db)
 ):

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.api.deps import get_db
 from app.models.user import User
@@ -38,7 +39,7 @@ async def get_features(
 
 @router.get("/{id}", response_model=GetFeatureResponse)
 async def get_feature(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("features", "read")),
     db: AsyncSession = Depends(get_db)
 ) -> JSONResponse:
@@ -64,7 +65,7 @@ async def create_feature(
 
 @router.put("/{id}", response_model=UpdateFeatureResponse)
 async def update_feature(
-    id: int,
+    id: UUID,
     feature_data: FeatureCreate,
     current_user: User = Depends(require_permission("features", "update")),
     db: AsyncSession = Depends(get_db)
@@ -78,7 +79,7 @@ async def update_feature(
 
 @router.delete("/{id}", response_model=BaseResponse)
 async def delete_feature(
-    id: int,
+    id: UUID,
     current_user: User = Depends(require_permission("features", "delete")),
     db: AsyncSession = Depends(get_db)
 ) -> JSONResponse:

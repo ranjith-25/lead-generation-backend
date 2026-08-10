@@ -11,7 +11,7 @@ class JobRoleBase(BaseModel):
 
 
 class JobRoleDTO(JobRoleBase):
-    id: int = Field(..., description="Job Role ID")
+    id: uuid.UUID = Field(..., description="Job Role ID")
     createdAt: Optional[datetime] = Field(None)
     updatedAt: Optional[datetime] = Field(None)
     createdBy: Optional[uuid.UUID] = Field(None)

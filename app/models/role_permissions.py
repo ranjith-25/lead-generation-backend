@@ -1,4 +1,6 @@
-from sqlalchemy import ForeignKey, DateTime, func, Boolean
+import uuid
+from sqlalchemy import ForeignKey, DateTime, func, Boolean, text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import sqlalchemy as sa
 from app.models.base import Base
@@ -7,9 +9,10 @@ from app.models.base import Base
 class RolePermission(Base):
     __tablename__ = "rolePermissions"
 
-    role_permission_id: Mapped[int] = mapped_column(
+    role_permission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         primary_key=True,
-        autoincrement=True
+        server_default=text("gen_random_uuid()")
     )
 
     isDeleted: Mapped[bool] = mapped_column(
@@ -19,17 +22,20 @@ class RolePermission(Base):
         server_default=sa.false()
     )
 
-    role_id: Mapped[int] = mapped_column(
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         ForeignKey("roles.role_id"),
         nullable=False
     )
 
-    feature_id: Mapped[int] = mapped_column(
+    feature_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         ForeignKey("features.feature_id"),
         nullable=False
     )
     
-    permission_id: Mapped[int] = mapped_column(
+    permission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         ForeignKey("permissions.permission_id"),
         nullable=False
     )

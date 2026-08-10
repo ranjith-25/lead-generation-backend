@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -14,9 +14,10 @@ if TYPE_CHECKING:
 class TechStacks(Base):
     __tablename__ = 'tech_stacks'
 
-    techstack_id: Mapped[int] = mapped_column(
+    techstack_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         primary_key=True,
-        autoincrement=True
+        server_default=text("gen_random_uuid()")
     )
 
     techstack_name: Mapped[str] = mapped_column(

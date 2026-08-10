@@ -1,5 +1,6 @@
 from fastapi import APIRouter,Depends
 from fastapi.responses import JSONResponse
+from uuid import UUID
 from app.core.security import require_permission
 from app.responses.project_domains import GetProjectDomainResponse,CreateProjectDomainResponse,UpdateProjectDomainResponse,DeleteProjectDomainResponse
 from app.services.project_domains import handle_create_project_domain,handle_delete_project_domain,handle_get_project_domain_by_id,handle_get_project_domains,handle_update_project_domain
@@ -25,7 +26,7 @@ async def get_all_project_domains(
 
 @project_domain_router.get("/{project_domain_id}")
 async def get_project_domain_by_id(
-    project_domain_id: int,
+    project_domain_id: UUID,
     current_user : User = Depends(require_permission("user_hierarchy","read")),
     db: AsyncSession = Depends(get_db)
     ):
@@ -49,7 +50,7 @@ async def create_project_domain(
 
 @project_domain_router.put("/{project_domain_id}")
 async def update_project_domain(
-    project_domain_id: int,
+    project_domain_id: UUID,
     project_domain : ProjectDomainUpdate,
     current_user : User = Depends(require_permission("user_hierarchy","read")),
     db: AsyncSession = Depends(get_db)
@@ -62,7 +63,7 @@ async def update_project_domain(
 
 @project_domain_router.delete("/{project_domain_id}")
 async def delete_project_domain(
-    project_domain_id: int,
+    project_domain_id: UUID,
     current_user : User = Depends(require_permission("user_hierarchy","read")),
     db: AsyncSession = Depends(get_db)
     ):

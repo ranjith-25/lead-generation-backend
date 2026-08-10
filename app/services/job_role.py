@@ -1,5 +1,6 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.exceptions.custom import NotFoundException
 from app.models.job_role import JobRole
@@ -50,7 +51,7 @@ async def handle_get_all_job_roles(db: AsyncSession, current_user: User, page: i
         raise e
 
 
-async def handle_get_job_role_by_id(db: AsyncSession, current_user: User, job_role_id: int) -> GetJobRoleResponse:
+async def handle_get_job_role_by_id(db: AsyncSession, current_user: User, job_role_id: UUID) -> GetJobRoleResponse:
     try:
         job_role = await get_job_role_by_id(db, job_role_id)
         if job_role is None:
@@ -90,7 +91,7 @@ async def handle_create_job_role(
 
 
 async def handle_update_job_role(
-    db: AsyncSession, current_user: User, job_role_update: JobRoleUpdate, job_role_id: int
+    db: AsyncSession, current_user: User, job_role_update: JobRoleUpdate, job_role_id: UUID
 ) -> UpdateJobRoleResponse:
     try:
         update_data = job_role_update.model_dump(exclude_unset=True, exclude_none=True)
@@ -113,7 +114,7 @@ async def handle_update_job_role(
 
 
 async def handle_delete_job_role(
-    db: AsyncSession, current_user: User, job_role_id: int
+    db: AsyncSession, current_user: User, job_role_id: UUID
 ) -> DeleteJobRoleResponse:
     try:
         deleted_job_role = await delete_job_role(db, job_role_id)

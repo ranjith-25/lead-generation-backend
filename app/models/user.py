@@ -23,8 +23,8 @@ class User(Base):
     hashedPassword: Mapped[str | None] = mapped_column(String(150), nullable=True)
     refUID: Mapped[str | None] = mapped_column(String(50), nullable=True)
     passwordResetAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    role_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("roles.role_id", ondelete="SET NULL"), nullable=True
+    role_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("roles.role_id", ondelete="SET NULL"), nullable=True
     )
     reporting_to: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True

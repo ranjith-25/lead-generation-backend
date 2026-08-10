@@ -2,6 +2,7 @@ import logging
 from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.models.platform import Platform
 from app.models.opportunity import Opportunity
@@ -45,7 +46,7 @@ async def get_all_platforms(db: AsyncSession, search: str | None = None, page: i
         raise e
 
 
-async def get_platform_by_id(db: AsyncSession, platform_id: int):
+async def get_platform_by_id(db: AsyncSession, platform_id: UUID):
     try:
         result = await db.execute(select(Platform).where(Platform.id == platform_id))
         return result.scalars().first()
@@ -67,7 +68,7 @@ async def create_platform(db: AsyncSession, platform: Platform):
         raise e
 
 
-async def update_platform(db: AsyncSession, update_data: dict, platform_id: int):
+async def update_platform(db: AsyncSession, update_data: dict, platform_id: UUID):
     try:
         result = await db.execute(select(Platform).where(Platform.id == platform_id))
         db_platform = result.scalars().first()
@@ -88,7 +89,7 @@ async def update_platform(db: AsyncSession, update_data: dict, platform_id: int)
         raise e
 
 
-async def delete_platform(db: AsyncSession, platform_id: int):
+async def delete_platform(db: AsyncSession, platform_id: UUID):
     try:
         result = await db.execute(select(Platform).where(Platform.id == platform_id))
         db_platform = result.scalars().first()

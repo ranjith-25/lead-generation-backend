@@ -25,6 +25,7 @@ from app.models.project_domains import ProjectDomain
 from app.models.user import User
 from app.exceptions.custom import NotFoundException
 import logging
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 async def handle_get_project_domains(db:AsyncSession, current_user : User, page: int, limit: int) -> GetProjectDomainResponse:
@@ -55,7 +56,7 @@ async def handle_get_project_domains(db:AsyncSession, current_user : User, page:
         logging.exception("Some error occoured while getting Project domains list")
         raise e 
 
-async def handle_get_project_domain_by_id(db:AsyncSession,current_user : User,projectDomainID: int) -> GetProjectDomainResponse:
+async def handle_get_project_domain_by_id(db:AsyncSession,current_user : User,projectDomainID: UUID) -> GetProjectDomainResponse:
     try:
         projectDomainDetails = await get_project_domain_by_id(db,projectDomainID)
 
@@ -95,7 +96,7 @@ async def handle_create_project_domain(db:AsyncSession,current_user : User,proje
         logging.exception("Some error occoured while creating Project domain")
         raise e 
 
-async def handle_update_project_domain(db:AsyncSession,current_user : User,projectDomainUpdate : ProjectDomainUpdate,domainID : int) -> UpdateProjectDomainResponse:
+async def handle_update_project_domain(db:AsyncSession,current_user : User,projectDomainUpdate : ProjectDomainUpdate,domainID : UUID) -> UpdateProjectDomainResponse:
     try:
 
         updatedProjectDomain = projectDomainUpdate.model_dump(exclude_unset=True,exclude_none= True)
@@ -111,7 +112,7 @@ async def handle_update_project_domain(db:AsyncSession,current_user : User,proje
         logging.exception("Some error occoured while updating Project domain")
         raise e 
 
-async def handle_delete_project_domain(db:AsyncSession,current_user : User,projectDomainID: int) -> DeleteProjectDomainResponse:
+async def handle_delete_project_domain(db:AsyncSession,current_user : User,projectDomainID: UUID) -> DeleteProjectDomainResponse:
     try:
         projectDomainDetails = await delete_project_domain(db,projectDomainID)
 

@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
+import uuid
 from sqlalchemy import DateTime, func, String,ForeignKey, text  , Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -14,9 +15,10 @@ if TYPE_CHECKING:
 class Projects(Base):
     __tablename__= 'projects'
 
-    project_id: Mapped[int] = mapped_column(
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         primary_key=True,
-        autoincrement=True
+        server_default=text("gen_random_uuid()")
     )
     project_name: Mapped[str] = mapped_column(
         String(255),
@@ -50,7 +52,8 @@ class Projects(Base):
         nullable=True
     )
 
-    projectDomainID: Mapped[int] = mapped_column(
+    projectDomainID: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         ForeignKey("project_domains.id", ondelete="RESTRICT"),
         nullable=False
     )

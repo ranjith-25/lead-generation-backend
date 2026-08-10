@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, func, ForeignKey
+from sqlalchemy import DateTime, Integer, String, Text, func, ForeignKey, text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,8 +13,8 @@ from app.models.user import User
 class Opportunity(Base):
     __tablename__ = "opportunities"
 
-    opportunityID: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
+    opportunityID: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     createdBy: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
@@ -74,7 +74,7 @@ class Opportunity(Base):
     company_website: Mapped[str | None] = mapped_column(String(255), nullable=True)
     additional_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     platform: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    status_id: Mapped[int] = mapped_column(Integer, ForeignKey("opportunity_status.id"), default=1, server_default="1", nullable=False)
+    status_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("opportunity_status.id"), nullable=False)
     is_ai_scraped: Mapped[bool] = mapped_column(default=True, server_default="true", nullable=False)
     additional_fields: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     

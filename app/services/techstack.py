@@ -2,6 +2,7 @@ import logging
 
 from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.exceptions.custom import AppException
 from app.exceptions.error_codes import ErrorCode
@@ -48,7 +49,7 @@ async def handle_get_techstacks(db: AsyncSession, current_user: User, page: int,
 
 
 async def handle_get_techstack_by_id(
-    db: AsyncSession, current_user: User, techstack_id: int
+    db: AsyncSession, current_user: User, techstack_id: UUID
 ) -> GetTechStackResponse:
     try:
         techstack = await get_techstack_by_id_db(db, techstack_id)
@@ -99,7 +100,7 @@ async def handle_create_techstack(
 
 
 async def handle_update_techstack(
-    db: AsyncSession, current_user: User, techstack_update: TechStackUpdate, techstack_id: int
+    db: AsyncSession, current_user: User, techstack_update: TechStackUpdate, techstack_id: UUID
 ) -> UpdateTechStackResponse:
     try:
         techstack = await get_techstack_by_id_db(db, techstack_id)
@@ -132,7 +133,7 @@ async def handle_update_techstack(
 
 
 async def handle_delete_techstack(
-    db: AsyncSession, current_user: User, techstack_id: int
+    db: AsyncSession, current_user: User, techstack_id: UUID
 ) -> DeleteTechStackResponse:
     try:
         techstack = await get_techstack_by_id_db(db, techstack_id)

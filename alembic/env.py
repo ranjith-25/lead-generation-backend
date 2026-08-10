@@ -33,26 +33,27 @@ def run_migrations_offline() -> None:
 LOCK_TIMEOUT = "5s"
 
 def do_run_migrations(connection: Connection) -> None:
+    connection.exec_driver_sql(f"SET lock_timeout = '{LOCK_TIMEOUT}'")
     context.configure(connection=connection, target_metadata=target_metadata,compare_server_default=True,)
     with context.begin_transaction():
         context.run_migrations()
 
 
 async def run_async_migrations() -> None:
-    config_section = config.get_section(config.config_ini_section, {})
-    config_section["sqlalchemy.url"] = settings.DATABASE_URL
+    configuration = config.get_section(config.config_ini_section, {})
+    configuration["sqlalchemy.url"] = settings.DATABASE_URL
+
     connectable = async_engine_from_config(
-        config_section,
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        # asyncpg applies this at connect time. Issuing `SET lock_timeout` on the connection
-        # instead would open a transaction before alembic opens its own; alembic would then
-        # treat the transaction as externally managed and skip its commit, so the migration
-        # would run, log "Running upgrade", and be rolled back on disconnect.
         connect_args={"server_settings": {"lock_timeout": LOCK_TIMEOUT}},
     )
-    async with connectable.connect() as connection:
+
+    # MUST use .begin() to auto-commit the transaction block when exiting
+    async with connectable.begin() as connection:
         await connection.run_sync(do_run_migrations)
+
     await connectable.dispose()
 
 

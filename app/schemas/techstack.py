@@ -12,7 +12,7 @@ class TechStackBase(BaseModel):
 
 
 class TechStackDTO(TechStackBase):
-    techstack_id: int = Field(..., description="Tech Stack ID")
+    techstack_id: UUID = Field(..., description="Tech Stack ID")
     createdAt: Optional[datetime] = Field(None)
     updatedAt: Optional[datetime] = Field(None)
     createdBy: Optional[UUID] = Field(None, description="User who added this tech stack")
@@ -32,7 +32,7 @@ class TechStackUpdate(TechStackBase):
 
 
 class TechStackRead(TechStackBase):
-    techstack_id: int = Field(..., description="Tech Stack ID")
+    techstack_id: UUID = Field(..., description="Tech Stack ID")
 
     model_config = ConfigDict(from_attributes=True)
 

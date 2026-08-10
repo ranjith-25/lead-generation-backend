@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.api.deps import get_current_user
 from app.core.connections.postgres import get_db
@@ -58,7 +59,7 @@ async def get_filter_values(
 
 @router.get("/{project_id}", response_model=ProjectRead)
 async def get_project(
-    project_id: int,
+    project_id: UUID,
     current_user: User = Depends(require_permission("projects", "read")),
     db: AsyncSession = Depends(get_db),
 ) -> ProjectRead:
@@ -67,7 +68,7 @@ async def get_project(
 
 @router.patch("/{project_id}", response_model=ProjectRead)
 async def update_project(
-    project_id: int,
+    project_id: UUID,
     project: ProjectUpdate = Depends(ProjectUpdate.as_form),
     case_study: UploadFile | None = File(None),
     remove_case_study: bool = Form(False),
@@ -79,7 +80,7 @@ async def update_project(
 
 @router.get("/{project_id}/case-study")
 async def download_case_study(
-    project_id: int,
+    project_id: UUID,
     current_user: User = Depends(require_permission("projects", "read")),
     db: AsyncSession = Depends(get_db),
 ) -> FileResponse:
@@ -88,7 +89,7 @@ async def download_case_study(
 
 @router.delete("/{project_id}", response_model=BaseResponse)
 async def delete_project(
-    project_id: int,
+    project_id: UUID,
     current_user: User = Depends(require_permission("projects", "delete")),
     db: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
