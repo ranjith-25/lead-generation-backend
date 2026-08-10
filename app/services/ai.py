@@ -1,3 +1,4 @@
+from app.api.pipeline_execution_status import get_pipeline_execution_status_by_id
 from app.exceptions.ai_exception import handle_ai_exception
 from app.core.connections.ai_connection import get_ai_client
 import logging
@@ -30,6 +31,23 @@ from app.core.connections.ai_connection import get_ai_client
 
 
 from uuid import UUID
+
+from app.services.opportunity_status import get_new_opportunity_status_id
+async def handleSalesEnablement(project_id_list : list[int],jobDetails: dict,client : httpx.AsyncClient,db: AsyncSession):
+    try:
+        projectDetails = await get_project_by_ids_list_db(db,project_id_list)
+        projectsList = [
+            AIProjectRequest(
+                project_name=row.project_name,
+                domain=row.projectDomain.domain,
+                tech_stack= [techstack.techstack_name for techstack in row.techstacks] if row.techstacks else [],
+                description=row.description
+            ) for row in projectDetails
+        ]
+        body : dict = {
+        "job_details" : json.dumps(jobDetails),
+        "projects" : projectsList,
+        }
 
 from app.services.opportunity_status import get_new_opportunity_status_id
 async def handleSalesEnablement(project_id_list : list[int],jobDetails: dict,executionStatusID : UUID):
@@ -144,6 +162,8 @@ async def handleGetRelaventProjects(
             body = {
                 "job_details": json.dumps(jobDetails)
             }
+        executionStatus = await get_pipeline_execution_status_by_id(db,executionStatusID)
+        
 
             response = await client.post(
                 "/api/v1/projects/match",
