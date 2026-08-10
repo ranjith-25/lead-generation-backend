@@ -27,7 +27,12 @@ from app.exceptions.project import (
 from app.models.projects import Projects
 from app.responses.base import BaseResponse
 from app.responses.project import ProjectListResponse
-from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate, ProjectFilters
+from app.schemas.project import (
+    ProjectCreate,
+    ProjectRead,
+    ProjectUpdate,
+    ProjectFilters
+)
 from app.services.db.project import (
     add_project_db,
     delete_project_db,
