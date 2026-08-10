@@ -452,7 +452,6 @@ async def handleGetScrapedData(url: str, db: AsyncSession, user_id , backgroundT
             handleGetRelaventProjects ,
             aiResponse.job_details,
             result_pipeline_executionStatus.id
-            result_pipeline_executionStatus.id
         )
 
         endpref = perf_counter()
