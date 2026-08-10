@@ -47,7 +47,7 @@ async def get_pipeline_opportunity_project_by_opportunity_id(db: AsyncSession, p
         return result.scalars().all()
     except SQLAlchemyError as e:
         await db.rollback()
-        logging.exception("Could not find Pipeline Opportunity Project")
+        logging.exception("Could not find Pipeline Opportunity Project by opportunity id")
         raise e
 
 
