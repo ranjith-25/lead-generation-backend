@@ -8,9 +8,12 @@ from app.responses.profile_variant import (
     CreateProfileVariantResponse,
     DeleteProfileVariantResponse,
     GetProfileVariantResponse,
-    UpdateProfileVariantResponse,
+    UpdateProfileVariantResponse, JobRoleSkillsResponse, RoleItem, JobRoleSkillsData,
 )
+from app.schemas.job_role import JobRoleFilters
 from app.schemas.profile_variant import ProfileVariantCreate, ProfileVariantDTO, ProfileVariantUpdate
+from app.schemas.techstack import TechstackFilters
+from app.services.db.job_role import get_all_job_roles
 from app.services.db.profile_variant import (
     create_profile_variant,
     delete_profile_variant,
@@ -18,6 +21,7 @@ from app.services.db.profile_variant import (
     get_profile_variant_by_id,
     update_profile_variant,
 )
+from app.services.db.techstack import get_all_techstacks_db
 
 
 async def handle_get_all_profile_variants(db: AsyncSession, current_user: User) -> GetProfileVariantResponse:
@@ -119,4 +123,43 @@ async def handle_delete_profile_variant(
         raise e
     except Exception as e:
         logging.exception("Some error occurred while deleting Profile Variant")
+        raise e
+
+
+async def handle_get_job_role_skills(
+        db: AsyncSession,
+        current_user: User
+) -> JobRoleSkillsResponse:
+    try:
+        # Fetch job roles (reusing the existing DB query)
+        job_roles = await get_all_job_roles(db, JobRoleFilters(page=1, limit=None))
+        roles_list = []
+        if job_roles:
+            roles_list = [
+                RoleItem(job_role_name=role.roleName, job_role_id=str(role.id))
+                for role in job_roles
+            ]
+
+        # Fetch tech stacks (reusing the existing DB query)
+        tech_stacks = await get_all_techstacks_db(db, TechstackFilters(page=1, limit=None))
+        unique_skills = []
+        if tech_stacks:
+            techstack_names = [ts.techstack_name for ts in tech_stacks if ts.techstack_name is not None]
+            # Deduplicate in code using a set to preserve order
+            seen = set()
+            for name in techstack_names:
+                if name not in seen:
+                    seen.add(name)
+                    unique_skills.append(name)
+
+        return JobRoleSkillsResponse(
+            status=True,
+            message="Job Roles and Skills fetched successfully",
+            data=JobRoleSkillsData(
+                role=roles_list,
+                highlighted_skills=unique_skills
+            )
+        )
+    except Exception as e:
+        logging.exception("Some error occurred while fetching job roles and skills")
         raise e
