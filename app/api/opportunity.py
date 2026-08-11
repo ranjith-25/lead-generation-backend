@@ -29,17 +29,20 @@ from app.services.opportunity import (
     get_opportunity_statuses_service,
     update_opportunity_status_service
 )
+from fastapi import BackgroundTasks
+from app.responses.opportunity import CreateOpportunityResponse
 
 router = APIRouter(prefix="/opportunities", tags=["Opportunities"])
 
 
-@router.post("", response_model=OpportunityRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CreateOpportunityResponse, status_code=status.HTTP_201_CREATED)
 async def create_opportunity(
     opp_data: OpportunityCreate,
+    background_tasks : BackgroundTasks,
     current_user: User = Depends(require_permission("overview_and_analysis","create")), 
     db: AsyncSession = Depends(get_db)
-) -> OpportunityRead:
-    return await create_opportunity_service(db, opp_data, current_user.user_id)
+) -> CreateOpportunityResponse:
+    return await create_opportunity_service(db, opp_data, current_user.user_id,background_tasks)
 
 
 @router.get("", response_model=OpportunityPaginatedResponse)
