@@ -29,7 +29,7 @@ class User(Base):
     reporting_to: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True
     )
-    specialization: Mapped[str] = mapped_column(String(100), nullable=True) 
+
     createdAt: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

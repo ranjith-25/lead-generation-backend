@@ -32,7 +32,7 @@ class UserRead(UserBase):
 class UserHierarchy(BaseModel):
     user_id: UUID
     fullName: str
-    specialization : str | None = None
+    working_status : str | None = None
     roleName : str 
     children: list["UserHierarchy"] = Field(default_factory=list)
 

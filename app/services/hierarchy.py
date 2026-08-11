@@ -19,7 +19,7 @@ async def handleGetHierarchy(db) -> HierarchyResponse:
                 user_id=user.user_id,
                 fullName=user.fullName,
                 roleName=user.role.roleName,
-                specialization=user.specialization,
+                working_status=user.personal_info.userStatus.displayName if getattr(user, 'personal_info', None) and getattr(user.personal_info, 'userStatus', None) else None,
                 children=[]
             )
 
