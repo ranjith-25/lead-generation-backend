@@ -15,6 +15,7 @@ from app.responses.pipeline_opportunity_resource import (
 from app.schemas.pipeline_opportunity_resource import (
     PipelineOpportunityResourceCreate,
     PipelineOpportunityResourceUpdate,
+    PipelineOpportunityResourceSelectRequest
 )
 from app.services.pipeline_opportunity_resource import (
     handle_create_pipeline_opportunity_resource,
@@ -106,3 +107,4 @@ async def delete_pipeline_opportunity_resource(
         content=response.model_dump(mode="json", exclude_none=True),
         status_code=200,
     )
+

@@ -268,7 +268,7 @@ async def handleGetRelaventResource(
                 pipeline_opportunity_resources=[
                     PipelineOpportunityResourceModel(
                         opportunity_id=execution_status.opportunity_id,
-                        user_id=execution_status.createdBy,
+                        user_id=row.candidate_id,
                         email=row.email,
                         variant_id=row.variant_id,
                         variant_title=row.variant_title,
