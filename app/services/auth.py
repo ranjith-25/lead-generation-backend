@@ -10,7 +10,7 @@ from app.schemas.user import UserRegistrationFromInvitation
 from app.schemas.user_invitation import UserInvitationDTO,UserInvitationUpdate,InvitationStatus
 from app.models.user_personal_info import UserPersonalInfo
 from app.core.security import create_access_token, verify_password, create_password_reset_token, decode_password_reset_token
-from app.services.db.user import get_user_by_email
+from app.services.db.user import get_user_by_email, get_user_by_id
 from app.services.db.session import create_session, revoke_session
 from app.services.db.role_permissions import get_feature_names_by_role_id
 from app.exceptions.auth import InvalidCredentialsException, InvalidResetTokenException, InvalidOtpException
@@ -122,7 +122,7 @@ async def handle_forgot_password(db: AsyncSession, payload: ForgotPasswordReques
 
 async def handle_verify_otp(db: AsyncSession, payload: VerifyOtpRequest) -> VerifyOtpResponse:
     try:
-        user = await get_user_by_email(db, payload.email)
+        user = await get_user_by_id(db, payload.user_id)
 
         if user is None:
             raise InvalidOtpException()
@@ -166,7 +166,7 @@ async def handle_reset_password(db: AsyncSession, payload: ResetPasswordRequest)
         if payload.new_password != payload.confirm_password:
             raise ConfirmPasswordMismatchException()
 
-        user_id = decode_password_reset_token(payload.token)
+        user_id = payload.user_id
         try:
             uid = uuid.UUID(user_id)
         except ValueError:
