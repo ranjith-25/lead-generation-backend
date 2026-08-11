@@ -9,7 +9,7 @@ from app.models.user import User
 from app.schemas.user import UserRegistrationFromInvitation
 from app.schemas.user_invitation import UserInvitationDTO,UserInvitationUpdate,InvitationStatus
 from app.models.user_personal_info import UserPersonalInfo
-from app.core.security import create_access_token, verify_password, create_password_reset_token, decode_password_reset_token
+from app.core.security import create_access_token, verify_password
 from app.services.db.user import get_user_by_email, get_user_by_id
 from app.services.db.session import create_session, revoke_session
 from app.services.db.role_permissions import get_feature_names_by_role_id
@@ -24,7 +24,7 @@ from app.services.db.password_reset import (
     spend_password_reset_token,
 )
 from app.services.email import send_otp_email
-from app.responses.authentication import AuthenticationResponse, VerifyOtpResponse
+from app.responses.authentication import AuthenticationResponse
 from app.responses.base import BaseResponse
 from app.responses.authentication import UserRegistrationFromInvitationResponse
 from app.services.db.user_invitation import update_user_invitation,get_user_invitation_by_id
@@ -36,7 +36,7 @@ import logging
 from sqlalchemy.exc import SQLAlchemyError
 from app.exceptions.custom import InvitationCancelledException,InvitationRegisteredException
 from app.responses.authentication import (
-    ForgptPasswordMailResponse
+    ForgotPasswordMailResponse
 )
 async def authenticate_user(db: AsyncSession, form_data: OAuth2PasswordRequestForm) -> AuthenticationResponse:
 
@@ -103,14 +103,14 @@ async def handle_forgot_password(db: AsyncSession, payload: ForgotPasswordReques
 
             await send_otp_email(user.email, otp)
             
-            return ForgptPasswordMailResponse(
+            return ForgotPasswordMailResponse(
                 message= "A password reset OTP has been sent to it",
                 user_id= user.user_id
             )
         else:
             logging.info("Password reset requested for an unregistered address")
 
-        return BaseResponse(
+        return ForgotPasswordMailResponse(
             message="A password reset code has been sent to it",
         )
     except AppException:
@@ -120,7 +120,7 @@ async def handle_forgot_password(db: AsyncSession, payload: ForgotPasswordReques
         raise
 
 
-async def handle_verify_otp(db: AsyncSession, payload: VerifyOtpRequest) -> VerifyOtpResponse:
+async def handle_verify_otp(db: AsyncSession, payload: VerifyOtpRequest) -> ForgotPasswordMailResponse:
     try:
         user = await get_user_by_id(db, payload.user_id)
 
@@ -137,7 +137,6 @@ async def handle_verify_otp(db: AsyncSession, payload: VerifyOtpRequest) -> Veri
             db, user.user_id, token_hash
         )
 
-        # unknown, spent and expired all collapse to one error — see InvalidOtpException
         if reset_token is None or reset_token.used_at is not None:
             raise InvalidOtpException()
 
@@ -146,13 +145,9 @@ async def handle_verify_otp(db: AsyncSession, payload: VerifyOtpRequest) -> Veri
 
         _otp_attempts.pop(token_hash, None)
 
-        await spend_password_reset_token(db, reset_token)
-
-        jwt_token, _ = create_password_reset_token(str(user.user_id))
-
-        return VerifyOtpResponse(
+        return ForgotPasswordMailResponse(
             message="Code verified successfully",
-            reset_token=jwt_token,
+            user_id=user.user_id,
         )
     except AppException:
         raise
@@ -167,13 +162,8 @@ async def handle_reset_password(db: AsyncSession, payload: ResetPasswordRequest)
             raise ConfirmPasswordMismatchException()
 
         user_id = payload.user_id
-        try:
-            uid = uuid.UUID(user_id)
-        except ValueError:
-            raise InvalidResetTokenException()
-
         updated_user = await reset_password_by_user_id(
-            db, uid, get_password_hash(payload.new_password)
+            db, user_id, get_password_hash(payload.new_password)
         )
         if updated_user is None:
             raise InvalidResetTokenException()

@@ -15,9 +15,6 @@ class HierarchyResponse(BaseResponse):
 
 class UserRegistrationFromInvitationResponse(BaseResponse):
     pass
-
-class VerifyOtpResponse(BaseResponse):
-    reset_token: str = Field(..., description="Short-lived JWT proving the OTP was accepted; pass it to /auth/reset-password")
     
-class ForgptPasswordMailResponse(BaseResponse):
+class ForgotPasswordMailResponse(BaseResponse):
     user_id: UUID
