@@ -81,231 +81,239 @@ async def _update_execution_status(
 async def handleGetRelaventProjects(
     job_details: dict,
     execution_status_id: UUID,
-    db: AsyncSession,
     client: httpx.AsyncClient,
 ) -> GetRelaventProjectResponse:
     """Fetches matching projects from AI service and persists them to DB."""
-    execution_status: PipelineExecutionStatusModel = (
-        await get_pipeline_execution_status_by_id(db, execution_status_id)
-    )
-
-    try:
-        response = await client.post(
-            "/api/v1/projects/match",
-            json={"job_details": json.dumps(job_details)},
-        )
-        response.raise_for_status()
-
-        project_response = GetRelaventProjectResponse(**response.json())
-
-        await create_multiple_pipeline_opportunity_project(
-            db=db,
-            pipeline_opportunity_projects=[
-                PipelineOpportunityProjectModel(
-                    opportunity_id=execution_status.opportunity_id,
-                    project_id=row.project_id,
-                    project_name=row.project_name,
-                    match_score=row.match_score,
-                    justification=row.justification,
-                    matched_evidence=row.matched_evidence,
-                    createdBy=execution_status.createdBy,
-                    updatedBy=execution_status.createdBy,
+    async with AsyncSessionLocal() as db:
+        try:
+            execution_status: PipelineExecutionStatusModel = (
+                await get_pipeline_execution_status_by_id(
+                    db,
+                    execution_status_id,
                 )
-                for row in project_response.matches
-            ],
-        )
+            )
+            response = await client.post(
+                "/api/v1/projects/match",
+                json={"job_details": json.dumps(job_details)},
+            )
+            response.raise_for_status()
 
-        await _update_execution_status(
-            db=db,
-            execution_status_id=execution_status_id,
-            status_update=PipelineExecutionStatusUpdate(
-                projects=PipelineExecutionStatus.COMPLETED,
-                salesEnablement=PipelineExecutionStatus.PENDING,
-                resourceMatch=PipelineExecutionStatus.PENDING,
-                technicalPreperation=PipelineExecutionStatus.PENDING,
-                execution_message=(
-                    f"{PipelineExecutionStatus.COMPLETED.status_text}: "
-                    "Updated projects."
+            project_response = GetRelaventProjectResponse(**response.json())
+
+            await create_multiple_pipeline_opportunity_project(
+                db=db,
+                pipeline_opportunity_projects=[
+                    PipelineOpportunityProjectModel(
+                        opportunity_id=execution_status.opportunity_id,
+                        project_id=row.project_id,
+                        project_name=row.project_name,
+                        match_score=row.match_score,
+                        justification=row.justification,
+                        matched_evidence=row.matched_evidence,
+                        createdBy=execution_status.createdBy,
+                        updatedBy=execution_status.createdBy,
+                    )
+                    for row in project_response.matches
+                ],
+            )
+
+            await _update_execution_status(
+                db=db,
+                execution_status_id=execution_status_id,
+                status_update=PipelineExecutionStatusUpdate(
+                    projects=PipelineExecutionStatus.COMPLETED,
+                    salesEnablement=PipelineExecutionStatus.PENDING,
+                    resourceMatch=PipelineExecutionStatus.PENDING,
+                    technicalPreperation=PipelineExecutionStatus.PENDING,
+                    execution_message=(
+                        f"{PipelineExecutionStatus.COMPLETED.status_text}: "
+                        "Updated projects."
+                    ),
                 ),
-            ),
-        )
+            )
 
-        return project_response
+            return project_response
 
-    except Exception:
-        await db.rollback()
-        logger.exception("Failed to fetch Relavent projects")
+        except Exception:
+            await db.rollback()
+            logger.exception("Failed to fetch Relavent projects")
 
-        await _update_execution_status(
-            db=db,
-            execution_status_id=execution_status_id,
-            status_update=PipelineExecutionStatusUpdate(
-                projects=PipelineExecutionStatus.FAILED,
-                salesEnablement=PipelineExecutionStatus.PENDING,
-                resourceMatch=PipelineExecutionStatus.PENDING,
-                technicalPreperation=PipelineExecutionStatus.PENDING,
-                execution_message=(
-                    f"{PipelineExecutionStatus.FAILED.status_text}: "
-                    "Could not fetch Relavent projects."
+            await _update_execution_status(
+                db=db,
+                execution_status_id=execution_status_id,
+                status_update=PipelineExecutionStatusUpdate(
+                    projects=PipelineExecutionStatus.FAILED,
+                    salesEnablement=PipelineExecutionStatus.PENDING,
+                    resourceMatch=PipelineExecutionStatus.PENDING,
+                    technicalPreperation=PipelineExecutionStatus.PENDING,
+                    execution_message=(
+                        f"{PipelineExecutionStatus.FAILED.status_text}: "
+                        "Could not fetch Relavent projects."
+                    ),
                 ),
-            ),
-        )
-        raise
+            )
+            raise
 
 
 async def handleSalesEnablement(
     project_id_list: list[int],
     job_details: dict,
     execution_status_id: UUID,
-    db: AsyncSession,
     client: httpx.AsyncClient,
 ) -> AISalesEnablementResponse:
     """Generates and stores sales enablement assets using AI recommendations."""
-    execution_status: PipelineExecutionStatusModel = (
-        await get_pipeline_execution_status_by_id(db, execution_status_id)
-    )
+    async with AsyncSessionLocal() as db:
+        try:
+            execution_status: PipelineExecutionStatusModel = (
+                await get_pipeline_execution_status_by_id(
+                    db,
+                    execution_status_id,
+                )
+            )
 
-    try:
-        project_details = await get_project_by_ids_list_db(db, project_id_list)
+            project_details = await get_project_by_ids_list_db(db, project_id_list)
 
-        projects_list = [
-            AIProjectRequest(
-                project_name=row.project_name,
-                domain=row.projectDomain.domain,
-                tech_stack=[
-                    ts.techstack_name for ts in row.techstacks
-                ] if row.techstacks else [],
-                description=row.description,
-            ).model_dump(mode="json")
-            for row in project_details
-        ]
+            projects_list = [
+                AIProjectRequest(
+                    project_name=row.project_name,
+                    domain=row.projectDomain.domain,
+                    tech_stack=[
+                        ts.techstack_name for ts in row.techstacks
+                    ] if row.techstacks else [],
+                    description=row.description,
+                ).model_dump(mode="json")
+                for row in project_details
+            ]
 
-        response = await client.post(
-            "/api/v1/projects/sales-enablement",
-            json={
-                "job_details": json.dumps(job_details),
-                "projects": projects_list,
-            },
-        )
-        response.raise_for_status()
+            response = await client.post(
+                "/api/v1/projects/sales-enablement",
+                json={
+                    "job_details": json.dumps(job_details),
+                    "projects": projects_list,
+                },
+            )
+            response.raise_for_status()
 
-        sales_enablement_res = AISalesEnablementResponse(**response.json())
+            sales_enablement_res = AISalesEnablementResponse(**response.json())
 
-        await add_sales_enablement_db(
-            db=db,
-            sales_enablement=SalesEnablement(
-                opportunityID=execution_status.opportunity_id,
-                suggested_questions=sales_enablement_res.discovery_questions,
-                sales_talking_points=sales_enablement_res.talking_points,
-                outreach_template=sales_enablement_res.outreach_template,
-                createdBy=execution_status.createdBy,
-                updatedBy=execution_status.createdBy,
-            ),
-        )
-
-        await _update_execution_status(
-            db=db,
-            execution_status_id=execution_status_id,
-            status_update=PipelineExecutionStatusUpdate(
-                salesEnablement=PipelineExecutionStatus.COMPLETED,
-                execution_message=(
-                    f"{PipelineExecutionStatus.COMPLETED.status_text}: "
-                    "Updated Sales Enablement."
+            await add_sales_enablement_db(
+                db=db,
+                sales_enablement=SalesEnablement(
+                    opportunityID=execution_status.opportunity_id,
+                    suggested_questions=sales_enablement_res.discovery_questions,
+                    sales_talking_points=sales_enablement_res.talking_points,
+                    outreach_template=sales_enablement_res.outreach_template,
+                    createdBy=execution_status.createdBy,
+                    updatedBy=execution_status.createdBy,
                 ),
-            ),
-        )
+            )
 
-        return sales_enablement_res
-
-    except Exception:
-        await db.rollback()
-        logger.exception("Failed to generate Sales Enablement")
-
-        await _update_execution_status(
-            db=db,
-            execution_status_id=execution_status_id,
-            status_update=PipelineExecutionStatusUpdate(
-                salesEnablement=PipelineExecutionStatus.FAILED,
-                execution_message=(
-                    f"{PipelineExecutionStatus.FAILED.status_text}: "
-                    "Could not generate Sales Enablement."
+            await _update_execution_status(
+                db=db,
+                execution_status_id=execution_status_id,
+                status_update=PipelineExecutionStatusUpdate(
+                    salesEnablement=PipelineExecutionStatus.COMPLETED,
+                    execution_message=(
+                        f"{PipelineExecutionStatus.COMPLETED.status_text}: "
+                        "Updated Sales Enablement."
+                    ),
                 ),
-            ),
-        )
-        raise
+            )
+
+            return sales_enablement_res
+
+        except Exception:
+            await db.rollback()
+            logger.exception("Failed to generate Sales Enablement")
+
+            await _update_execution_status(
+                db=db,
+                execution_status_id=execution_status_id,
+                status_update=PipelineExecutionStatusUpdate(
+                    salesEnablement=PipelineExecutionStatus.FAILED,
+                    execution_message=(
+                        f"{PipelineExecutionStatus.FAILED.status_text}: "
+                        "Could not generate Sales Enablement."
+                    ),
+                ),
+            )
+            raise
 
 
 async def handleGetRelaventResource(
     Relavent_resource_request: AIGetRelaventProfilesRequest,
     execution_status_id: UUID,
-    db: AsyncSession,
     client: httpx.AsyncClient,
 ) -> GetMatchedProfilesResponse:
     """Matches profiles for an opportunity and persists them."""
-    execution_status: PipelineExecutionStatusModel = (
-        await get_pipeline_execution_status_by_id(db, execution_status_id)
-    )
-
-    try:
-        response = await client.post(
-            "/api/v1/profiles/match",
-            json=Relavent_resource_request.model_dump(mode="json"),
-        )
-        response.raise_for_status()
-
-        matched_profiles_res = GetMatchedProfilesResponse(**response.json())
-
-        await create_multiple_pipeline_opportunity_resource(
-            db=db,
-            pipeline_opportunity_resources=[
-                PipelineOpportunityResourceModel(
-                    opportunity_id=execution_status.opportunity_id,
-                    user_id=execution_status.createdBy,
-                    email=row.email,
-                    variant_id=row.variant_id,
-                    variant_title=row.variant_title,
-                    experience_years=row.experience_years,
-                    match_percentage=row.match_percentage,
-                    matching_skills=row.matching_skills,
-                    missing_skills=row.missing_skills,
-                    justification=row.justification,
-                    createdBy=execution_status.createdBy,
-                    updatedBy=execution_status.createdBy,
+    async with AsyncSessionLocal() as db:
+        try:
+            execution_status: PipelineExecutionStatusModel = (
+                await get_pipeline_execution_status_by_id(
+                    db,
+                    execution_status_id,
                 )
-                for row in matched_profiles_res.matches
-            ],
-        )
+            )
 
-        await _update_execution_status(
-            db=db,
-            execution_status_id=execution_status_id,
-            status_update=PipelineExecutionStatusUpdate(
-                resourceMatch=PipelineExecutionStatus.COMPLETED,
-                execution_message=(
-                    f"{PipelineExecutionStatus.COMPLETED.status_text}: "
-                    "Updated Resources."
+            response = await client.post(
+                "/api/v1/profiles/match",
+                json=Relavent_resource_request.model_dump(mode="json"),
+            )
+            response.raise_for_status()
+
+            matched_profiles_res = GetMatchedProfilesResponse(**response.json())
+
+            await create_multiple_pipeline_opportunity_resource(
+                db=db,
+                pipeline_opportunity_resources=[
+                    PipelineOpportunityResourceModel(
+                        opportunity_id=execution_status.opportunity_id,
+                        user_id=execution_status.createdBy,
+                        email=row.email,
+                        variant_id=row.variant_id,
+                        variant_title=row.variant_title,
+                        experience_years=row.experience_years,
+                        match_percentage=row.match_percentage,
+                        matching_skills=row.matching_skills,
+                        missing_skills=row.missing_skills,
+                        justification=row.justification,
+                        createdBy=execution_status.createdBy,
+                        updatedBy=execution_status.createdBy,
+                    )
+                    for row in matched_profiles_res.matches
+                ],
+            )
+
+            await _update_execution_status(
+                db=db,
+                execution_status_id=execution_status_id,
+                status_update=PipelineExecutionStatusUpdate(
+                    resourceMatch=PipelineExecutionStatus.COMPLETED,
+                    execution_message=(
+                        f"{PipelineExecutionStatus.COMPLETED.status_text}: "
+                        "Updated Resources."
+                    ),
                 ),
-            ),
-        )
+            )
 
-        return matched_profiles_res
+            return matched_profiles_res
 
-    except Exception:
-        await db.rollback()
-        logger.exception("Failed to fetch matching profiles")
+        except Exception:
+            await db.rollback()
+            logger.exception("Failed to fetch matching profiles")
 
-        await _update_execution_status(
-            db=db,
-            execution_status_id=execution_status_id,
-            status_update=PipelineExecutionStatusUpdate(
-                resourceMatch=PipelineExecutionStatus.FAILED,
-                execution_message=(
-                    f"{PipelineExecutionStatus.FAILED.status_text}: "
-                    "Could not fetch Relavent Profiles."
+            await _update_execution_status(
+                db=db,
+                execution_status_id=execution_status_id,
+                status_update=PipelineExecutionStatusUpdate(
+                    resourceMatch=PipelineExecutionStatus.FAILED,
+                    execution_message=(
+                        f"{PipelineExecutionStatus.FAILED.status_text}: "
+                        "Could not fetch Relavent Profiles."
+                    ),
                 ),
-            ),
-        )
-        raise
+            )
+            raise
 
 
 # ============================================================================
@@ -316,42 +324,35 @@ async def process_opportunity_pipeline_background(
     job_details: dict,
     execution_status_id: UUID,
 ) -> None:
-    """Orchestrates downstream background processing after scraping."""
-    async with AsyncSessionLocal() as db:
-        client = get_ai_client()
 
-        # Step 1: Match projects
-        project_res = await handleGetRelaventProjects(
+    client = get_ai_client()
+
+    project_res = await handleGetRelaventProjects(
+        job_details=job_details,
+        execution_status_id=execution_status_id,
+        client=client,
+    )
+
+    top_project_ids = [row.project_id for row in project_res.matches]
+
+    resource_request = AIGetRelaventProfilesRequest(
+        job_details=json.dumps(job_details),
+        top_project_ids=[str(pid) for pid in top_project_ids],
+    )
+
+    await asyncio.gather(
+        handleSalesEnablement(
+            project_id_list=top_project_ids,
             job_details=job_details,
             execution_status_id=execution_status_id,
-            db=db,
             client=client,
-        )
-
-        top_project_ids = [row.project_id for row in project_res.matches]
-
-        resource_request = AIGetRelaventProfilesRequest(
-            job_details=json.dumps(job_details),
-            top_project_ids=[str(pid) for pid in top_project_ids],
-        )
-
-        # Step 2 & 3: Run Sales Enablement & Resource Matching in parallel
-        await asyncio.gather(
-            handleSalesEnablement(
-                project_id_list=top_project_ids,
-                job_details=job_details,
-                execution_status_id=execution_status_id,
-                db=db,
-                client=client,
-            ),
-            handleGetRelaventResource(
-                Relavent_resource_request=resource_request,
-                execution_status_id=execution_status_id,
-                db=db,
-                client=client,
-            ),
-            return_exceptions=True,
-        )
+        ),
+        handleGetRelaventResource(
+            Relavent_resource_request=resource_request,
+            execution_status_id=execution_status_id,
+            client=client,
+        ),
+    )
 
 
 async def handleGetScrapedData(
@@ -480,5 +481,5 @@ async def handleGetManualScrapedData(
         )
 
     except Exception as exc:
-        logger.exception("Failed to process scraped data for URL %s", url)
+        logger.exception("Failed to process scraped data for URL %s", AIManualJDRequest.company_website)
         raise handle_ai_exception(exc) from exc
