@@ -17,4 +17,4 @@ class UserRegistrationFromInvitationResponse(BaseResponse):
     pass
     
 class ForgotPasswordMailResponse(BaseResponse):
-    user_id: UUID
+    user_id: UUID | None

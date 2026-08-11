@@ -21,7 +21,13 @@ from app.services.db.user_invitation import (
     
 )
 from app.core.settings import settings
-
+from app.config import ( 
+    EMAIL_MESSAGE_CONTENT
+)
+from app.services.db.role import get_role_by_id
+from email.message import EmailMessage
+from app.services.db.user_personal_info import get_user_personal_info_by_user_id
+from app.services.email import send_mail
 
 async def handle_get_all_user_invitations(db: AsyncSession, current_user: User) -> GetUserInvitationResponse:
     try:
@@ -73,10 +79,30 @@ async def handle_create_user_invitation(
             updatedBy=current_user.user_id,
         )
         created_user_invitation = await create_user_invitation(db, new_user_invitation)
+        
+        role_name = (await get_role_by_id(db, created_user_invitation.roleID)).roleName
+        invitation_url = f"{settings.FRONTEND_BASE_URL}/register?invitation_id={created_user_invitation.id}&work_email={created_user_invitation.work_email}"
+        first_name = (await get_user_personal_info_by_user_id(db, current_user.user_id)).first_name
+        work_email = current_user.email
+    
+        template = EMAIL_MESSAGE_CONTENT["INVITATION_TEMPLATE"]
+        text_content = template["text_template"].format(
+            first_name=first_name,
+            role_name=role_name,
+            invitation_url=invitation_url,
+        )
+        html_content = template["html_template"].format(
+            first_name=first_name,
+            role_name=role_name,
+            invitation_url=invitation_url,
+        )
+        
+        await send_mail(template["subject"], text_content, html_content, work_email)
+
         return CreateUserInvitationResponse(
             newUserInvitation=UserInvitationDTO.model_validate(created_user_invitation),
             message="User Invitation created successfully",
-            invitationURL = f"{settings.FRONTEND_BASE_URL}/register?invitation_id={created_user_invitation.id}&work_email={created_user_invitation.work_email}",
+            invitationURL = invitation_url,
             status_code=200,
         )
     except Exception as e:
