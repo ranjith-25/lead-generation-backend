@@ -19,6 +19,7 @@ from app.responses.ai import (
     AIProjectResponse,
     GetRelaventProjectResponse,
     GetScrapedURLDataResponse,
+    GetMatchedProfilesResponse
 )
 from app.responses.opportunity import CreateOpportunityResponse
 from app.schemas.opportunity import OpportunityBase
@@ -43,6 +44,9 @@ from app.services.opportunity_status import get_new_opportunity_status_id
 from app.exceptions.ai_exception import handle_ai_exception
 
 
+from app.schemas.ai import AIGetRelaventProfilesRequest
+from app.services.db.pipeline_opportunity_resource import create_multiple_pipeline_opportunity_resource
+from app.models.pipeline_opportunity_resource import PipelineOpportunityResourceModel
 async def handleSalesEnablement(
     project_id_list: list[int],
     jobDetails: dict,
@@ -154,6 +158,111 @@ async def handleSalesEnablement(
         raise
 
 
+
+
+async def handleGetRelaventResource(
+    relaventResourcerequest : AIGetRelaventProfilesRequest,
+    executionStatusID: UUID,
+):
+    async with AsyncSessionLocal() as db:
+        try:
+            client = get_ai_client()
+
+            executionStatus: PipelineExecutionStatusModel = (
+                await get_pipeline_execution_status_by_id(
+                    db,
+                    executionStatusID,
+                )
+            )
+
+            body = relaventResourcerequest.model_dump(mode="json")
+
+            response = await client.post(
+                "/api/v1/profiles/match",
+                json=body,
+            )
+            response.raise_for_status()
+
+            print("Response from AI:", response.json())
+
+            matchedProfilesResponse = GetMatchedProfilesResponse(
+                **response.json()
+            )
+
+            await create_multiple_pipeline_opportunity_resource(
+                db=db,
+                pipeline_opportunity_resources=[
+                    PipelineOpportunityResourceModel(
+                        opportunity_id=executionStatus.opportunity_id,
+                        user_id=executionStatus.createdBy,
+                        email=row.email,
+                        variant_id=row.variant_id,
+                        variant_title=row.variant_title,
+                        experience_years=row.experience_years,
+                        match_percentage=row.match_percentage,
+                        matching_skills=row.matching_skills,
+                        missing_skills=row.missing_skills,
+                        justification=row.justification,
+                        createdBy=executionStatus.createdBy,
+                        updatedBy=executionStatus.createdBy,
+                    )
+                    for row in matchedProfilesResponse.matches
+                ],
+            )
+
+            await update_pipeline_execution_status(
+                db=db,
+                update_data=PipelineExecutionStatusUpdate(
+                    resourceMatch=PipelineExecutionStatus.COMPLETED,
+                    technicalPreperation=PipelineExecutionStatus.PENDING,
+                    execution_message=(
+                        f"{PipelineExecutionStatus.COMPLETED.status_text} "
+                        ": Updated Resources."
+                    ),
+                ).model_dump(
+                    exclude_unset=True,
+                    exclude_none=True,
+                ),
+                pipeline_execution_status_id=executionStatusID,
+            )
+
+            
+
+            return matchedProfilesResponse
+
+        except Exception:
+            await db.rollback()
+
+            logging.exception(
+                "Could not get Matching profiles for corresponding Opportunity"
+            )
+
+            try:
+                await update_pipeline_execution_status(
+                    db=db,
+                    update_data=PipelineOpportunityResourceModel(
+                        salesEnablement=PipelineExecutionStatus.FAILED,
+                        technicalPreperation=PipelineExecutionStatus.PENDING,
+                        execution_message=(
+                            f"{PipelineExecutionStatus.FAILED.status_text} "
+                            ": Could not fetch relevant Profiles."
+                        ),
+                    ).model_dump(
+                        exclude_unset=True,
+                        exclude_none=True,
+                    ),
+                    pipeline_execution_status_id=executionStatusID,
+                )
+            except Exception:
+                logging.exception(
+                    "Could not update Profile execution status"
+                )
+
+            raise
+
+
+
+
 async def handleGetRelaventProjects(
     jobDetails: dict,
     executionStatusID: UUID,
@@ -228,6 +337,18 @@ async def handleGetRelaventProjects(
                 executionStatusID=executionStatusID,
                 client=client,
                 db=db,
+            )
+
+            relavent_resource_request : AIGetRelaventProfilesRequest = AIGetRelaventProfilesRequest(
+                job_details = json.dumps(jobDetails),
+                top_project_ids = [
+                    str(row.project_id) for row in projectResponse.matches
+                ]
+            )
+
+            await handleGetRelaventResource(
+                relavent_resource_request,
+                executionStatusID,
             )
 
             return projectResponse
