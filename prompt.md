@@ -1,446 +1,436 @@
-Master Prompt - Generate CRUD Modules Following Existing FastAPI Architecture
+MASTER REFERENCE MODULE — EXACT REPLICA RULE
 
-You are a Senior Python Backend Engineer contributing to an existing production FastAPI backend.
+TARGET MODULE / INPUT
 
-IMPORTANT RULES
-
-This is NOT a greenfield project.
-
-You MUST follow the existing project architecture exactly.
-
-Do NOT redesign anything.
-
-Do NOT introduce new coding patterns.
-
-Do NOT use repositories, generic CRUD classes, service layers of your own, dependency injection patterns, or any architecture that does not already exist.
-
-The existing codebase structure is the source of truth.
-
-Input
-
-I will provide exactly one SQLAlchemy model file, for example:
-
-app/models/pipeline_opportunity_project.py
+I will provide exactly ONE new SQLAlchemy model file.
 
 Example:
 
-class ProjectDomain(Base):
+app/models/<new_model_file_name>.py
+
+This SQLAlchemy model is the TARGET MODEL for which the CRUD module
+must be generated.
+
+The provided SQLAlchemy model is READ-ONLY.
+
+DO NOT modify the provided model file.
+
+DO NOT rename the model.
+
+DO NOT rename any model fields.
+
+DO NOT modify:
+- Columns
+- Relationships
+- Foreign keys
+- Constraints
+- Defaults
+- UUID fields
+- Timestamp fields
+- is_active
+- Any existing model configuration
+
+
+TARGET MODULE NAME
+
+The generated module name must be derived from the provided model.
+
+Example:
+
+Provided model:
+
+app/models/customer_project.py
+
+Model:
+
+class CustomerProject(Base):
     ...
 
-You MUST NOT MODIFY THIS FILE.
 
-Treat it as read-only.
+Generated files:
 
-Everything else must be generated around this model.
+app/api/customer_project.py
+app/schemas/customer_project.py
+app/services/db/customer_project.py
+app/services/customer_project.py
+app/responses/customer_project.py
 
-Files You Must Generate
 
-Generate ONLY these files.
+TARGET ENTITY NAMING
 
-app/api/pipeline_opportunity_project.py
+Derive all names from the SQLAlchemy model.
 
-app/schemas/pipeline_opportunity_project.py
+Example:
 
-app/services/db/pipeline_opportunity_project.py
+SQLAlchemy Model:
+CustomerProject
 
-app/services/pipeline_opportunity_project.py
+Module:
+customer_project
 
-app/responses/pipeline_opportunity_project.py
+Schema:
+CustomerProjectBase
+CustomerProjectDTO
+CustomerProjectCreate
+CustomerProjectUpdate
 
-Do not generate anything else.
+Service functions:
+handle_get_all_customer_project()
+handle_get_by_id_customer_project()
+handle_create_customer_project()
+handle_update_customer_project()
+handle_delete_customer_project()
 
-Do not generate migrations.
+DB functions:
+get_all_customer_project()
+get_customer_project_by_id()
+create_customer_project()
+update_customer_project()
+delete_customer_project()
 
-Do not generate models.
+Router:
+customer_project_router
 
-Do not generate tests.
+Response models:
+GetCustomerProjectResponse
+CreateCustomerProjectResponse
+UpdateCustomerProjectResponse
+DeleteCustomerProjectResponse
 
-Do not generate routers in another style.
-
-Do not generate repositories.
-
-Do not generate controllers.
-
-Existing Architecture
-
-You MUST strictly follow this flow.
-
-API
-        ↓
-Service
-        ↓
-DB Service
-        ↓
-SQLAlchemy
-
-No shortcuts.
-
-No direct database access from API.
-
-No business logic inside API.
-
-API Rules
-
-Generate APIs exactly like the existing project.
-
-Use
-
-APIRouter
-
-with
-
-prefix
-tags
-
-Use
-
-Depends(require_permission(...))
-
-Use
-
-AsyncSession
-
-Use
-
-JSONResponse
-
-Every endpoint must call the Service Layer only.
-
-Generate exactly these endpoints.
-
-GET /
-
-GET /{id}
-
-POST /
-
-PUT /{id}
-
-DELETE /{id}
-
-Return
-
-response.model_dump(
-    mode="json",
-    exclude_none=True
-)
-Schema Rules
-
-Generate
-
-Base
-
-DTO
-
-Create
-
-Update
-
-Exactly like existing code.
-
-Example
-
-ModuleBase
-
-ModuleDTO
-
-ModuleCreate
-
-ModuleUpdate
-
-Use
-
-ConfigDict(from_attributes=True)
-
-DTO must inherit from Base.
-
-Create must inherit from Base.
-
-Update must contain Optional fields.
-
-Use
-
-exclude_unset=True
-
-exclude_none=True
-
-during updates.
-
-DB Service Rules
-
-Generate
-
-get_all
-
-get_by_id
-
-create
-
-update
-
-delete
-
-Use only
-
-select()
-
-AsyncSession
-Field : "is_active" is also implemented for display purpose.Hence consider this for Read, Create , Update endpoints .  
-commit()
-
-refresh()
-
-rollback()
-
-Exactly like existing code.
-
-Update logic must be
-
-for key, value in update_data.items():
-    if key != "id":
-        setattr(...)
-
-Never use
-
-session.merge()
-
-bulk_update
-
-bulk_save
-
-repositories
-
-ORM tricks
-
-Rollback on exceptions.
-
-Log exceptions.
-
-Raise exception.
-
-Service Layer Rules
-
-Generate handler methods.
-
-handle_get_all
-
-handle_get_by_id
-
-handle_create
-
-handle_update
-
-handle_delete
-
-Exactly matching existing naming convention.
-
-Use
-
-ProjectDomainDTO.model_validate(...)
-
-style DTO conversion.
-
-Create ORM object like
-
-Model(
-    **createSchema.model_dump(),
-    createdBy=current_user.user_id,
-    updatedBy=current_user.user_id
-)
-
-Update logic
-
-model_dump(
-    exclude_unset=True,
-    exclude_none=True
-)
-
-Add
-
-updatedBy
-
-before calling DB service.
-
-Throw
-
-NotFoundException
-
-when appropriate.
-
-Log every exception.
-
-Response Models
-
-Generate response models matching project convention.
-
-Example
-
-GetModuleResponse
-
-CreateModuleResponse
-
-UpdateModuleResponse
-
-DeleteModuleResponse
-
-Include
-
-message
-
-status_code
-
-DTO object(s)
-
-matching existing response structure.
-
-Do not invent a new response format.
-
-Naming Rules
-
-Everything must be derived automatically from the model.
-
-Example
-
-ProjectDomain
-
-becomes
-
-pipeline_opportunity_project.py
-
-ProjectDomainCreate
-
-ProjectDomainUpdate
-
-ProjectDomainDTO
-
-handle_create_project_domain()
-
-create_project_domain()
-
-project_domain_router
-
-Follow snake_case for functions.
-
-PascalCase for schemas.
-
-Database Rules
-
-Use the provided SQLAlchemy model exactly.
-
-Do not rename columns.
-
-Do not change field names.
-
-Do not change relationships.
-
-Do not change constraints.
-
-Do not change defaults.
-
-Do not modify timestamps.
-
-Do not modify UUID fields.
-
-Do not modify foreign keys.
+The exact naming must follow the naming convention used by:
 
 pipeline_opportunity_project
 
-Generate APIs using the existing permission style.
+Do NOT blindly use the example names above if the reference module
+uses a different naming convention.
 
-Example
+The reference module takes precedence.
 
-Depends(
-    require_permission(
-        "user_hierarchy",
-        "read"
-    )
-)
 
-Leave the permission module/action exactly as requested or infer it from the module name if instructed.
+TARGET MODEL IS THE ONLY NEW SOURCE OF TRUTH
 
-Do not invent RBAC logic.
+The provided SQLAlchemy model determines:
 
-Imports
+- Available fields
+- Field names
+- Field types
+- Nullable fields
+- Default values
+- Relationships
+- Foreign keys
+- Primary key
+- is_active
+- Model-specific filtering requirements
 
-Generate clean imports.
+Do NOT invent fields that do not exist in the provided model.
 
-Import only what is needed.
+Do NOT remove model fields unless the reference implementation
+demonstrates that such fields are intentionally excluded from a
+specific schema.
 
-Follow the same import ordering as existing files.
+Do NOT invent relationships.
 
-Logging
+Do NOT invent foreign keys.
 
-Every DB function
+Do NOT assume fields based only on the entity name.
 
-try
+Use the actual provided SQLAlchemy model.
 
-except SQLAlchemyError
+The existing module:
 
-rollback
+pipeline_opportunity_project
 
-logging.exception()
+must be treated as the PRIMARY SOURCE OF TRUTH and MASTER REFERENCE
+for generating the new CRUD module.
 
-raise
+Use the corresponding existing files:
 
-Every Service
+app/api/pipeline_opportunity_project.py
+app/schemas/pipeline_opportunity_project.py
+app/services/db/pipeline_opportunity_project.py
+app/services/pipeline_opportunity_project.py
+app/responses/pipeline_opportunity_project.py
 
-try
+as the exact implementation references.
 
-except NotFoundException
+The generated module must follow the existing
+pipeline_opportunity_project module as closely as possible.
 
-logging.exception()
+DO NOT independently design or infer a new implementation.
 
-raise
+DO NOT redesign the architecture.
 
-except Exception
+DO NOT refactor the reference implementation.
 
-logging.exception()
+DO NOT optimize the reference implementation.
 
-raise
-Style Rules
+DO NOT introduce new patterns.
 
-Do NOT optimize.
+DO NOT "improve" existing code.
 
-Do NOT refactor.
+DO NOT simplify existing logic.
 
-Do NOT improve architecture.
+Treat the reference module as if it were a template that is being
+copied and adapted for the new SQLAlchemy model.
 
-Do NOT introduce helper functions.
 
-Do NOT introduce generic CRUD.
+EXACT REPLICA REQUIREMENT
 
-Do NOT introduce inheritance.
+For EVERY generated file, preserve the same:
 
-Do NOT introduce mixins.
+- Overall file structure
+- Import structure
+- Import ordering
+- Naming conventions
+- Class structure
+- Function structure
+- Function ordering
+- Parameters
+- Return types
+- Async/await pattern
+- SQLAlchemy query patterns
+- AsyncSession usage
+- Validation approach
+- DTO conversion approach
+- Error handling
+- Exception handling
+- Logging
+- JSONResponse usage
+- Permission handling
+- Status codes
+- Response structure
+- Database transaction handling
+- commit()
+- refresh()
+- rollback()
+- update logic
+- is_active handling
+- ID handling
+- None handling
+- model_dump() usage
+- model_validate() usage
+- Coding style
+- Formatting style
 
-Do NOT introduce BaseService.
 
-Do NOT introduce Repository Pattern.
+ONLY ADAPT ENTITY-SPECIFIC INFORMATION
 
-Do NOT introduce Unit of Work.
+When copying the reference implementation, change ONLY information that
+must change because the target SQLAlchemy model is different.
 
-Do NOT introduce Generic Responses.
+This includes, where applicable:
 
-Do NOT change coding style.
+- Model name
+- Entity name
+- File name
+- Schema names
+- DTO names
+- Create schema names
+- Update schema names
+- Response names
+- Router names
+- Function names
+- SQLAlchemy model references
+- Model-specific fields
+- Model-specific IDs
+- Model-specific foreign keys
+- Model-specific filters
+- Model-specific relationships
 
-Match the existing codebase exactly.
+Do NOT change the implementation pattern merely because another approach
+is possible.
 
-Output Rules
 
-Generate complete code for all required files.
+REFERENCE FILE MAPPING
 
-Preserve the existing project architecture.
+Use the following reference file for each generated file:
 
-Do not skip any file.
+API:
+app/api/pipeline_opportunity_project.py
 
-Do not explain the code.
+Schema:
+app/schemas/pipeline_opportunity_project.py
 
-Do not include markdown explanations.
+DB Service:
+app/services/db/pipeline_opportunity_project.py
 
-Do not include comments unless they already exist in the project style.
+Service:
+app/services/pipeline_opportunity_project.py
 
-Return each file separately with its file path as the heading.
+Response:
+app/responses/pipeline_opportunity_project.py
 
-Never modify the provided model file.
 
-Only generate the remaining CRUD files around that model.
+FILE-BY-FILE REPLICATION
+
+1. API
+
+Copy the structure and implementation style of:
+
+app/api/pipeline_opportunity_project.py
+
+Preserve:
+- APIRouter configuration
+- prefix
+- tags
+- Depends(...)
+- permission handling
+- AsyncSession handling
+- endpoint structure
+- parameter ordering
+- service invocation
+- JSONResponse construction
+- status codes
+- exception handling
+- response serialization
+
+Only adapt entity-specific names and fields.
+
+
+2. SCHEMAS
+
+Copy the structure and implementation style of:
+
+app/schemas/pipeline_opportunity_project.py
+
+Preserve:
+- Base schema structure
+- DTO structure
+- Create schema structure
+- Update schema structure
+- ConfigDict configuration
+- inheritance
+- Optional field handling
+- field naming
+- validation patterns
+
+Only adapt fields according to the provided SQLAlchemy model.
+
+
+3. DB SERVICE
+
+Copy the structure and implementation style of:
+
+app/services/db/pipeline_opportunity_project.py
+
+Preserve:
+- all existing functions
+- function ordering
+- AsyncSession usage
+- select() usage
+- filtering
+- is_active handling
+- create logic
+- update logic
+- delete logic
+- commit()
+- refresh()
+- rollback()
+- SQLAlchemyError handling
+- logging
+- return values
+
+Do not independently decide how database operations should be
+implemented.
+
+
+4. SERVICE
+
+Copy the structure and implementation style of:
+
+app/services/pipeline_opportunity_project.py
+
+Preserve:
+- handler naming pattern
+- handler ordering
+- DB service invocation
+- DTO conversion
+- model_validate(...)
+- model_dump(...)
+- current_user handling
+- createdBy
+- updatedBy
+- NotFoundException handling
+- generic exception handling
+- logging
+- return values
+
+Only adapt entity-specific names and fields.
+
+
+5. RESPONSES
+
+Copy the structure and implementation style of:
+
+app/responses/pipeline_opportunity_project.py
+
+Preserve:
+- response class structure
+- field ordering
+- DTO usage
+- message handling
+- status_code handling
+- response object structure
+- naming conventions
+
+Do not invent a new response format.
+
+
+REFERENCE PRIORITY
+
+If the general instructions in this prompt and the existing
+pipeline_opportunity_project implementation appear to conflict:
+
+1. Follow the existing project implementation.
+2. Follow the pipeline_opportunity_project reference pattern.
+3. Adapt only what is required by the new SQLAlchemy model.
+
+The existing project code is the ultimate source of truth.
+
+The goal is NOT to create an equivalent implementation.
+
+The goal is to create an implementation that looks and behaves as if
+pipeline_opportunity_project was copied and then adapted for the new
+model.
+
+
+NO NEW ARCHITECTURE
+
+Under no circumstances introduce:
+
+- Repository Pattern
+- Generic CRUD
+- Generic Services
+- BaseService
+- Repository classes
+- Unit of Work
+- Mixins
+- Generic Responses
+- New dependency injection patterns
+- New helper utilities
+- New abstractions
+- New architectural layers
+- New coding patterns
+
+
+FINAL VALIDATION
+
+Before generating the output, compare every generated file against its
+corresponding pipeline_opportunity_project reference file.
+
+Verify that:
+
+- The architecture is identical.
+- The implementation pattern is identical.
+- The function ordering follows the reference.
+- The error handling follows the reference.
+- The logging follows the reference.
+- The response structure follows the reference.
+- The database access pattern follows the reference.
+- The service flow follows the reference.
+- No new patterns were introduced.
+- No existing patterns were removed unnecessarily.
+- Only model/entity-specific information was changed.
+
+The generated module should be an exact replica of the reference module,
+adapted to the new SQLAlchemy model.
