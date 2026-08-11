@@ -52,6 +52,7 @@ class Opportunity(Base):
     def statusName(self) -> str | None:
         return self.status.status if getattr(self, "status", None) else None
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     company: Mapped[str | None] = mapped_column(String(255), nullable=True)
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     employment_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
