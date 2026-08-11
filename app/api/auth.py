@@ -15,8 +15,9 @@ from app.services.auth import (
 from app.schemas.auth import ForgotPasswordRequest, VerifyOtpRequest, ResetPasswordRequest
 from app.models.user import User
 from app.schemas.user import UserRead,UserRegistrationFromInvitation
-from app.responses.authentication import AuthenticationResponse, VerifyOtpResponse
+from app.responses.authentication import AuthenticationResponse
 from app.responses.base import BaseResponse
+from app.responses.authentication import ForgotPasswordMailResponse
 from app.responses.authentication import UserRegistrationFromInvitationResponse
 from app.services.hierarchy import handleGetHierarchy
 from app.responses.authentication import HierarchyResponse
@@ -38,17 +39,17 @@ async def logout(
 ) -> BaseResponse:
     return await logout_user(db, token)
 
-@router.post("/forgot-password", response_model=BaseResponse)
+@router.post("/forgot-password", response_model=ForgotPasswordMailResponse)
 async def forgot_password(
     payload: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)
-) -> BaseResponse:
+) -> ForgotPasswordMailResponse:
     return await handle_forgot_password(db, payload)
 
 
-@router.post("/verify-otp", response_model=VerifyOtpResponse)
+@router.post("/verify-otp", response_model=ForgotPasswordMailResponse)
 async def verify_otp(
     payload: VerifyOtpRequest, db: AsyncSession = Depends(get_db)
-) -> VerifyOtpResponse:
+) -> ForgotPasswordMailResponse:
     return await handle_verify_otp(db, payload)
 
 

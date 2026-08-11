@@ -17,12 +17,6 @@ def _smtp_configured() -> bool:
 
 
 async def send_otp_email(email: str, otp: str) -> None:
-    """Deliver a password-reset OTP, or fail loudly.
-
-    With SMTP unconfigured this logs the OTP on `ENVIRONMENT=DEV` so the flow stays testable
-    locally. Everywhere else an undelivered OTP is an error, not a silent success.
-    """
-
     if not _smtp_configured():
         if settings.ENVIRONMENT == "DEV":
             logger.warning("[DEV] Password reset OTP for %s: %s", email, otp)
@@ -51,9 +45,12 @@ async def send_otp_email(email: str, otp: str) -> None:
             port=settings.SMTP_PORT,
             username=settings.SMTP_USER or None,
             password=settings.SMTP_PASSWORD or None,
-            use_tls=settings.SMTP_USE_TLS,
-            start_tls=not settings.SMTP_USE_TLS,
+            # use_tls=not settings.SMTP_USE_TLS,
+            # start_tls=settings.SMTP_USE_TLS,
+            use_tls=False,
+            start_tls=True
         )
-    except Exception:
+    except Exception as e:
+        print("Error:     ",e)
         logger.exception("Could not send the password reset OTP to %s", email)
         raise EmailSendFailedException()
