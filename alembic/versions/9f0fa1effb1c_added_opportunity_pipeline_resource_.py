@@ -1,8 +1,8 @@
-"""Removed Relavent projects column in sales enablement
+"""Added Opportunity Pipeline Resource match table
 
-Revision ID: 882a6b6a4936
-Revises: 7cf2062fe8e1
-Create Date: 2026-08-10 18:26:15.566833
+Revision ID: 9f0fa1effb1c
+Revises: 0a145d99489a
+Create Date: 2026-08-11 10:24:25.092990
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '882a6b6a4936'
-down_revision: Union[str, None] = '7cf2062fe8e1'
+revision: str = '9f0fa1effb1c'
+down_revision: Union[str, None] = '0a145d99489a'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

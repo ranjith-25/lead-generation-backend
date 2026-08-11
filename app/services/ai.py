@@ -1,3 +1,4 @@
+from app.api.pipeline_execution_status import get_pipeline_execution_status_by_id
 from app.exceptions.ai_exception import handle_ai_exception
 from app.core.connections.ai_connection import get_ai_client
 import logging
@@ -37,23 +38,21 @@ from app.core.connections.ai_connection import get_ai_client
 from uuid import UUID
 
 from app.services.opportunity_status import get_new_opportunity_status_id
-async def handleSalesEnablement(project_id_list : list[int],jobDetails: dict,executionStatusID : UUID):
-    async with AsyncSessionLocal() as db:
-        try:
-            client = get_ai_client()
-            projectDetails = await get_project_by_ids_list_db(db,project_id_list)
-            projectsList = [
-                AIProjectRequest(
-                    project_name=row.project_name,
-                    domain=row.projectDomain.domain,
-                    tech_stack= [techstack.techstack_name for techstack in row.techstacks] if row.techstacks else [],
-                    description=row.description
-                ).model_dump(mode ="json") for row in projectDetails
-            ]
-            body : dict = {
-                "job_details" : json.dumps(jobDetails),
-                "projects" : projectsList,
-            }
+async def handleSalesEnablement(project_id_list : list[int],jobDetails: dict,client : httpx.AsyncClient,db: AsyncSession):
+    try:
+        projectDetails = await get_project_by_ids_list_db(db,project_id_list)
+        projectsList = [
+            AIProjectRequest(
+                project_name=row.project_name,
+                domain=row.projectDomain.domain,
+                tech_stack= [techstack.techstack_name for techstack in row.techstacks] if row.techstacks else [],
+                description=row.description
+            ) for row in projectDetails
+        ]
+        body : dict = {
+        "job_details" : json.dumps(jobDetails),
+        "projects" : projectsList,
+        }
 
             response = await client.post(
             "/api/v1/projects/sales-enablement",
@@ -151,7 +150,7 @@ async def handleSalesEnablement(project_id_list : list[int],jobDetails: dict,exe
             )
 
 
-            return salesEnablementResponse
+        return salesEnablementResponse
     
 
     
@@ -422,6 +421,7 @@ async def handleGetScrapedData(url: str, db: AsyncSession, user_id , backgroundT
         aiResponse = GetScrapedURLDataResponse(**response.json())
 
         status_id = await get_new_opportunity_status_id(db)
+        status_id = await get_new_opportunity_status_id(db)
 
 
         opportunityBase = OpportunityBase(
@@ -429,6 +429,7 @@ async def handleGetScrapedData(url: str, db: AsyncSession, user_id , backgroundT
             company_profile=aiResponse.company_profile,
             job_posting_url=url,
             is_ai_scraped=True,
+            status_id=status_id,
             status_id=status_id,
             platform=aiResponse.platform,
             createdBy=user_id,
@@ -439,6 +440,7 @@ async def handleGetScrapedData(url: str, db: AsyncSession, user_id , backgroundT
 
         result: Opportunity = await addOpportunity(opportunity, db)
 
+        result_pipeline_executionStatus : PipelineExecutionStatus = await create_pipeline_execution_status(
         result_pipeline_executionStatus : PipelineExecutionStatus = await create_pipeline_execution_status(
             db=db,
             pipeline_execution_status=PipelineExecutionStatusModel(
