@@ -22,6 +22,8 @@ from app.models.profile_variant import ProfileVariant, ProfileVariantProject
 from app.models.branch import Branch
 from app.models.pipeline_execution_status import PipelineExecutionStatusModel
 from app.models.pipeline_opportunity_project import PipelineOpportunityProjectModel
+from app.models.pipeline_opportunity_resource import PipelineOpportunityResourceModel
+from app.models.pipeline_opportunity_techincal_preperation import PipelineOpportunityTechnicalPreperationModel
 
-__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain","UserInvitation", "UserStatus", "JobRole", "ProfileVariant", "ProfileVariantProject", "Branch", "PipelineExecutionStatusModel","PipelineOpportunityProjectModel"]
+__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain","UserInvitation", "UserStatus", "JobRole", "ProfileVariant", "ProfileVariantProject", "Branch", "PipelineExecutionStatusModel","PipelineOpportunityProjectModel","PipelineOpportunityResourceModel","PipelineOpportunityTechnicalPreperationModel"]
 
