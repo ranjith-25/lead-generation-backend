@@ -15,6 +15,7 @@ class CompanyProfileBase(BaseModel):
 class OpportunityBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     title: str
+    description: str | None = None
     company: str | None = None
     location: str | None = None
     employment_type: str | None = None
