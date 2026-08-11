@@ -72,3 +72,19 @@ class PermissionRequired(AppException):
             status_code=status.HTTP_403_FORBIDDEN,
             error_code=ErrorCode.NOT_ALLOWED
         )
+    
+class WeakPasswordException(AppException):
+    def __init__(self, message: str):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code=ErrorCode.WEAK_PASSWORD,
+        )
+        
+class NoUserException(AppException):
+    def __init__(self, message: str):
+            super().__init__(
+                message=message,
+                status_code=status.HTTP_404_NOT_FOUND,
+                error_code=ErrorCode.USER_NOT_FOUND,
+            )

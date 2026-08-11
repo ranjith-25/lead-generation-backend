@@ -1,6 +1,7 @@
 import re
 from typing import Annotated
 
+from app.exceptions.auth import WeakPasswordException
 from pydantic import AfterValidator
 
 PASSWORD_MIN_LENGTH = 8
@@ -23,7 +24,7 @@ def validate_password_strength(value: str) -> str:
         problems.append("contain at least one symbol")
 
     if problems:
-        raise ValueError("Password must " + ", ".join(problems))
+        raise WeakPasswordException("Password must " + ", ".join(problems))
 
     return value
 

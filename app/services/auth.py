@@ -1,7 +1,9 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-
+from app.config import (
+    OTP_MAX_ATTEMPTS
+)
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_password_hash
@@ -23,6 +25,7 @@ from app.services.db.password_reset import (
     reset_password_by_user_id,
     spend_password_reset_token,
 )
+from app.schemas.password import validate_password_strength
 from app.services.email import send_otp_email
 from app.responses.authentication import AuthenticationResponse
 from app.responses.base import BaseResponse
@@ -35,6 +38,7 @@ from app.exceptions.custom import NotFoundException
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from app.exceptions.custom import InvitationCancelledException,InvitationRegisteredException
+from app.exceptions.auth import NoUserException
 from app.responses.authentication import (
     ForgotPasswordMailResponse
 )
@@ -79,7 +83,6 @@ def _hash_otp(user_id: str, otp: str) -> str:
     return hashlib.sha256(f"{user_id}:{otp}".encode()).hexdigest()
 
 
-_OTP_MAX_ATTEMPTS = 5
 _otp_attempts: dict[str, int] = {}
 
 
@@ -110,9 +113,8 @@ async def handle_forgot_password(db: AsyncSession, payload: ForgotPasswordReques
         else:
             logging.info("Password reset requested for an unregistered address")
 
-        return ForgotPasswordMailResponse(
-            message="A password reset code has been sent to it",
-        )
+        raise NoUserException("User not found")
+    
     except AppException:
         raise
     except Exception:
@@ -130,7 +132,7 @@ async def handle_verify_otp(db: AsyncSession, payload: VerifyOtpRequest) -> Forg
         token_hash = _hash_otp(str(user.user_id), payload.otp)
 
         attempts = _otp_attempts.get(token_hash, 0) + 1
-        if attempts > _OTP_MAX_ATTEMPTS:
+        if attempts > OTP_MAX_ATTEMPTS:
             raise InvalidOtpException()
 
         reset_token = await get_password_reset_token_by_user_and_hash(
@@ -160,6 +162,8 @@ async def handle_reset_password(db: AsyncSession, payload: ResetPasswordRequest)
     try:
         if payload.new_password != payload.confirm_password:
             raise ConfirmPasswordMismatchException()
+        
+        validate_password_strength(payload.new_password)
 
         user_id = payload.user_id
         updated_user = await reset_password_by_user_id(
