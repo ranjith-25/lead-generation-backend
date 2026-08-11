@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field
 from app.responses.base import BaseResponse
 from app.schemas.auth import Token
 from app.schemas.user import UserHierarchy
+from uuid import UUID
+
 class AuthenticationResponse(BaseResponse,Token):
     user_id : str = Field(...,description="Logged in userID for the user")
     fullName : str = Field(...,description="Display name for the user")
@@ -13,3 +15,9 @@ class HierarchyResponse(BaseResponse):
 
 class UserRegistrationFromInvitationResponse(BaseResponse):
     pass
+
+class VerifyOtpResponse(BaseResponse):
+    reset_token: str = Field(..., description="Short-lived JWT proving the OTP was accepted; pass it to /auth/reset-password")
+    
+class ForgptPasswordMailResponse(BaseResponse):
+    user_id: UUID

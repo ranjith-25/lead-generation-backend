@@ -1,18 +1,30 @@
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
+
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_password_hash
 from app.models.user import User
 from app.schemas.user import UserRegistrationFromInvitation
 from app.schemas.user_invitation import UserInvitationDTO,UserInvitationUpdate,InvitationStatus
-from app.schemas.user_personal_info import UserPersonalInfoCreate
 from app.models.user_personal_info import UserPersonalInfo
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token, verify_password, create_password_reset_token, decode_password_reset_token
 from app.services.db.user import get_user_by_email
 from app.services.db.session import create_session, revoke_session
-from app.services.db.menu import get_menu_names_by_role_id
 from app.services.db.role_permissions import get_feature_names_by_role_id
-from app.exceptions.auth import InvalidCredentialsException
-from app.responses.authentication import AuthenticationResponse
+from app.exceptions.auth import InvalidCredentialsException, InvalidResetTokenException, InvalidOtpException
+from app.exceptions.custom import AppException, ConfirmPasswordMismatchException
+from app.core.settings import settings
+from app.schemas.auth import ForgotPasswordRequest, ResetPasswordRequest, VerifyOtpRequest
+from app.services.db.password_reset import (
+    create_password_reset_token as create_password_reset_token_record,
+    get_password_reset_token_by_user_and_hash,
+    reset_password_by_user_id,
+    spend_password_reset_token,
+)
+from app.services.email import send_otp_email
+from app.responses.authentication import AuthenticationResponse, VerifyOtpResponse
 from app.responses.base import BaseResponse
 from app.responses.authentication import UserRegistrationFromInvitationResponse
 from app.services.db.user_invitation import update_user_invitation,get_user_invitation_by_id
@@ -23,7 +35,9 @@ from app.exceptions.custom import NotFoundException
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from app.exceptions.custom import InvitationCancelledException,InvitationRegisteredException
-
+from app.responses.authentication import (
+    ForgptPasswordMailResponse
+)
 async def authenticate_user(db: AsyncSession, form_data: OAuth2PasswordRequestForm) -> AuthenticationResponse:
 
     user = await get_user_by_email(db, form_data.username)
@@ -59,6 +73,119 @@ async def logout_user(db: AsyncSession, token: str) -> BaseResponse:
     if not success:
         return BaseResponse(success=False, message="Session not found or already logged out")
     return BaseResponse(success=True, message="Successfully logged out")
+
+
+def _hash_otp(user_id: str, otp: str) -> str:
+    return hashlib.sha256(f"{user_id}:{otp}".encode()).hexdigest()
+
+
+_OTP_MAX_ATTEMPTS = 5
+_otp_attempts: dict[str, int] = {}
+
+
+def _generate_otp() -> str:
+    return f"{secrets.randbelow(10**6):06d}"
+
+
+async def handle_forgot_password(db: AsyncSession, payload: ForgotPasswordRequest) -> BaseResponse:
+    try:
+        user = await get_user_by_email(db, payload.email)
+
+        if user is not None:
+            otp = _generate_otp()
+            expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
+                minutes=settings.OTP_EXPIRE_MINUTES
+            )
+
+            await create_password_reset_token_record(
+                db, user.user_id, _hash_otp(str(user.user_id), otp), expires_at
+            )
+
+            await send_otp_email(user.email, otp)
+            
+            return ForgptPasswordMailResponse(
+                message= "A password reset OTP has been sent to it",
+                user_id= user.user_id
+            )
+        else:
+            logging.info("Password reset requested for an unregistered address")
+
+        return BaseResponse(
+            message="A password reset code has been sent to it",
+        )
+    except AppException:
+        raise
+    except Exception:
+        logging.exception("Some error occurred while starting the password reset")
+        raise
+
+
+async def handle_verify_otp(db: AsyncSession, payload: VerifyOtpRequest) -> VerifyOtpResponse:
+    try:
+        user = await get_user_by_email(db, payload.email)
+
+        if user is None:
+            raise InvalidOtpException()
+
+        token_hash = _hash_otp(str(user.user_id), payload.otp)
+
+        attempts = _otp_attempts.get(token_hash, 0) + 1
+        if attempts > _OTP_MAX_ATTEMPTS:
+            raise InvalidOtpException()
+
+        reset_token = await get_password_reset_token_by_user_and_hash(
+            db, user.user_id, token_hash
+        )
+
+        # unknown, spent and expired all collapse to one error — see InvalidOtpException
+        if reset_token is None or reset_token.used_at is not None:
+            raise InvalidOtpException()
+
+        if reset_token.expires_at <= datetime.now(timezone.utc).replace(tzinfo=None):
+            raise InvalidOtpException()
+
+        _otp_attempts.pop(token_hash, None)
+
+        await spend_password_reset_token(db, reset_token)
+
+        jwt_token, _ = create_password_reset_token(str(user.user_id))
+
+        return VerifyOtpResponse(
+            message="Code verified successfully",
+            reset_token=jwt_token,
+        )
+    except AppException:
+        raise
+    except Exception:
+        logging.exception("Some error occurred while verifying the password reset code")
+        raise
+
+
+async def handle_reset_password(db: AsyncSession, payload: ResetPasswordRequest) -> BaseResponse:
+    try:
+        if payload.new_password != payload.confirm_password:
+            raise ConfirmPasswordMismatchException()
+
+        user_id = decode_password_reset_token(payload.token)
+        try:
+            uid = uuid.UUID(user_id)
+        except ValueError:
+            raise InvalidResetTokenException()
+
+        updated_user = await reset_password_by_user_id(
+            db, uid, get_password_hash(payload.new_password)
+        )
+        if updated_user is None:
+            raise InvalidResetTokenException()
+
+        return BaseResponse(
+            message="Password reset successfully. Please log in with your new password"
+        )
+    except AppException:
+        raise
+    except Exception:
+        logging.exception("Some error occurred while resetting the password")
+        raise
 
 
 async def handle_signup_invitation(db : AsyncSession , invitation_id : uuid.UUID,registration_data : UserRegistrationFromInvitation):
