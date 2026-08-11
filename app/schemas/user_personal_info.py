@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.schemas.password import Password
 
 class UserPersonalInfoBase(BaseModel):
     first_name: str = Field(..., max_length=100)
@@ -113,3 +114,7 @@ class UserProfileFiltersResponse(BaseModel):
     team: list[str]
     branch: list[str]
 
+class UserPasswordUpdate(BaseModel):
+    existing_password: str
+    new_password: Password
+    confirm_password: str

@@ -2,7 +2,13 @@ import logging
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.exceptions.custom import NotFoundException
+from app.exceptions.custom import (
+    AppException,
+    NotFoundException,
+    IncorrectPasswordException,
+    ConfirmPasswordMismatchException
+)
+from app.responses.base import BaseResponse
 from app.models.user import User
 from app.models.user_personal_info import UserPersonalInfo
 from app.responses.user_personal_info import (
@@ -20,7 +26,9 @@ from app.schemas.user_personal_info import (
     UserPersonalInfoUpdate,
     UserPersonalInfoStatusUpdate,
     UserProfileFiltersResponse,
+    UserPasswordUpdate
 )
+from app.services.db.user import update_user_password
 from app.services.db.user_personal_info import (
     create_user_personal_info,
     delete_user_personal_info,
@@ -29,6 +37,11 @@ from app.services.db.user_personal_info import (
     update_user_personal_info,
     get_user_profile_filters,
 )
+from app.core.security import (
+    verify_password,
+    get_password_hash
+)
+
 from app.services.hierarchy import handleGetHierarchyByUser
 
 
@@ -172,3 +185,27 @@ async def handle_delete_user_personal_info(
     except Exception as e:
         logging.exception("Some error occurred while deleting User Personal Info")
         raise e
+
+async def handle_update_password(
+    db: AsyncSession, payload: UserPasswordUpdate, current_user: User
+) -> BaseResponse:
+    try:
+        if not current_user.hashedPassword or not verify_password(
+            payload.existing_password, current_user.hashedPassword
+        ):
+            raise IncorrectPasswordException()
+
+        if payload.new_password != payload.confirm_password:
+            raise ConfirmPasswordMismatchException()
+        updated_user = await update_user_password(
+            db, current_user.user_id, get_password_hash(payload.new_password)
+        )
+        if updated_user is None:
+            raise NotFoundException()
+
+        return BaseResponse(message="Password updated successfully")
+    except AppException:
+        raise
+    except Exception:
+        logging.exception("Some error occurred while updating the password")
+        raise

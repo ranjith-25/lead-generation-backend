@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -23,6 +24,26 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
 async def get_user_by_id(db: AsyncSession, user_id: UUID) -> User | None:
     result = await db.execute(select(User).where(User.user_id == user_id))
     return result.scalars().first()
+
+async def update_user_password(db: AsyncSession, user_id: UUID, hashed_password: str) -> User | None:
+    try:
+        result = await db.execute(select(User).where(User.user_id == user_id))
+        db_user = result.scalars().first()
+
+        if not db_user:
+            return None
+
+        db_user.hashedPassword = hashed_password
+        db_user.passwordResetAt = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        await db.commit()
+        await db.refresh(db_user)
+        return db_user
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception(f"Could not update password for user_id: {user_id}")
+        raise e
+
 
 async def getAllUsers(db: AsyncSession) -> list[User]:
     result = await db.execute(select(User))
