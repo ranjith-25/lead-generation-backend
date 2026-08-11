@@ -70,7 +70,7 @@ class ProfileVariantProject(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
-    project_name: Mapped[str] = mapped_column(String(255), unique=True)
+    project_name: Mapped[str] = mapped_column(String(255))
 
     projectDomainID: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("project_domains.id", ondelete="RESTRICT"), nullable=False)
 
