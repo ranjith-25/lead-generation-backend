@@ -2,6 +2,7 @@ import logging
 from sqlalchemy import select, or_, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.models.role import Role
 from app.models.user import User
@@ -59,4 +60,25 @@ async def get_all_user_management_info(
         return items, total or 0
     except SQLAlchemyError as e:
         logging.exception("Could not fetch User Management list")
+        raise e
+
+async def update_user_role_and_reporting_to(
+    db: AsyncSession,
+    user_id: UUID,
+    role_id: UUID,
+    reporting_to: UUID | None
+) -> None:
+    try:
+        from uuid import UUID
+        result = await db.execute(select(User).where(User.user_id == user_id))
+        user = result.scalars().first()
+        if not user:
+            raise ValueError(f"User with id {user_id} not found")
+            
+        user.role_id = role_id
+        user.reporting_to = reporting_to
+        await db.commit()
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception(f"Could not update user {user_id}")
         raise e

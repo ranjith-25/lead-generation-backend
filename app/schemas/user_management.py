@@ -13,3 +13,7 @@ class UserManagementPaginatedResponse(BaseModel):
     page: int
     limit: int
     total_pages: int
+
+class UpdateUserRoleRequest(BaseModel):
+    role_id: UUID
+    reporting_to: UUID
