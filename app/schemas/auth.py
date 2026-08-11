@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 
 from app.schemas.password import Password
-
+from uuid import UUID
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -13,14 +13,12 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class VerifyOtpRequest(BaseModel):
-    user_id: UUid
+    user_id: UUID
     otp: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class ResetPasswordRequest(BaseModel):
-    """`token` is the short-lived JWT returned by `/auth/verify-otp`."""
-
-    token: str
+    user_id: UUID
     new_password: Password
     confirm_password: str
 
