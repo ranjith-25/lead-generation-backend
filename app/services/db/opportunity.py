@@ -120,6 +120,10 @@ async def get_all_opportunity_statuses_db(db: AsyncSession) -> list[OpportunityS
     result = await db.execute(select(OpportunityStatus).order_by(OpportunityStatus.id))
     return list(result.scalars().all())
 
+async def get_status_by_name(db: AsyncSession, status_name: str) -> OpportunityStatus | None:
+    result = await db.execute(select(OpportunityStatus).where(OpportunityStatus.status == status_name))
+    return result.scalars().first()
+
 async def update_opportunity_db(db: AsyncSession, opportunity: Opportunity, update_data: dict) -> Opportunity:
     for key, value in update_data.items():
         setattr(opportunity, key, value)

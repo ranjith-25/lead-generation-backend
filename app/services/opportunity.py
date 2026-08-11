@@ -44,9 +44,16 @@ async def get_opportunity_service(db: AsyncSession, opportunityID: UUID | str, u
 async def create_opportunity_service(db: AsyncSession, opp_data: OpportunityCreate, user_id: UUID) -> OpportunityRead:
 
     try:
+        from app.services.db.opportunity import get_status_by_name
         opp_dict = opp_data.model_dump()
         opp_dict['createdBy'] = user_id
         opp_dict['updatedBy'] = user_id
+        
+        default_status = await get_status_by_name(db, "New")
+        if not default_status:
+            raise HTTPException(status_code=500, detail="Default status 'New' not found in database")
+        opp_dict['status_id'] = default_status.id
+        
         new_opp = Opportunity(**opp_dict)
         saved_opp = await addOpportunity(new_opp, db)
         return OpportunityRead.model_validate(saved_opp)
