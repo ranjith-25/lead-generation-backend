@@ -65,11 +65,17 @@ class OpportunityFilterRequest(BaseModel):
     search: str | None = None
     page: int = Field(1, ge=1)
     size: int = Field(10, ge=1, le=100)
+    view: str | None = "My view"
     status: list[str] | None = None
     platform: list[str] | None = None
     company: list[str] | None = None
     role: list[str] | None = None
     location: list[str] | None = None
+    team: list[str] | None = None
+
+class TeamMemberFilter(BaseModel):
+    user_id: UUID
+    fullName: str
 
 class OpportunityFilterValuesResponse(BaseModel):
     status: list[str]
@@ -77,6 +83,7 @@ class OpportunityFilterValuesResponse(BaseModel):
     company: list[str]
     role: list[str]
     location: list[str]
+    team: list[TeamMemberFilter] | None = None
 
 class OpportunityStatusRead(BaseModel):
     id: UUID
