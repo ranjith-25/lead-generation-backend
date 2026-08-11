@@ -14,5 +14,5 @@ router = APIRouter(prefix="/ai",tags=["AI"])
 
 @router.post("")
 async def get_scrapped_data(request : GetOpportunityContent,backgroundTasks : BackgroundTasks,current_user : User = Depends(require_permission("ai_discovery","create")),db: AsyncSession = Depends(get_db)):
-    response : CreateOpportunityResponse = await handleGetScrapedData(request.url,db, current_user.user_id,backgroundTasks=backgroundTasks)
+    response : CreateOpportunityResponse = await handleGetScrapedData(request.url,db, current_user.user_id,background_tasks=backgroundTasks)
     return response
