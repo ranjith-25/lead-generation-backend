@@ -6,6 +6,25 @@ from app.schemas.opportunity import OpportunityFilterRequest
 from app.models.platform import Platform
 from app.models.user import User
 from app.models.user_personal_info import UserPersonalInfo
+from app.services.hierarchy import handleGetHierarchyByUser
+from app.schemas.user import UserHierarchy
+from uuid import UUID
+
+def extract_hierarchy_user_ids(node: UserHierarchy) -> list[UUID]:
+    if not node:
+        return []
+    ids = [node.user_id]
+    for child in node.children:
+        ids.extend(extract_hierarchy_user_ids(child))
+    return ids
+
+def extract_hierarchy_users(node: UserHierarchy) -> list[dict]:
+    if not node:
+        return []
+    users = [{"user_id": node.user_id, "fullName": node.fullName}]
+    for child in node.children:
+        users.extend(extract_hierarchy_users(child))
+    return users
 
 from sqlalchemy import select, or_, func
 
@@ -17,7 +36,13 @@ async def addOpportunity(opportunity : Opportunity,db: AsyncSession) -> Opportun
 
 async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityFilterRequest | None = None) -> tuple[list[Opportunity], int]:
     
-    query = select(Opportunity).where(Opportunity.createdBy == user_id)
+    target_user_ids = [user_id]
+    if filters and filters.view == "Team view":
+        hierarchy_res = await handleGetHierarchyByUser(db, user_id)
+        if hierarchy_res.hierarchy:
+            target_user_ids = extract_hierarchy_user_ids(hierarchy_res.hierarchy)
+            
+    query = select(Opportunity).where(Opportunity.createdBy.in_(target_user_ids))
     
     if filters:
         if filters.search:
@@ -45,6 +70,8 @@ async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityF
             query = query.where(Opportunity.location.in_(filters.location))
         if filters.status:
             query = query.join(Opportunity.status).where(OpportunityStatus.status.in_(filters.status))
+        if filters.team:
+            query = query.where(Opportunity.assigned_to.in_(filters.team))
 
     # Calculate total count before pagination
     count_query = select(func.count()).select_from(query.subquery())
@@ -71,12 +98,17 @@ async def get_opportunity_filter_values(db: AsyncSession, user_id) -> dict:
     # Fetch all available statuses from the database table
     statuses = await db.execute(select(OpportunityStatus.status))
     
+    # Fetch team
+    hierarchy_res = await handleGetHierarchyByUser(db, user_id)
+    team = extract_hierarchy_users(hierarchy_res.hierarchy) if hierarchy_res.hierarchy else []
+    
     return {
         "platform": [p[0] for p in platforms.all()],
         "company": [c[0] for c in companies.all()],
         "role": [r[0] for r in roles.all()],
         "location": [l[0] for l in locations.all()],
         "status": [s[0] for s in statuses.all()],
+        "team": team,
     }
 
 
@@ -87,6 +119,10 @@ async def get_opportunity_by_id(db: AsyncSession, opportunity_id, user_id) -> Op
 async def get_all_opportunity_statuses_db(db: AsyncSession) -> list[OpportunityStatus]:
     result = await db.execute(select(OpportunityStatus).order_by(OpportunityStatus.id))
     return list(result.scalars().all())
+
+async def get_status_by_name(db: AsyncSession, status_name: str) -> OpportunityStatus | None:
+    result = await db.execute(select(OpportunityStatus).where(OpportunityStatus.status == status_name))
+    return result.scalars().first()
 
 async def update_opportunity_db(db: AsyncSession, opportunity: Opportunity, update_data: dict) -> Opportunity:
     for key, value in update_data.items():

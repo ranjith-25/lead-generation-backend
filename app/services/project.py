@@ -51,7 +51,8 @@ from app.services.db.techstack import (
     get_techstacks_by_ids_db,
     get_all_techstacks_db
 )
-
+from app.schemas.techstack import TechstackFilters
+from app.schemas.project_domains import ProjectDomainFilters 
 
 async def _resolve_domain(db: AsyncSession, project_domain_id: UUID):
     domain = await get_project_domain_by_id(db, project_domain_id)
@@ -248,8 +249,8 @@ async def get_project_case_study_service(db: AsyncSession, project_id: UUID) -> 
 
 async def get_project_filters(db: AsyncSession):
     try:
-        all_domains = await get_all_project_domain_db(db)
-        all_techstack = await get_all_techstacks_db(db)
+        all_domains = await get_all_project_domain_db(db, ProjectDomainFilters(page=1, limit=None))
+        all_techstack = await get_all_techstacks_db(db, TechstackFilters(page=1, limit=None))
         
         response = {
             "Domains": [],

@@ -48,6 +48,7 @@ async def get_opportunity_service(db: AsyncSession, opportunityID: UUID | str, u
 async def create_opportunity_service(db: AsyncSession, opp_data: OpportunityCreate, user_id: UUID,background_tasks : BackgroundTasks) -> CreateOpportunityResponse:
 
     try:
+        from app.services.db.opportunity import get_status_by_name
         opp_dict = opp_data.model_dump()
         request : AIManualJDRequest = AIManualJDRequest(
             company_name = opp_data.company,

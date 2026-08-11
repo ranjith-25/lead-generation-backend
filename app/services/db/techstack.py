@@ -1,9 +1,8 @@
 from sqlalchemy import func, select
 from app.models.techstacks import TechStacks
+from app.schemas.techstack import TechstackFilters
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-
-from app.schemas.techstack import TechstackFilters
 
 async def get_techstacks_by_ids_db(db: AsyncSession, techstack_ids: list[UUID]) -> list[TechStacks]:
     if not techstack_ids:
@@ -18,8 +17,11 @@ async def get_techstack_by_id_db(db: AsyncSession, techstack_id: UUID) -> TechSt
     return result.scalars().first()
 
 
-async def get_all_techstacks_db(db: AsyncSession) -> list[TechStacks]:
-    statement = select(TechStacks).order_by(TechStacks.techstack_id)
+async def get_all_techstacks_db(db: AsyncSession, filters: TechstackFilters) -> list[TechStacks]:
+    offset = 0
+    if filters.limit is not None:
+        offset = (filters.page - 1) * filters.limit
+    statement = select(TechStacks).order_by(TechStacks.techstack_id).offset(offset).limit(filters.limit)
     result = await db.execute(statement)
     return list(result.scalars().all())
 

@@ -4,10 +4,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.responses import JSONResponse
 from app.api.deps import get_current_user, oauth2_scheme
 from app.core.connections.postgres import get_db
-from app.services.auth import authenticate_user, logout_user,handle_signup_invitation
+from app.services.auth import (
+    authenticate_user,
+    logout_user,
+    handle_signup_invitation,
+    handle_forgot_password,
+    handle_verify_otp,
+    handle_reset_password,
+)
+from app.schemas.auth import ForgotPasswordRequest, VerifyOtpRequest, ResetPasswordRequest
 from app.models.user import User
 from app.schemas.user import UserRead,UserRegistrationFromInvitation
-from app.responses.authentication import AuthenticationResponse
+from app.responses.authentication import AuthenticationResponse, VerifyOtpResponse
 from app.responses.base import BaseResponse
 from app.responses.authentication import UserRegistrationFromInvitationResponse
 from app.services.hierarchy import handleGetHierarchy
@@ -29,6 +37,26 @@ async def logout(
     token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
     return await logout_user(db, token)
+
+@router.post("/forgot-password", response_model=BaseResponse)
+async def forgot_password(
+    payload: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)
+) -> BaseResponse:
+    return await handle_forgot_password(db, payload)
+
+
+@router.post("/verify-otp", response_model=VerifyOtpResponse)
+async def verify_otp(
+    payload: VerifyOtpRequest, db: AsyncSession = Depends(get_db)
+) -> VerifyOtpResponse:
+    return await handle_verify_otp(db, payload)
+
+
+@router.post("/reset-password", response_model=BaseResponse)
+async def reset_password(
+    payload: ResetPasswordRequest, db: AsyncSession = Depends(get_db)
+) -> BaseResponse:
+    return await handle_reset_password(db, payload)
 
 
 @router.get("/me", response_model=UserRead)

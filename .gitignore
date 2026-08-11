@@ -9,6 +9,7 @@ venv/
 
 CLAUDE.md
 .docs
+.opencode
 
 # uploaded case study documents — only their path belongs in the repo/DB
 case_studies/
