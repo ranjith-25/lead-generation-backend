@@ -52,7 +52,6 @@ class OpportunityCreate(BaseModel):
     experience: str | None = None
     description: str
     additional_notes: str | None = None
-    is_ai_scraped: bool = False
 
 class OpportunityStatusUpdate(BaseModel):
     status_id: UUID

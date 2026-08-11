@@ -4,7 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.opportunity import OpportunityRead, OpportunityListRead, OpportunityCreate, OpportunityFilterRequest, OpportunityFilterValuesResponse, OpportunityPaginatedResponse, OpportunityStatusRead
 from app.services.db.opportunity import Opportunity, get_opportunity_by_id, get_all_opportunities, addOpportunity, update_opportunity_db, delete_opportunity_db, get_opportunity_filter_values
 from app.responses.base import BaseResponse
+from app.responses.opportunity import CreateOpportunityResponse
+from app.schemas.ai import AIManualJDRequest
+from app.services.ai import handleGetManualScrapedData
 import math
+from fastapi import BackgroundTasks
 
 async def get_all_opportunities_service(db: AsyncSession, user_id: UUID, filters: OpportunityFilterRequest | None = None) -> OpportunityPaginatedResponse:
 
@@ -41,15 +45,26 @@ async def get_opportunity_service(db: AsyncSession, opportunityID: UUID | str, u
         
     return OpportunityRead.model_validate(opportunity)
 
-async def create_opportunity_service(db: AsyncSession, opp_data: OpportunityCreate, user_id: UUID) -> OpportunityRead:
+async def create_opportunity_service(db: AsyncSession, opp_data: OpportunityCreate, user_id: UUID,background_tasks : BackgroundTasks) -> CreateOpportunityResponse:
 
     try:
         opp_dict = opp_data.model_dump()
-        opp_dict['createdBy'] = user_id
-        opp_dict['updatedBy'] = user_id
-        new_opp = Opportunity(**opp_dict)
-        saved_opp = await addOpportunity(new_opp, db)
-        return OpportunityRead.model_validate(saved_opp)
+        request : AIManualJDRequest = AIManualJDRequest(
+            company_name = opp_data.company,
+            company_website = opp_data.company_website,
+            job_title = opp_data.title,
+            experience = opp_data.experience,
+            job_description = opp_data.description,
+            additional_notes = opp_data.additional_notes
+        )
+
+        response : CreateOpportunityResponse = await handleGetManualScrapedData(
+            AIManualJDRequest = request,
+            db = db,
+            user_id = user_id,
+            background_tasks = background_tasks
+        )
+        return response
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Error creating opportunity: {str(exc)}")
 
