@@ -1,11 +1,13 @@
 import logging
 import re
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from app.exceptions.custom import NotFoundException
 from app.exceptions.ai_exception import handle_ai_exception
 from app.core.connections.ai_connection import get_ai_client
+from app.models import JobRole
 from app.models.profile_variant import ProfileVariant, ProfileVariantProject
 from app.models.user import User
 from app.responses.profile_variant import (
@@ -137,6 +139,12 @@ async def ingest_profile_variant_to_ai(db: AsyncSession, profile_variant: Profil
             "description": proj.description or ""
         })
 
+    result = await db.execute(
+        select(JobRole).where(JobRole.id == profile_variant.role)
+    )
+    profile_variant_role = result.scalars().first()
+    profile_variant_role_name = profile_variant_role.roleName if profile_variant_role else ""
+
     # 4. Construct payload
     payload = {
         "candidate_id": str(profile_variant.user_id),
@@ -151,6 +159,7 @@ async def ingest_profile_variant_to_ai(db: AsyncSession, profile_variant: Profil
                 "variant_id": str(profile_variant.profile_variant_id),
                 "variant_title": profile_variant.name or "",
                 "experience_years": parse_experience_years(profile_variant.experience),
+                "role": profile_variant_role_name or "",
                 "no_of_projects": len(projects),
                 "tech_stacks": profile_variant.highlighted_skills or [],
                 "certifications": profile_variant.certificate or [],
@@ -164,6 +173,9 @@ async def ingest_profile_variant_to_ai(db: AsyncSession, profile_variant: Profil
         response = await client.post("/api/v1/profiles/ingest", json=payload)
         response.raise_for_status()
         return response.json()
+    except httpx.HTTPStatusError as exc:
+        logging.error("AI service HTTP status error: %s - Response body: %s", exc, exc.response.text)
+        raise handle_ai_exception(exc) from exc
     except Exception as exc:
         logging.exception("Could not ingest profile variant %s into the AI service", profile_variant.profile_variant_id)
         raise handle_ai_exception(exc) from exc
