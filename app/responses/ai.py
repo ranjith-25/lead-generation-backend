@@ -51,3 +51,17 @@ class GetMatchedProfilesResponse(BaseModel):
     status : str = Field(...,description="Status of AI Execution.")
     matches : list[AIMatchedProfiles] = Field(default_factory=list,description="Matched Profiles.")
     error_message : str | None = Field(None,description="Error message")
+
+
+class InterviewPreperationGuide(BaseModel):
+    topic : str = Field(...,description="Topic")
+    focus : str = Field(...,description="Focus")
+    subtopics : str = Field(...,description="Subtopics")
+
+class GetTechnicalPreperationResponse(BaseModel):
+    status : str = Field(...,description="Status of AI Execution.")
+    candidate_name : str = Field(...,description="Candidate Name")
+    variant_title : str = Field(...,description="Variant Title")
+    technical_briefing_note : str = Field(...,description="Technical Briefing Note")
+    interview_preparation_guide : list[InterviewPreperationGuide] = Field(default_factory=list,description="Interview Preparation Guide")
+    error_message : str | None = Field(None,description="Error message")
