@@ -6,11 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class PipelineOpportunityTechnicalPreperationBase(BaseModel):
     opportunity_id: UUID = Field(..., description="Opportunity ID")
-    user_id: UUID = Field(..., description="User ID")
-    candidate_name: str = Field(..., min_length=1, max_length=255)
-    variant_title: str = Field(..., min_length=1, max_length=255)
-    technical_briefing_note: str = Field(..., max_length=1000)
-    interview_preparation_guide: list[dict] = Field(...)
+    candidate_name: Optional[str] = Field(None, max_length=255)
+    variant_title: Optional[str] = Field(None,  max_length=255)
+    technical_briefing_note: Optional[str] = Field(None, max_length=1000)
+    interview_preparation_guide: Optional[list[dict]] = Field(None)
     is_active: bool = Field(True)
 
 
