@@ -17,9 +17,6 @@ class PipelineOpportunityTechnicalPreperationModel(Base):
     )
 
     opportunity_id : Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),ForeignKey("opportunities.opportunityID",ondelete="CASCADE"))
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
-    )
     
     candidate_name : Mapped[str] = mapped_column(String(255),nullable=False)
     variant_title : Mapped[str] = mapped_column(String(255),nullable=False)

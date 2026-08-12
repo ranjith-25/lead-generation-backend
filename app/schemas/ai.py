@@ -13,3 +13,10 @@ class AIManualJDRequest(BaseModel):
     experience: str = Field(...,description="The Experience")
     job_description: str = Field(...,description="The Job Description")
     additional_notes: Optional[str] = Field(None,description="The Additional Notes")
+
+
+class AITechnicalPreperationRequest(BaseModel):
+    job_details: str = Field(...,description="The JobDetails in JSON string format")
+    variant_id: str = Field(...,description="The Variant ID")
+    matching_skills: list[str] = Field(...,description="List of matching skills")
+    missing_skills: list[str] = Field(...,description="List of missing skills")

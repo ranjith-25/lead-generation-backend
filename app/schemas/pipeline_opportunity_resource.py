@@ -54,9 +54,17 @@ class PipelineOpportunityResourceUpdate(PipelineOpportunityResourceBase):
     missing_skills: Optional[list[str]] = Field(None)
     justification: Optional[str] = Field(None, max_length=1000)
     is_active: Optional[bool] = Field(None)
+    is_selected: Optional[bool] = Field(None)
+    is_approved: Optional[bool] = Field(None)
+    approved_at: Optional[datetime] = Field(None)
+    approved_by: Optional[UUID] = Field(None)
 
 
 class PipelineOpportunityResourceSelectRequest(BaseModel):
     pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
-    is_selected: bool = Field(..., description="Is Selected")
+    is_selected: bool = Field(True, description="Is Selected")
+
+
+class PipelineOpportunityResourceApproveRequest(BaseModel):
+    pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
 

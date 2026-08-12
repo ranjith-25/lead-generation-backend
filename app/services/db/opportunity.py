@@ -116,6 +116,10 @@ async def get_opportunity_by_id(db: AsyncSession, opportunity_id, user_id) -> Op
     result = await db.execute(select(Opportunity).where(Opportunity.opportunityID == opportunity_id, Opportunity.createdBy == user_id))
     return result.scalars().first()
 
+async def get_opportunity_details_by_id(db: AsyncSession, opportunity_id) -> Opportunity | None:
+    result = await db.execute(select(Opportunity).where(Opportunity.opportunityID == opportunity_id))
+    return result.scalars().first()
+
 async def get_all_opportunity_statuses_db(db: AsyncSession) -> list[OpportunityStatus]:
     result = await db.execute(select(OpportunityStatus).order_by(OpportunityStatus.id))
     return list(result.scalars().all())

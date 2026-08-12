@@ -21,9 +21,10 @@ from app.responses.ai import (
     GetMatchedProfilesResponse,
     GetRelaventProjectResponse,
     GetScrapedURLDataResponse,
+    GetTechnicalPreperationResponse
 )
 from app.responses.opportunity import CreateOpportunityResponse
-from app.schemas.ai import AIGetRelaventProfilesRequest , AIManualJDRequest
+from app.schemas.ai import AIGetRelaventProfilesRequest , AIManualJDRequest ,AITechnicalPreperationRequest
 from app.schemas.opportunity import OpportunityBase
 from app.schemas.project import AIProjectRequest
 from app.schemas.pipeline_execution_status import (
@@ -35,6 +36,7 @@ from app.services.db.pipeline_execution_status import (
     create_pipeline_execution_status,
     get_pipeline_execution_status_by_id,
     update_pipeline_execution_status,
+    get_pipeline_execution_status_by_opportunity_id
 )
 from app.services.db.pipeline_opportunity_project import (
     create_multiple_pipeline_opportunity_project,
@@ -45,6 +47,9 @@ from app.services.db.pipeline_opportunity_resource import (
 from app.services.db.project import get_project_by_ids_list_db
 from app.services.db.sales_enablement import add_sales_enablement_db
 from app.services.opportunity_status import get_new_opportunity_status_id
+
+from app.services.db.pipeline_opportunity_techincal_preperation import create_multiple_pipeline_opportunity_technical_preperation
+from app.models.pipeline_opportunity_techincal_preperation import PipelineOpportunityTechnicalPreperationModel
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +157,7 @@ async def handleGetRelaventProjects(
                     ),
                 ),
             )
-            raise
+            return
 
 
 async def handleSalesEnablement(
@@ -315,6 +320,77 @@ async def handleGetRelaventResource(
             )
             raise
 
+
+
+async def handleTechnicalPreperation(
+    technical_preperation_request: AITechnicalPreperationRequest,
+    opportunity_id: UUID
+) -> GetTechnicalPreperationResponse:
+    """Matches profiles for an opportunity and persists them."""
+    async with AsyncSessionLocal() as db:
+
+        execution_status: PipelineExecutionStatusModel = (
+                await get_pipeline_execution_status_by_opportunity_id(
+                    db,
+                    opportunity_id,
+                )
+            )
+        try:
+            
+            client = get_ai_client()
+            response = await client.post(
+                "/api/v1/preparations/technical",
+                json=technical_preperation_request.model_dump(mode="json"),
+            )
+            response.raise_for_status()
+
+            technical_preperation_res = GetTechnicalPreperationResponse(**response.json())
+
+            await create_multiple_pipeline_opportunity_technical_preperation(
+                db=db,
+                pipeline_opportunity_technical_preperations=[
+                    PipelineOpportunityTechnicalPreperationModel(
+                        opportunity_id=execution_status.opportunity_id,
+                        candidate_name=technical_preperation_res.candidate_name,
+                        variant_title=technical_preperation_res.variant_title,
+                        technical_briefing_note=technical_preperation_res.technical_briefing_note,
+                        interview_preparation_guide= [row.model_dump(mode="json") for row in technical_preperation_res.interview_preparation_guide],
+                        createdBy=execution_status.createdBy,   
+                        updatedBy=execution_status.createdBy,
+                    )
+                ],
+            )
+
+            await _update_execution_status(
+                db=db,
+                execution_status_id=execution_status.id,
+                status_update=PipelineExecutionStatusUpdate(
+                    technicalPreperation=PipelineExecutionStatus.COMPLETED,
+                    execution_message=(
+                        f"{PipelineExecutionStatus.COMPLETED.status_text}: "
+                        "Updated Technical Preperation."
+                    ),
+                ),
+            )
+
+            return technical_preperation_res
+
+        except Exception:
+            await db.rollback()
+            logger.exception("Failed to fetch Technical Preperation")
+
+            await _update_execution_status(
+                db=db,
+                execution_status_id=execution_status.id,
+                status_update=PipelineExecutionStatusUpdate(
+                    technicalPreperation=PipelineExecutionStatus.FAILED,
+                    execution_message=(
+                        f"{PipelineExecutionStatus.FAILED.status_text}: "
+                        "Could not fetch Technical Preperation."
+                    ),
+                ),
+            )
+            return
 
 # ============================================================================
 # Pipeline Orchestration
