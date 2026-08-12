@@ -2,6 +2,14 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
+from enum import Enum
+
+
+class ApprovalStatus(str, Enum):
+    SELECTED = "SELECTED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    SUGGESTED = "SUGGESTED"
 
 
 class PipelineOpportunityResourceBase(BaseModel):
@@ -27,11 +35,12 @@ class PipelineOpportunityResourceDTO(PipelineOpportunityResourceBase):
     resourceApprovedBy: Optional[str] = Field(
         None, description="The person who approved the resource"
     )
-    is_selected: Optional[bool] = Field(None)
-    is_approved: Optional[bool] = Field(None)
+    status: ApprovalStatus = Field(..., description="Approval status of the resource")
     approved_at: Optional[datetime] = Field(None)
     approved_by: Optional[UUID] = Field(None)
-    workingStatus: Optional[str] = Field(None)
+    rejected_at: Optional[datetime] = Field(None)
+    rejected_by: Optional[UUID] = Field(None)
+    reject_reason: Optional[str] = Field(None)
     workingStatus: Optional[str] = Field(None)
     primaryJobRole: Optional[str] = Field(None)
     reportingTo: Optional[str] = Field(None)
@@ -54,17 +63,16 @@ class PipelineOpportunityResourceUpdate(PipelineOpportunityResourceBase):
     missing_skills: Optional[list[str]] = Field(None)
     justification: Optional[str] = Field(None, max_length=1000)
     is_active: Optional[bool] = Field(None)
-    is_selected: Optional[bool] = Field(None)
-    is_approved: Optional[bool] = Field(None)
-    approved_at: Optional[datetime] = Field(None)
-    approved_by: Optional[UUID] = Field(None)
 
 
 class PipelineOpportunityResourceSelectRequest(BaseModel):
     pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
-    is_selected: bool = Field(True, description="Is Selected")
 
 
 class PipelineOpportunityResourceApproveRequest(BaseModel):
     pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
 
+
+class PipelineOpportunityResourceRejectRequest(BaseModel):
+    pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
+    reject_reason: str = Field(..., min_length=1, max_length=1000, description="Reason for rejection")

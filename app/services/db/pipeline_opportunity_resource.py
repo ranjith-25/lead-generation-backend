@@ -8,6 +8,7 @@ from uuid import UUID
 from app.models.pipeline_opportunity_resource import PipelineOpportunityResourceModel
 from app.models.user import User
 from app.models.user_personal_info import UserPersonalInfo
+from app.schemas.pipeline_opportunity_resource import ApprovalStatus
 
 
 def _get_resource_query_options():
@@ -46,7 +47,7 @@ async def get_all_pipeline_opportunity_resources(db: AsyncSession, page: int = 1
         raise e
 
 
-async def get_pipeline_opportunity_resource_by_id(db: AsyncSession, pipeline_opportunity_resource_id: UUID):
+async def get_pipeline_opportunity_resource_by_id(db: AsyncSession, pipeline_opportunity_resource_id: UUID | str):
     try:
         result = await db.execute(
             select(PipelineOpportunityResourceModel)
@@ -71,6 +72,22 @@ async def get_pipeline_opportunity_resource_by_opportunity_id(db: AsyncSession, 
     except SQLAlchemyError as e:
         await db.rollback()
         logging.exception("Could not find Pipeline Opportunity Resource by opportunity id")
+        raise e
+
+
+async def get_approved_pipeline_opportunity_resource_by_opportunity_id(
+    db: AsyncSession, pipeline_opportunity_id: UUID
+):
+    try:
+        result = await db.execute(
+            select(PipelineOpportunityResourceModel)
+            .where(PipelineOpportunityResourceModel.opportunity_id == pipeline_opportunity_id)
+            .where(PipelineOpportunityResourceModel.status == ApprovalStatus.APPROVED)
+        )
+        return result.scalars().first()
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception("Could not find approved Pipeline Opportunity Resource by opportunity id")
         raise e
 
 

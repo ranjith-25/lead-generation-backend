@@ -17,6 +17,7 @@ from app.schemas.pipeline_opportunity_resource import (
     PipelineOpportunityResourceUpdate,
     PipelineOpportunityResourceSelectRequest,
     PipelineOpportunityResourceApproveRequest,
+    PipelineOpportunityResourceRejectRequest,
 )
 from app.services.pipeline_opportunity_resource import (
     handle_create_pipeline_opportunity_resource,
@@ -27,6 +28,7 @@ from app.services.pipeline_opportunity_resource import (
     handle_get_pipeline_opportunity_resource_by_opportunity_id,
     handle_select_pipeline_opportunity_resource,
     handle_approve_pipeline_opportunity_resource,
+    handle_reject_pipeline_opportunity_resource,
 )
 from fastapi import BackgroundTasks
 
@@ -138,6 +140,21 @@ async def approve_pipeline_opportunity_resource(
 ):
     response: UpdatePipelineOpportunityResourceResponse = await handle_approve_pipeline_opportunity_resource(
         db, current_user, request,background_tasks=background_tasks
+    )
+    return JSONResponse(
+        content=response.model_dump(mode="json", exclude_none=True),
+        status_code=200,
+    )
+
+
+@pipeline_opportunity_resource_router.patch("/reject")
+async def reject_pipeline_opportunity_resource(
+    request: PipelineOpportunityResourceRejectRequest,
+    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "approve")),
+    db: AsyncSession = Depends(get_db),
+):
+    response: UpdatePipelineOpportunityResourceResponse = await handle_reject_pipeline_opportunity_resource(
+        db, current_user, request
     )
     return JSONResponse(
         content=response.model_dump(mode="json", exclude_none=True),
