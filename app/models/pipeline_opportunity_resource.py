@@ -11,7 +11,6 @@ from sqlalchemy import (
     ForeignKey,
     Float,
     JSON,
-    Boolean,
     Index,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -19,7 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 from app.models.user import User
-
+from app.schemas.pipeline_opportunity_resource import ApprovalStatus
 
 class PipelineOpportunityResourceModel(Base):
     __tablename__ = "pipeline_opportunity_resource"
@@ -92,21 +91,25 @@ class PipelineOpportunityResourceModel(Base):
         nullable=False,
     )
 
-    is_selected: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        nullable=True,
-    )
-
-    is_approved: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        nullable=True,
+    status: Mapped[ApprovalStatus] = mapped_column(
+        Enum(ApprovalStatus),
+        default=ApprovalStatus.SUGGESTED,
+        nullable=False,
     )
 
     approved_at: Mapped[datetime | None] = mapped_column(
         DateTime,
         nullable=True,
+    )
+
+    rejected_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+
+    reject_reason : Mapped[str | None] = mapped_column(
+        String(1000),
+        nullable=True
     )
 
     approved_by: Mapped[uuid.UUID | None] = mapped_column(
@@ -117,6 +120,19 @@ class PipelineOpportunityResourceModel(Base):
         ),
         nullable=True,
     )
+
+
+
+    rejected_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "users.user_id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+    )
+
+    
 
     createdAt: Mapped[datetime] = mapped_column(
         DateTime,
@@ -204,6 +220,6 @@ class PipelineOpportunityResourceModel(Base):
             "uq_one_approved_resource_per_opportunity",
             "opportunity_id",
             unique=True,
-            postgresql_where=text("is_approved = true"),
+            postgresql_where=text("status = 'APPROVED'"),
         ),
     )

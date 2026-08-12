@@ -14,16 +14,19 @@ from app.responses.pipeline_opportunity_resource import (
     UpdatePipelineOpportunityResourceResponse,
 )
 from app.schemas.pipeline_opportunity_resource import (
+    ApprovalStatus,
     PipelineOpportunityResourceCreate,
     PipelineOpportunityResourceDTO,
     PipelineOpportunityResourceUpdate,
     PipelineOpportunityResourceSelectRequest,
     PipelineOpportunityResourceApproveRequest,
+    PipelineOpportunityResourceRejectRequest,
 )
 from app.services.db.pipeline_opportunity_resource import (
     create_pipeline_opportunity_resource,
     delete_pipeline_opportunity_resource,
     get_all_pipeline_opportunity_resources,
+    get_approved_pipeline_opportunity_resource_by_opportunity_id,
     get_pipeline_opportunity_resource_by_id,
     update_pipeline_opportunity_resource,
     get_pipeline_opportunity_resource_by_opportunity_id
@@ -35,6 +38,50 @@ import json
 from app.schemas.opportunity import OpportunityRead
 from app.services.ai import handleTechnicalPreperation
 from fastapi import BackgroundTasks
+from sqlalchemy.exc import IntegrityError
+
+
+async def _apply_pipeline_opportunity_resource_status(
+    db: AsyncSession,
+    current_user: User,
+    pipeline_opportunity_resource_id: UUID,
+    status_data: dict,
+    message: str,
+) -> UpdatePipelineOpportunityResourceResponse:
+    """Persist a dedicated status transition (select / approve / reject).
+
+    Status changes deliberately bypass PipelineOpportunityResourceUpdate so that the
+    generic update endpoint cannot move a resource through the workflow arbitrarily.
+    """
+    status_data["updatedBy"] = current_user.user_id
+    updated_pipeline_opportunity_resource = await update_pipeline_opportunity_resource(
+        db, status_data, pipeline_opportunity_resource_id
+    )
+    if updated_pipeline_opportunity_resource is None:
+        raise NotFoundException()
+
+    return UpdatePipelineOpportunityResourceResponse(
+        updatedPipelineOpportunityResource=PipelineOpportunityResourceDTO.model_validate(
+            updated_pipeline_opportunity_resource
+        ),
+        message=message,
+        status_code=200,
+    )
+
+
+def _ensure_reporting_user(
+    pipeline_opportunity_resource: PipelineOpportunityResourceModel,
+    current_user: User,
+    action: str,
+) -> None:
+    if pipeline_opportunity_resource.user_details.reporting_to != current_user.user_id:
+        raise AppException(
+            message=f"Only the reporting user can {action} this resource",
+            status_code=403,
+            error_code=ErrorCode.NOT_ALLOWED,
+        )
+
+
 async def handle_get_all_pipeline_opportunity_resources(
     db: AsyncSession, current_user: User, page: int = 1, limit: int = 10
 ) -> GetPipelineOpportunityResourceResponse:
@@ -183,14 +230,22 @@ async def handle_select_pipeline_opportunity_resource(
         if pipeline_opportunity_resource is None:
             raise NotFoundException()
 
-        update_payload = PipelineOpportunityResourceUpdate(
-            is_selected=request.is_selected
-        )
-        return await handle_update_pipeline_opportunity_resource(
+        if pipeline_opportunity_resource.status not in (
+            ApprovalStatus.SUGGESTED,
+            ApprovalStatus.SELECTED,
+        ):
+            raise AppException(
+                message=f"A resource that is already {pipeline_opportunity_resource.status.value} cannot be selected",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        return await _apply_pipeline_opportunity_resource_status(
             db=db,
             current_user=current_user,
-            pipeline_opportunity_resource_update=update_payload,
             pipeline_opportunity_resource_id=request.pipeline_resource_id,
+            status_data={"status": ApprovalStatus.SELECTED},
+            message="Pipeline Opportunity Resource selected successfully",
         )
     except (NotFoundException, AppException) as e:
         raise e
@@ -213,38 +268,55 @@ async def handle_approve_pipeline_opportunity_resource(
         if pipeline_opportunity_resource is None:
             raise NotFoundException()
 
-        if pipeline_opportunity_resource.user_details.reporting_to != current_user.user_id:
-            raise AppException(
-                message="Only the reporting user can approve this resource",
-                status_code=403,
-                error_code=ErrorCode.NOT_ALLOWED,
-            )
+        _ensure_reporting_user(pipeline_opportunity_resource, current_user, "approve")
 
-        if pipeline_opportunity_resource.is_approved:
+        if pipeline_opportunity_resource.status == ApprovalStatus.APPROVED:
             raise AppException(
                 message="This resource is already Approved.",
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
 
-        if not pipeline_opportunity_resource.is_selected:
+        if pipeline_opportunity_resource.status != ApprovalStatus.SELECTED:
             raise AppException(
                 message="Only selected resources can be approved",
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
 
-        update_payload = PipelineOpportunityResourceUpdate(
-            is_approved=True,
-            approved_at=datetime.now(),
-            approved_by=current_user.user_id,
+        already_approved_resource = await get_approved_pipeline_opportunity_resource_by_opportunity_id(
+            db, pipeline_opportunity_resource.opportunity_id
         )
-        result : UpdatePipelineOpportunityResourceResponse = await handle_update_pipeline_opportunity_resource(
-            db=db,
-            current_user=current_user,
-            pipeline_opportunity_resource_update=update_payload,
-            pipeline_opportunity_resource_id=request.pipeline_resource_id,
-        )
+        if already_approved_resource is not None:
+            raise AppException(
+                message="Another resource is already approved for this opportunity",
+                status_code=409,
+                error_code=ErrorCode.DUPLICATE_RECORD,
+            )
+
+        try:
+            result : UpdatePipelineOpportunityResourceResponse = await _apply_pipeline_opportunity_resource_status(
+                db=db,
+                current_user=current_user,
+                pipeline_opportunity_resource_id=request.pipeline_resource_id,
+                status_data={
+                    "status": ApprovalStatus.APPROVED,
+                    "approved_at": datetime.now(),
+                    "approved_by": current_user.user_id,
+                    "rejected_at": None,
+                    "rejected_by": None,
+                    "reject_reason": None,
+                },
+                message="Pipeline Opportunity Resource approved successfully",
+            )
+        except IntegrityError as e:
+            # Loses the race against the unique partial index (one APPROVED resource per opportunity)
+            logging.exception("Duplicate approval for Pipeline Opportunity Resource")
+            raise AppException(
+                message="Another resource is already approved for this opportunity",
+                status_code=409,
+                error_code=ErrorCode.DUPLICATE_RECORD,
+            ) from e
 
         job_details : Opportunity = await get_opportunity_details_by_id(db, result.updatedPipelineOpportunityResource.opportunity_id)
         job_details_schema : OpportunityRead = OpportunityRead.model_validate(job_details)
@@ -261,4 +333,54 @@ async def handle_approve_pipeline_opportunity_resource(
         raise e
     except Exception as e:
         logging.exception("Some error occurred while approving Pipeline Opportunity Resource")
+        raise e
+
+
+async def handle_reject_pipeline_opportunity_resource(
+    db: AsyncSession,
+    current_user: User,
+    request: PipelineOpportunityResourceRejectRequest,
+) -> UpdatePipelineOpportunityResourceResponse:
+    try:
+        pipeline_opportunity_resource : PipelineOpportunityResourceModel = await get_pipeline_opportunity_resource_by_id(
+            db, request.pipeline_resource_id
+        )
+
+        if pipeline_opportunity_resource is None:
+            raise NotFoundException()
+
+        _ensure_reporting_user(pipeline_opportunity_resource, current_user, "reject")
+
+        if pipeline_opportunity_resource.status == ApprovalStatus.REJECTED:
+            raise AppException(
+                message="This resource is already Rejected.",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        if pipeline_opportunity_resource.status != ApprovalStatus.SELECTED:
+            raise AppException(
+                message="Only selected resources can be rejected",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        return await _apply_pipeline_opportunity_resource_status(
+            db=db,
+            current_user=current_user,
+            pipeline_opportunity_resource_id=request.pipeline_resource_id,
+            status_data={
+                "status": ApprovalStatus.REJECTED,
+                "rejected_at": datetime.now(),
+                "rejected_by": current_user.user_id,
+                "reject_reason": request.reject_reason,
+                "approved_at": None,
+                "approved_by": None,
+            },
+            message="Pipeline Opportunity Resource rejected successfully",
+        )
+    except (NotFoundException, AppException) as e:
+        raise e
+    except Exception as e:
+        logging.exception("Some error occurred while rejecting Pipeline Opportunity Resource")
         raise e
