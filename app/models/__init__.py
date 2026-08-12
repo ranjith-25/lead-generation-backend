@@ -25,6 +25,7 @@ from app.models.pipeline_opportunity_project import PipelineOpportunityProjectMo
 from app.models.pipeline_opportunity_resource import PipelineOpportunityResourceModel
 from app.models.pipeline_opportunity_techincal_preperation import PipelineOpportunityTechnicalPreperationModel
 from app.models.password_reset_token import PasswordResetToken
+from app.models.user_project import UserProject
 
-__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain","UserInvitation", "UserStatus", "JobRole", "ProfileVariant", "ProfileVariantProject", "Branch", "PipelineExecutionStatusModel","PipelineOpportunityProjectModel","PipelineOpportunityResourceModel","PipelineOpportunityTechnicalPreperationModel","PasswordResetToken"]
+__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain","UserInvitation", "UserStatus", "JobRole", "ProfileVariant", "ProfileVariantProject", "Branch", "PipelineExecutionStatusModel","PipelineOpportunityProjectModel","PipelineOpportunityResourceModel","PipelineOpportunityTechnicalPreperationModel","PasswordResetToken", "UserProject"]
 
