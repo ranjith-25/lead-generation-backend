@@ -387,3 +387,26 @@ async def handle_get_projects_and_domains(
     except Exception as e:
         logging.exception("Some error occurred while fetching projects and domains")
         raise e
+
+
+async def handle_download_profile_variant(
+    db: AsyncSession, user_id: UUID, profile_variant_id: UUID
+) -> Path:
+    try:
+        profile_variant = await get_profile_variant_by_id(db, profile_variant_id)
+        if not profile_variant:
+            raise NotFoundException()
+        if profile_variant.user_id != user_id:
+            raise NotFoundException()
+
+        project_root = Path(__file__).resolve().parents[2]
+        file_path = project_root / profile_variant.upload_profile
+        if not file_path.exists() or not file_path.is_file():
+            raise NotFoundException()
+
+        return file_path
+    except NotFoundException as e:
+        raise e
+    except Exception as e:
+        logging.exception("Some error occurred while downloading Profile Variant PDF")
+        raise e

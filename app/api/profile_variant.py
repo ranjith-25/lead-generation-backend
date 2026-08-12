@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from app.core.connections.postgres import get_db
@@ -10,7 +11,7 @@ from app.responses.profile_variant import (
     GetProfileVariantResponse,
     UpdateProfileVariantResponse, JobRoleSkillsResponse, ProjectsDomainsResponse,
 )
-from app.schemas.profile_variant import ProfileVariantCreate, ProfileVariantUpdate
+from app.schemas.profile_variant import ProfileVariantCreate, ProfileVariantUpdate, DownloadProfileRequest
 from app.services.profile_variant import (
     handle_create_profile_variant,
     handle_delete_profile_variant,
@@ -18,6 +19,7 @@ from app.services.profile_variant import (
     handle_get_profile_variant_by_id,
     handle_update_profile_variant, handle_get_job_role_skills,
     handle_get_projects_and_domains,
+    handle_download_profile_variant,
 )
 
 
@@ -84,3 +86,18 @@ async def get_projects_and_domains(
     db: AsyncSession = Depends(get_db)
 ) -> ProjectsDomainsResponse:
     return await handle_get_projects_and_domains(db, current_user)
+
+
+@router.post("/download-profile")
+async def download_profile_variant_pdf(
+    request_data: DownloadProfileRequest,
+    current_user: User = Depends(require_permission("profile_variants", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    file_path = await handle_download_profile_variant(
+        db, request_data.user_id, request_data.profile_variant_id
+    )
+    # Extract original filename by stripping the `<uuid>_` prefix
+    parts = file_path.name.split("_", 1)
+    original_filename = parts[1] if len(parts) > 1 else file_path.name
+    return FileResponse(file_path, media_type="application/pdf", filename=original_filename)
