@@ -12,6 +12,7 @@ from sqlalchemy import (
     Float,
     JSON,
     Index,
+    Boolean
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -95,6 +96,12 @@ class PipelineOpportunityResourceModel(Base):
         Enum(ApprovalStatus),
         default=ApprovalStatus.SUGGESTED,
         nullable=False,
+    )
+
+    is_auto_approved: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=True,
     )
 
     approved_at: Mapped[datetime | None] = mapped_column(
