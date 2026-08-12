@@ -1,9 +1,13 @@
 import logging
 import re
 import httpx
+from pathlib import Path
+from fastapi import UploadFile
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
+from app.core.storage import has_upload, save_profile_variant
 from app.exceptions.custom import NotFoundException
 from app.exceptions.ai_exception import handle_ai_exception
 from app.core.connections.ai_connection import get_ai_client
@@ -182,24 +186,81 @@ async def ingest_profile_variant_to_ai(db: AsyncSession, profile_variant: Profil
 
 
 async def handle_create_profile_variant(
-    db: AsyncSession, current_user: User, profile_variant_create: ProfileVariantCreate
+    db: AsyncSession, current_user: User, profile_variant_create: ProfileVariantCreate, upload_profile: UploadFile
 ) -> CreateProfileVariantResponse:
+    if not has_upload(upload_profile):
+        raise RequestValidationError(
+            [
+                {
+                    "type": "missing",
+                    "loc": ("body", "upload_profile"),
+                    "msg": "Field required",
+                    "input": None,
+                }
+            ]
+        )
+
+    # Validate PDF extension before inserting anything to database
+    filename = upload_profile.filename or ""
+    extension = Path(filename).suffix.lower()
+    if extension != ".pdf":
+        raise RequestValidationError(
+            [
+                {
+                    "type": "value_error",
+                    "loc": ("body", "upload_profile"),
+                    "msg": "Only PDF files are allowed",
+                    "input": filename,
+                }
+            ]
+        )
+
+    created_profile_variant = None
+    stored_path = None
     try:
+        # Set dummy upload_profile string to satisfy NOT NULL db constraint
+        profile_variant_create.upload_profile = "placeholder"
+
         create_data = profile_variant_create.model_dump(exclude={"projects"})
         new_profile_variant = ProfileVariant(
             **create_data,
             created_by=current_user.user_id,
             updated_by=current_user.user_id,
         )
+
+        # 1. Insert record into database first to let db generate profile_variant_id
         created_profile_variant = await create_profile_variant(
             db, new_profile_variant, profile_variant_create.projects or []
         )
+
+        # 2. Save file to disk using the db-generated profile_variant_id
+        stored_path = await save_profile_variant(
+            upload_profile, 
+            created_profile_variant.user_id, 
+            created_profile_variant.profile_variant_id
+        )
+
+        # 3. Update database record with the actual stored path
+        created_profile_variant.upload_profile = stored_path
+        await db.commit()
+        await db.refresh(created_profile_variant)
+
+        # 4. Ingest profile variant to AI
         await ingest_profile_variant_to_ai(db, created_profile_variant)
+
         return CreateProfileVariantResponse(
             newProfileVariant=ProfileVariantDTO.model_validate(created_profile_variant),
             message="Profile Variant created successfully",
         )
     except Exception as e:
+        if stored_path:
+            project_root = Path(__file__).resolve().parents[2]
+            (project_root / stored_path).unlink(missing_ok=True)
+        if created_profile_variant:
+            try:
+                await delete_profile_variant(db, created_profile_variant.profile_variant_id)
+            except Exception:
+                pass
         logging.exception("Some error occurred while creating Profile Variant")
         raise e
 
