@@ -15,7 +15,8 @@ from app.responses.pipeline_opportunity_resource import (
 from app.schemas.pipeline_opportunity_resource import (
     PipelineOpportunityResourceCreate,
     PipelineOpportunityResourceUpdate,
-    PipelineOpportunityResourceSelectRequest
+    PipelineOpportunityResourceSelectRequest,
+    PipelineOpportunityResourceApproveRequest,
 )
 from app.services.pipeline_opportunity_resource import (
     handle_create_pipeline_opportunity_resource,
@@ -23,8 +24,12 @@ from app.services.pipeline_opportunity_resource import (
     handle_get_all_pipeline_opportunity_resources,
     handle_get_pipeline_opportunity_resource_by_id,
     handle_update_pipeline_opportunity_resource,
-    handle_get_pipeline_opportunity_resource_by_opportunity_id
+    handle_get_pipeline_opportunity_resource_by_opportunity_id,
+    handle_select_pipeline_opportunity_resource,
+    handle_approve_pipeline_opportunity_resource,
 )
+from fastapi import BackgroundTasks
+
 
 pipeline_opportunity_resource_router = APIRouter(prefix="/pipeline-opportunity-resource", tags=["Pipeline Opportunity Resource"])
 
@@ -107,4 +112,36 @@ async def delete_pipeline_opportunity_resource(
         content=response.model_dump(mode="json", exclude_none=True),
         status_code=200,
     )
+
+
+@pipeline_opportunity_resource_router.patch("/select")
+async def select_pipeline_opportunity_resource(
+    request: PipelineOpportunityResourceSelectRequest,
+    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "update")),
+    db: AsyncSession = Depends(get_db),
+):
+    response: UpdatePipelineOpportunityResourceResponse = await handle_select_pipeline_opportunity_resource(
+        db, current_user, request
+    )
+    return JSONResponse(
+        content=response.model_dump(mode="json", exclude_none=True),
+        status_code=200,
+    )
+
+
+@pipeline_opportunity_resource_router.patch("/approve")
+async def approve_pipeline_opportunity_resource(
+    request: PipelineOpportunityResourceApproveRequest,
+    background_tasks : BackgroundTasks,
+    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "approve")),
+    db: AsyncSession = Depends(get_db),
+):
+    response: UpdatePipelineOpportunityResourceResponse = await handle_approve_pipeline_opportunity_resource(
+        db, current_user, request,background_tasks=background_tasks
+    )
+    return JSONResponse(
+        content=response.model_dump(mode="json", exclude_none=True),
+        status_code=200,
+    )
+
 
