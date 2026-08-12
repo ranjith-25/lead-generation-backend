@@ -36,6 +36,10 @@ class PipelineOpportunityResourceDTO(PipelineOpportunityResourceBase):
         None, description="The person who approved the resource"
     )
     status: ApprovalStatus = Field(..., description="Approval status of the resource")
+    is_auto_approved: Optional[bool] = Field(
+        None,
+        description="True when the resource was approved automatically by a user holding the auto approve permission",
+    )
     approved_at: Optional[datetime] = Field(None)
     resourceApprovedBy: Optional[str] = Field(None)
     rejected_at: Optional[datetime] = Field(None)
@@ -70,6 +74,10 @@ class PipelineOpportunityResourceSelectRequest(BaseModel):
 
 
 class PipelineOpportunityResourceApproveRequest(BaseModel):
+    pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
+
+
+class PipelineOpportunityResourceAutoApproveRequest(BaseModel):
     pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
 
 

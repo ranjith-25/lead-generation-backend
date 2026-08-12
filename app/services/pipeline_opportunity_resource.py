@@ -20,6 +20,7 @@ from app.schemas.pipeline_opportunity_resource import (
     PipelineOpportunityResourceUpdate,
     PipelineOpportunityResourceSelectRequest,
     PipelineOpportunityResourceApproveRequest,
+    PipelineOpportunityResourceAutoApproveRequest,
     PipelineOpportunityResourceRejectRequest,
 )
 from app.services.db.pipeline_opportunity_resource import (
@@ -67,6 +68,67 @@ async def _apply_pipeline_opportunity_resource_status(
         message=message,
         status_code=200,
     )
+
+
+async def _approve_pipeline_opportunity_resource(
+    db: AsyncSession,
+    current_user: User,
+    pipeline_opportunity_resource: PipelineOpportunityResourceModel,
+    background_tasks: BackgroundTasks,
+    is_auto_approved: bool,
+    message: str,
+) -> UpdatePipelineOpportunityResourceResponse:
+    """Approve a resource and kick off its technical preparation.
+
+    Shared by the reporting user approval and the auto approval granted to roles
+    holding the pipeline_opportunity_technical_preperation auto_approve permission.
+    """
+    already_approved_resource = await get_approved_pipeline_opportunity_resource_by_opportunity_id(
+        db, pipeline_opportunity_resource.opportunity_id
+    )
+    if already_approved_resource is not None:
+        raise AppException(
+            message="Another resource is already approved for this opportunity",
+            status_code=409,
+            error_code=ErrorCode.DUPLICATE_RECORD,
+        )
+
+    try:
+        result: UpdatePipelineOpportunityResourceResponse = await _apply_pipeline_opportunity_resource_status(
+            db=db,
+            current_user=current_user,
+            pipeline_opportunity_resource_id=pipeline_opportunity_resource.id,
+            status_data={
+                "status": ApprovalStatus.APPROVED,
+                "is_auto_approved": is_auto_approved,
+                "approved_at": datetime.now(),
+                "approved_by": current_user.user_id,
+                "rejected_at": None,
+                "rejected_by": None,
+                "reject_reason": None,
+            },
+            message=message,
+        )
+    except IntegrityError as e:
+        # Loses the race against the unique partial index (one APPROVED resource per opportunity)
+        logging.exception("Duplicate approval for Pipeline Opportunity Resource")
+        raise AppException(
+            message="Another resource is already approved for this opportunity",
+            status_code=409,
+            error_code=ErrorCode.DUPLICATE_RECORD,
+        ) from e
+
+    job_details: Opportunity = await get_opportunity_details_by_id(db, result.updatedPipelineOpportunityResource.opportunity_id)
+    job_details_schema: OpportunityRead = OpportunityRead.model_validate(job_details)
+    technicalPreperationRequest: AITechnicalPreperationRequest = AITechnicalPreperationRequest(
+        job_details=json.dumps(job_details_schema.model_dump(mode="json")),
+        variant_id=str(result.updatedPipelineOpportunityResource.variant_id),
+        matching_skills=result.updatedPipelineOpportunityResource.matching_skills,
+        missing_skills=result.updatedPipelineOpportunityResource.missing_skills,
+    )
+    background_tasks.add_task(handleTechnicalPreperation, technicalPreperationRequest, result.updatedPipelineOpportunityResource.opportunity_id)
+
+    return result
 
 
 def _ensure_reporting_user(
@@ -284,55 +346,76 @@ async def handle_approve_pipeline_opportunity_resource(
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
 
-        already_approved_resource = await get_approved_pipeline_opportunity_resource_by_opportunity_id(
-            db, pipeline_opportunity_resource.opportunity_id
+        return await _approve_pipeline_opportunity_resource(
+            db=db,
+            current_user=current_user,
+            pipeline_opportunity_resource=pipeline_opportunity_resource,
+            background_tasks=background_tasks,
+            is_auto_approved=False,
+            message="Pipeline Opportunity Resource approved successfully",
         )
-        if already_approved_resource is not None:
-            raise AppException(
-                message="Another resource is already approved for this opportunity",
-                status_code=409,
-                error_code=ErrorCode.DUPLICATE_RECORD,
-            )
-
-        try:
-            result : UpdatePipelineOpportunityResourceResponse = await _apply_pipeline_opportunity_resource_status(
-                db=db,
-                current_user=current_user,
-                pipeline_opportunity_resource_id=request.pipeline_resource_id,
-                status_data={
-                    "status": ApprovalStatus.APPROVED,
-                    "approved_at": datetime.now(),
-                    "approved_by": current_user.user_id,
-                    "rejected_at": None,
-                    "rejected_by": None,
-                    "reject_reason": None,
-                },
-                message="Pipeline Opportunity Resource approved successfully",
-            )
-        except IntegrityError as e:
-            # Loses the race against the unique partial index (one APPROVED resource per opportunity)
-            logging.exception("Duplicate approval for Pipeline Opportunity Resource")
-            raise AppException(
-                message="Another resource is already approved for this opportunity",
-                status_code=409,
-                error_code=ErrorCode.DUPLICATE_RECORD,
-            ) from e
-
-        job_details : Opportunity = await get_opportunity_details_by_id(db, result.updatedPipelineOpportunityResource.opportunity_id)
-        job_details_schema : OpportunityRead = OpportunityRead.model_validate(job_details)
-        technicalPreperationRequest : AITechnicalPreperationRequest = AITechnicalPreperationRequest(
-            job_details = json.dumps(job_details_schema.model_dump(mode="json")),
-            variant_id = str(result.updatedPipelineOpportunityResource.variant_id),
-            matching_skills = result.updatedPipelineOpportunityResource.matching_skills,
-            missing_skills = result.updatedPipelineOpportunityResource.missing_skills,
-        )
-        background_tasks.add_task(handleTechnicalPreperation, technicalPreperationRequest,result.updatedPipelineOpportunityResource.opportunity_id)
-
-        return result
     except (NotFoundException, AppException) as e:
         raise e
     except Exception as e:
         logging.exception("Some error occurred while approving Pipeline Opportunity Resource")
+        raise e
+
+
+async def handle_auto_approve_pipeline_opportunity_resource(
+    db: AsyncSession,
+    current_user: User,
+    request: PipelineOpportunityResourceAutoApproveRequest,
+    background_tasks: BackgroundTasks,
+) -> UpdatePipelineOpportunityResourceResponse:
+    """Approve a resource without the reporting user step.
+
+    The auto_approve permission is enforced on the route, so reaching this handler
+    already means the caller is allowed to bypass the reporting user approval.
+    """
+    try:
+        pipeline_opportunity_resource: PipelineOpportunityResourceModel = await get_pipeline_opportunity_resource_by_id(
+            db, request.pipeline_resource_id
+        )
+
+        if pipeline_opportunity_resource is None:
+            raise NotFoundException()
+
+        if pipeline_opportunity_resource.status != ApprovalStatus.SELECTED:
+            raise AppException(
+                message="Resource must be selected before approving.",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        if pipeline_opportunity_resource.status == ApprovalStatus.APPROVED:
+            raise AppException(
+                message="This resource is already Approved.",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        if pipeline_opportunity_resource.status not in (
+            ApprovalStatus.SUGGESTED,
+            ApprovalStatus.SELECTED,
+        ):
+            raise AppException(
+                message=f"A resource that is already {pipeline_opportunity_resource.status.value} cannot be auto approved",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        return await _approve_pipeline_opportunity_resource(
+            db=db,
+            current_user=current_user,
+            pipeline_opportunity_resource=pipeline_opportunity_resource,
+            background_tasks=background_tasks,
+            is_auto_approved=True,
+            message="Pipeline Opportunity Resource auto approved successfully",
+        )
+    except (NotFoundException, AppException) as e:
+        raise e
+    except Exception as e:
+        logging.exception("Some error occurred while auto approving Pipeline Opportunity Resource")
         raise e
 
 
