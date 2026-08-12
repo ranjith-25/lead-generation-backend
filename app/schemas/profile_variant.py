@@ -164,3 +164,8 @@ class ProfileVariantUpdate(BaseModel):
     is_draft: Optional[bool] = Field(None)
     user_id: Optional[uuid.UUID] = Field(None, description="Associated User ID")
     projects: Optional[List[ProfileVariantProjectUpdate]] = Field(None)
+
+
+class DownloadProfileRequest(BaseModel):
+    user_id: uuid.UUID
+    profile_variant_id: uuid.UUID
