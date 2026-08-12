@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from app.core.connections.postgres import get_db
@@ -43,11 +43,12 @@ async def get_profile_variant_by_id(
 
 @router.post("/")
 async def create_profile_variant(
-    profile_variant: ProfileVariantCreate,
+    profile_variant: ProfileVariantCreate = Depends(ProfileVariantCreate.as_form),
+    upload_profile: UploadFile = File(...),
     current_user: User = Depends(require_permission("profile_variants", "create")),
     db: AsyncSession = Depends(get_db),
 ) -> CreateProfileVariantResponse:
-    return await handle_create_profile_variant(db, current_user, profile_variant)
+    return await handle_create_profile_variant(db, current_user, profile_variant, upload_profile)
 
 
 @router.put("/{id}")

@@ -85,3 +85,44 @@ def delete_case_study(stored_path: str | None) -> None:
     resolved = resolve_case_study(stored_path)
     if resolved:
         resolved.unlink(missing_ok=True)
+
+
+async def save_profile_variant(file: UploadFile, user_id: uuid.UUID, profile_variant_id: uuid.UUID) -> str:
+    """Write an uploaded profile variant PDF to disk and return the path stored in DB."""
+
+    filename = file.filename or ""
+    extension = Path(filename).suffix.lower()
+    if extension != ".pdf":
+        from fastapi.exceptions import RequestValidationError
+        raise RequestValidationError(
+            [
+                {
+                    "type": "value_error",
+                    "loc": ("body", "upload_profile"),
+                    "msg": "Only PDF files are allowed",
+                    "input": filename,
+                }
+            ]
+        )
+
+    # Base folder uploads/
+    # C:\Users\Softsuave\Projects\BDLead-Generation-Backend\uploads\profile-variants\<user_id>\<profile_variant_id>_<original-filename>.pdf
+    project_root = Path(__file__).resolve().parents[2]
+    upload_dir = project_root / "uploads" / "profile-variants" / str(user_id)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    destination = upload_dir / f"{profile_variant_id}_{filename}"
+
+    _CHUNK_SIZE = 1024 * 1024
+    await file.seek(0)
+    try:
+        with destination.open("wb") as target:
+            while chunk := await file.read(_CHUNK_SIZE):
+                target.write(chunk)
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+    finally:
+        await file.close()
+
+    return destination.relative_to(project_root).as_posix()
