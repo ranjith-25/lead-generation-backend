@@ -2,12 +2,6 @@ from pydantic import BaseModel
 from enum import Enum
 from app.schemas.opportunity import OpportunityListRead
 
-class DashboardTimeRange(str, Enum):
-    TODAY = "today"
-    LAST_7_DAYS = "last_7_days"
-    LAST_30_DAYS = "last_30_days"
-    THIS_YEAR = "this_year"
-
 class PipelineStatusCount(BaseModel):
     status_name: str
     count: int

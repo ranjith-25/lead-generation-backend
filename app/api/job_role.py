@@ -25,12 +25,11 @@ router = APIRouter(prefix="/job-roles", tags=["Job Role"])
 
 @router.get("/")
 async def get_all_job_roles(
-    current_user: User = Depends(require_permission("job_roles", "read")),
     db: AsyncSession = Depends(get_db),
     page: int = 1,
     limit: int | None = None
 ) -> GetJobRoleResponse:
-    return await handle_get_all_job_roles(db, current_user, page, limit)
+    return await handle_get_all_job_roles(db, page, limit)
 
 
 @router.get("/{id}")

@@ -19,6 +19,7 @@ from app.api.sales_enablement import router as sales_enablement_router
 from app.api.feature import router as feature_router
 from app.api.role_permissions import router as role_permissions_router
 from app.api.project import router as project_router
+from app.api.user import router as user_router
 from app.api.project_domains import project_domain_router
 from app.api.techstack import techstack_router
 from app.api.permissions import permission_router
@@ -27,6 +28,7 @@ from app.api.opportunity_status import opportunity_status_router
 from app.api.user_status import router as user_status_router
 from app.api.job_role import router as job_role_router
 from app.api.user_personal_info import router as user_personal_info_router
+from app.api.notification import router as notification_router
 from app.api.user_invitation import user_invitation_router
 from app.api.user_management import router as user_management_router
 from app.api.role import router as role_router
@@ -73,29 +75,31 @@ async def health():
     return JSONResponse(status_code=status.HTTP_200_OK, content="Ok")
 
 
-app.include_router(auth_router)
 app.include_router(ai_router)
-app.include_router(opportunity_router)
-app.include_router(sales_enablement_router)
-app.include_router(feature_router)
-app.include_router(role_permissions_router)
-app.include_router(project_domain_router)
-app.include_router(techstack_router)
-app.include_router(project_router)
-app.include_router(permission_router)
-app.include_router(platform_router)
-app.include_router(opportunity_status_router)
-app.include_router(user_status_router)
-app.include_router(job_role_router)
-app.include_router(user_personal_info_router)
-app.include_router(user_invitation_router)
-app.include_router(user_management_router)
-app.include_router(role_router)
+app.include_router(auth_router)
 app.include_router(branch_router)
-app.include_router(profile_variant_router)
 app.include_router(dashboard_router)
+app.include_router(feature_router)
+app.include_router(job_role_router)
+app.include_router(notification_router)
+app.include_router(opportunity_router)
+app.include_router(opportunity_status_router)
+app.include_router(permission_router)
 app.include_router(pipeline_execution_status_router)
 app.include_router(pipeline_opportunity_project_router)
 app.include_router(pipeline_opportunity_resource_router)
 app.include_router(pipeline_opportunity_technical_preperation_router)
+app.include_router(platform_router)
+app.include_router(profile_variant_router)
+app.include_router(project_domain_router)
+app.include_router(project_router)
+app.include_router(role_permissions_router)
+app.include_router(role_router)
+app.include_router(sales_enablement_router)
 app.include_router(settings_router)
+app.include_router(techstack_router)
+app.include_router(user_invitation_router)
+app.include_router(user_management_router)
+app.include_router(user_personal_info_router)
+app.include_router(user_router)
+app.include_router(user_status_router)

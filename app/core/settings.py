@@ -37,5 +37,16 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_USE_TLS: bool = True
     EMAIL_FROM: str = ""
+    
+    DB_LOGS: bool = False
+
+    # Connection pool ceiling for this process: DB_POOL_SIZE + DB_MAX_OVERFLOW.
+    # Keep (ceiling * number of app processes) well under the server's
+    # max_connections, and leave headroom for Alembic and DB clients.
+    DB_POOL_SIZE: int = 3
+    DB_MAX_OVERFLOW: int = 5
+    DB_POOL_TIMEOUT: int = 30
+    # Drop connections older than this so half-dead backends don't accumulate.
+    DB_POOL_RECYCLE: int = 1800
 
 settings = Settings()

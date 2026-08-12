@@ -20,7 +20,7 @@ from app.responses.base import BaseResponse
 from app.responses.authentication import ForgotPasswordMailResponse
 from app.responses.authentication import UserRegistrationFromInvitationResponse
 from app.services.hierarchy import handleGetHierarchy
-from app.responses.authentication import HierarchyResponse
+from app.responses.authentication import HierarchyListResponse
 from app.core.security import require_permission
 import uuid
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -64,10 +64,10 @@ async def reset_password(
 async def get_me(current_user: User = Depends(get_current_user)) -> UserRead:
     return UserRead.model_validate(current_user)
 
-@router.get("/reportingHierarchy",response_model=HierarchyResponse)
-async def get_hierarchy(current_user : User = Depends(require_permission("user_hierarchy","read")),db: AsyncSession = Depends(get_db)) : 
+@router.get("/reportingHierarchy",response_model=HierarchyListResponse)
+async def get_hierarchy(current_user : User = Depends(require_permission("user_hierarchy","read")),db: AsyncSession = Depends(get_db)) :
 
-    response : HierarchyResponse = await handleGetHierarchy(db)
+    response : HierarchyListResponse = await handleGetHierarchy(db)
     return JSONResponse(
         status_code= 200,
         content=response.model_dump(mode="json")

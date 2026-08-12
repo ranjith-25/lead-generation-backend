@@ -29,6 +29,18 @@ class UserRead(UserBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class UserRoleRead(BaseModel):
+    user_id: UUID
+    full_name: str
+    email: EmailStr
+    role_id: UUID | None = None
+    role_name: str | None = None
+    reporting_to: UUID | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserHierarchy(BaseModel):
     user_id: UUID
     fullName: str
@@ -45,4 +57,5 @@ class UserRegistrationFromInvitation(BaseModel):
     user_details : UserCreate
     user_personal_details : UserPersonalInfoCreate
     
-    
+class UserReportingRead(UserRead):
+    reporting_to: UUID

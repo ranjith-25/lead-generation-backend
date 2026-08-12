@@ -21,7 +21,7 @@ from app.services.db.user_status import (
 )
 
 
-async def handle_get_all_user_statuses(db: AsyncSession, current_user: User, search: str | None = None, page: int = 1, limit: int = 10) -> GetUserStatusResponse:
+async def handle_get_all_user_statuses(db: AsyncSession, search: str | None = None, page: int = 1, limit: int = 10) -> GetUserStatusResponse:
     try:
         user_statuses, total = await get_all_user_statuses(db, search, page, limit)
 
