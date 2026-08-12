@@ -3,11 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
 from app.models.user import User
-from app.schemas.dashboard import DashboardResponse, DashboardTimeRange, DashboardSummaryResponse
+from app.schemas.dashboard import DashboardResponse, DashboardSummaryResponse
 from app.services.db.dashboard import get_dashboard_metrics, get_dashboard_summary_metrics
+from app.config import TimeRange
 
 
-async def handle_get_dashboard_data(db: AsyncSession, current_user: User, time_range: DashboardTimeRange | None = None, platform: str | None = None) -> DashboardResponse:
+async def handle_get_dashboard_data(db: AsyncSession, current_user: User, time_range: TimeRange | None = None, platform: str | None = None) -> DashboardResponse:
     try:
         metrics = await get_dashboard_metrics(db, time_range, platform)
         return DashboardResponse(**metrics)

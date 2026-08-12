@@ -9,6 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.types import (
     ProjectHelpers
 )
+from app.services.notifications import (
+    notify_users
+)
+from app.schemas.notification import (
+    NotificationType
+)
 from app.exceptions.ai_exception import handle_ai_exception
 from app.core.storage import (
     delete_case_study,
@@ -129,7 +135,10 @@ async def get_project_service(db: AsyncSession, project_id: UUID) -> ProjectRead
 
 
 async def create_project_service(
-    db: AsyncSession, project_data: ProjectCreate, case_study: UploadFile | None = None
+    db: AsyncSession,
+    project_data: ProjectCreate,
+    user_id: UUID,
+    case_study: UploadFile | None = None,
 ) -> ProjectRead:
 
     existing = await get_project_by_name_db(db, project_data.project_name)
@@ -157,7 +166,21 @@ async def create_project_service(
         delete_case_study(stored_path)
         raise
 
-    await ingest_project_to_ai(saved_project)
+    ingestion_result = await ingest_project_to_ai(saved_project)
+
+    # no case study document means nothing was sent to the AI service — nothing to announce
+    if ingestion_result is not None:
+        await notify_users(
+            db,
+            user_ids=[user_id],
+            notification_type=NotificationType.PROJECT_ADDED,
+            context={
+                "project_id": str(saved_project.project_id),
+                "project_name": saved_project.project_name,
+            },
+            created_by=user_id,
+        )
+
     return ProjectRead.model_validate(saved_project)
 
 

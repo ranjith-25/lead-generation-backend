@@ -1,5 +1,5 @@
 import logging
-from sqlalchemy import select, func, text, cast, String
+from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -8,49 +8,47 @@ from app.models.user import User
 from app.schemas.opportunity import OpportunityListRead
 from app.models.opportunity_status import OpportunityStatus
 from app.models.pipeline_opportunity_project import PipelineOpportunityProjectModel
-from app.models.pipeline_execution_status import PipelineExecutionStatusModel
 from app.models.user_personal_info import UserPersonalInfo
 from app.models.user_status import UserStatus
-from app.schemas.pipeline_execution_status import PipelineExecutionStatus
-from app.schemas.dashboard import DashboardTimeRange
+from app.config import TimeRange
 from datetime import datetime, timedelta
 from app.services.hierarchy import handleGetHierarchyByUser
 from app.schemas.user import UserHierarchy
 from uuid import UUID
 
-def get_start_date(time_range: DashboardTimeRange | None) -> datetime | None:
+def get_start_date(time_range: TimeRange | None) -> datetime | None:
     if not time_range:
         return None
     now = datetime.now()
-    if time_range == DashboardTimeRange.TODAY:
+    if time_range == TimeRange.TODAY:
         return now.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif time_range == DashboardTimeRange.LAST_7_DAYS:
+    elif time_range == TimeRange.LAST_7_DAYS:
         return now - timedelta(days=7)
-    elif time_range == DashboardTimeRange.LAST_30_DAYS:
+    elif time_range == TimeRange.LAST_30_DAYS:
         return now - timedelta(days=30)
-    elif time_range == DashboardTimeRange.THIS_YEAR:
+    elif time_range == TimeRange.THIS_YEAR:
         return now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
     return None
 
-def get_previous_period_dates(time_range: DashboardTimeRange | None) -> tuple[datetime | None, datetime | None]:
+def get_previous_period_dates(time_range: TimeRange | None) -> tuple[datetime | None, datetime | None]:
     if not time_range:
         return None, None
     now = datetime.now()
-    if time_range == DashboardTimeRange.TODAY:
+    if time_range == TimeRange.TODAY:
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         return start - timedelta(days=1), start
-    elif time_range == DashboardTimeRange.LAST_7_DAYS:
+    elif time_range == TimeRange.LAST_7_DAYS:
         start = now - timedelta(days=7)
         return start - timedelta(days=7), start
-    elif time_range == DashboardTimeRange.LAST_30_DAYS:
+    elif time_range == TimeRange.LAST_30_DAYS:
         start = now - timedelta(days=30)
         return start - timedelta(days=30), start
-    elif time_range == DashboardTimeRange.THIS_YEAR:
+    elif time_range == TimeRange.THIS_YEAR:
         start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
         return start.replace(year=start.year - 1), start
     return None, None
 
-async def get_dashboard_metrics(db: AsyncSession, time_range: DashboardTimeRange | None = None, platform_filter: str | None = None) -> dict:
+async def get_dashboard_metrics(db: AsyncSession, time_range: TimeRange | None = None, platform_filter: str | None = None) -> dict:
     try:
         start_date = get_start_date(time_range)
 
@@ -222,22 +220,22 @@ async def get_dashboard_metrics(db: AsyncSession, time_range: DashboardTimeRange
             created_at = row[1]
             
             label = ""
-            if time_range == DashboardTimeRange.TODAY:
+            if time_range == TimeRange.TODAY:
                 bucket = created_at.hour // 4
                 label = f"{bucket*4:02d}:00 - {(bucket+1)*4:02d}:00"
-            elif time_range == DashboardTimeRange.LAST_7_DAYS:
+            elif time_range == TimeRange.LAST_7_DAYS:
                 days_diff = (now_date.date() - created_at.date()).days
                 day_num = 7 - days_diff
                 if day_num < 1: day_num = 1
                 if day_num > 7: day_num = 7
                 label = f"Day {day_num}"
-            elif time_range == DashboardTimeRange.LAST_30_DAYS:
+            elif time_range == TimeRange.LAST_30_DAYS:
                 days_diff = (now_date.date() - created_at.date()).days
                 week_num = 4 - (days_diff // 7)
                 if week_num < 1: week_num = 1
                 if week_num > 4: week_num = 4
                 label = f"Week {week_num}"
-            elif time_range == DashboardTimeRange.THIS_YEAR:
+            elif time_range == TimeRange.THIS_YEAR:
                 label = created_at.strftime("%b")
             else:
                 label = created_at.strftime("%b %Y")
@@ -252,13 +250,13 @@ async def get_dashboard_metrics(db: AsyncSession, time_range: DashboardTimeRange
         
         def get_sort_key(item):
             label = item["timestamp"]
-            if time_range == DashboardTimeRange.TODAY:
+            if time_range == TimeRange.TODAY:
                 return int(label.split(":")[0])
-            elif time_range == DashboardTimeRange.LAST_7_DAYS:
+            elif time_range == TimeRange.LAST_7_DAYS:
                 return int(label.replace("Day ", ""))
-            elif time_range == DashboardTimeRange.LAST_30_DAYS:
+            elif time_range == TimeRange.LAST_30_DAYS:
                 return int(label.replace("Week ", ""))
-            elif time_range == DashboardTimeRange.THIS_YEAR:
+            elif time_range == TimeRange.THIS_YEAR:
                 months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                 return months.index(label) if label in months else 0
             else:

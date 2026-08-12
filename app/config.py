@@ -1,3 +1,6 @@
+from enum import Enum
+from datetime import datetime, timedelta
+
 OTP_MAX_ATTEMPTS = 5
 
 EMAIL_MESSAGE_CONTENT = {
@@ -5,7 +8,7 @@ EMAIL_MESSAGE_CONTENT = {
         "subject": "You're invited to join Lead Generation",
 
         "text_template": (
-            "Hello {first_name},\n\n"
+            "Hello {name},\n\n"
             "You have been invited to join Lead Generation.\n\n"
             "Your assigned role: {role_name}\n\n"
             "Click the link below to complete your registration:\n"
@@ -56,7 +59,7 @@ EMAIL_MESSAGE_CONTENT = {
                     line-height: 1.6;
                     color: #444444;
                 ">
-                    Hello {first_name},
+                    Hello {name},
                 </p>
 
                 <p style="
@@ -201,5 +204,58 @@ EMAIL_MESSAGE_CONTENT = {
                 </body>
             </html>
         """
+    }
+}
+
+NOTIFICATION_CONTENT = {
+    "OVERVIEW_AND_ANALYSIS":{
+        "title": "AI discovery Complete",
+        "body": "The job post has been analyzed. Click here visit the Overview & Analysis page to review the AI-generated insights."
+    },
+    "EMPTY": {
+        "title": "",
+        "body": ""
+    },
+}
+
+NOTIFICATION_NAVIGATION = {
+    "OVERVIEW_AND_ANALYSIS": "www.aidiscovery.com",
+}
+
+class NotificationType(str,Enum):
+    OVERVIEW_AND_ANALYSIS = "OVERVIEW_AND_ANALYSIS"
+    PROJECT_ADDED = "PROJECT_ADDED"
+    EMPTY = "EMPTY"
+    # PIPELINE_ANALYSIS = "PIPELINE_ANALYSIS"
+    # RELAVENT_PROJECTS = "RELAVENT_PROJECTS"
+    # SALES_ENABLEMENT = "SALES_ENABLEMENT"
+    # DISCOVERY_QUESTIONS = "DISCOVERY_QUESTIONS"
+    # OUTREACH_TEMPLATE = "OUTREACH_TEMPLATE"
+    # SALES_TALKING_POINTS = "SALES_TALKING_POINTS"
+    # SETTINGS = "SETTINGS"
+    # INFO = "INFO"
+    
+class TimeRange(str, Enum):
+    TODAY = "today"
+    LAST_7_DAYS = "last_7_days"
+    LAST_30_DAYS = "last_30_days"
+    THIS_YEAR = "this_year"
+    
+TIME_RANGE_DELAYS = {
+    "today": {
+        "start": lambda: datetime.now().replace(hour=0, minute=0, second=0, microsecond=0),
+        "end": lambda: datetime.now()
+        },
+    "last_7_days": {
+        "start" : lambda : (datetime.now() - timedelta(days=7)),
+        "end" : lambda: datetime.now()
+        },
+    "last_30_days": {
+        "start" :   lambda : (datetime.now() - timedelta(days=7)),
+        "end" : lambda : datetime.now()
+    },
+    "this_year": {
+        "start" : lambda : (datetime.now().replace(month=1, day=1)),
+        "end" : lambda : datetime.now()
     }
 }

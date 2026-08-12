@@ -13,6 +13,9 @@ class AuthenticationResponse(BaseResponse,Token):
 class HierarchyResponse(BaseResponse):
     hierarchy : UserHierarchy
 
+class HierarchyListResponse(BaseResponse):
+    hierarchy : list[UserHierarchy]
+
 class UserRegistrationFromInvitationResponse(BaseResponse):
     pass
     

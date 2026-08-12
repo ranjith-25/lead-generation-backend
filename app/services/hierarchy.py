@@ -2,19 +2,16 @@ from app.services.db.reporting import getReportingUsers
 from app.services.db.user import getAllUsers
 from app.schemas.user import UserHierarchy
 from app.models.user import User
-from app.responses.authentication import HierarchyResponse
+from app.responses.authentication import HierarchyListResponse, HierarchyResponse
 import logging
 from uuid import UUID
-
-async def handleGetHierarchy(db) -> HierarchyResponse:
+from app.schemas.user import UserReportingRead
+async def handleGetHierarchy(db) -> HierarchyListResponse:
     try:
         users = await getAllUsers(db)  # Fetch all users
-
-        # Create nodes
         nodes = {}
 
         for user in users:
-            print(user)
             nodes[user.user_id] = UserHierarchy(
                 user_id=user.user_id,
                 fullName=user.fullName,
@@ -23,7 +20,7 @@ async def handleGetHierarchy(db) -> HierarchyResponse:
                 children=[]
             )
 
-        root = None
+        root = []
 
         # Build tree
         for user in users:
@@ -33,9 +30,8 @@ async def handleGetHierarchy(db) -> HierarchyResponse:
                 nodes[parent_id].children.append(nodes[user.user_id])
             else:
                 # User without manager -> Root (Admin)
-                root = nodes[user.user_id]
-
-        return HierarchyResponse(
+                root.append(nodes[user.user_id])
+        return HierarchyListResponse(
             message="Hierarchy fetched successfully",
             hierarchy=root
         )

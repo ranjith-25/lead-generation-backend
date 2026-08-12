@@ -82,17 +82,19 @@ async def handle_create_user_invitation(
         
         role_name = (await get_role_by_id(db, created_user_invitation.roleID)).roleName
         invitation_url = f"{settings.FRONTEND_BASE_URL}/register?invitation_id={created_user_invitation.id}&work_email={created_user_invitation.work_email}"
-        first_name = (await get_user_personal_info_by_user_id(db, current_user.user_id)).first_name
-        work_email = current_user.email
+        
+        temp_name = user_invitation_create.work_email.split('@')[0]
+        name = f"{temp_name.split('.')[0].capitalize()} {temp_name.split('.')[1].capitalize()}"
+        work_email = user_invitation_create.work_email
     
         template = EMAIL_MESSAGE_CONTENT["INVITATION_TEMPLATE"]
         text_content = template["text_template"].format(
-            first_name=first_name,
+            name=name,
             role_name=role_name,
             invitation_url=invitation_url,
         )
         html_content = template["html_template"].format(
-            first_name=first_name,
+            name=name,
             role_name=role_name,
             invitation_url=invitation_url,
         )

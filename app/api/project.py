@@ -40,7 +40,7 @@ async def create_project(
     current_user: User = Depends(require_permission("projects", "create")),
     db: AsyncSession = Depends(get_db),
 ) -> ProjectRead:
-    return await create_project_service(db, project, case_study)
+    return await create_project_service(db, project, current_user.user_id, case_study)
 
 @router.post("/get_all", response_model=ProjectListResponse)
 async def get_all_projects(
