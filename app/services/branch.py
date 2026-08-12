@@ -22,7 +22,7 @@ from app.services.db.branch import (
 
 
 async def handle_get_all_branches(
-    db: AsyncSession, current_user: User
+    db: AsyncSession
 ) -> GetBranchResponse:
     try:
         branches = await get_all_branches(db)

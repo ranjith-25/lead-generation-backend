@@ -11,6 +11,8 @@ from app.schemas.user import UserHierarchy
 from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 import logging
+from app.config import TIME_RANGE_DELAYS
+
 def extract_hierarchy_user_ids(node: UserHierarchy) -> list[UUID]:
     if not node:
         return []
@@ -27,7 +29,7 @@ def extract_hierarchy_users(node: UserHierarchy) -> list[dict]:
         users.extend(extract_hierarchy_users(child))
     return users
 
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, or_, func, and_
 
 async def addOpportunity(opportunity : Opportunity,db: AsyncSession) -> Opportunity:
     try:
@@ -50,6 +52,14 @@ async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityF
             target_user_ids = extract_hierarchy_user_ids(hierarchy_res.hierarchy)
             
     query = select(Opportunity).where(Opportunity.createdBy.in_(target_user_ids))
+    
+    if filters.time_filter:
+        query = query.where(
+            and_(
+                Opportunity.createdAt >= TIME_RANGE_DELAYS[filters.time_filter]["start"](),
+                Opportunity.createdAt <= TIME_RANGE_DELAYS[filters.time_filter]["end"]()
+            )
+        )
     
     if filters:
         if filters.search:

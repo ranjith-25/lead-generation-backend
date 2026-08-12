@@ -24,7 +24,7 @@ from app.services.db.user import (
 )
 from app.schemas.job_role import JobRoleFilters
 
-async def handle_get_all_job_roles(db: AsyncSession, current_user: User, page: int = 0, limit : int | None = None) -> GetJobRoleResponse: 
+async def handle_get_all_job_roles(db: AsyncSession, page: int = 0, limit : int | None = None) -> GetJobRoleResponse: 
     try:
         job_roles = await get_all_job_roles(db, JobRoleFilters(page = page, limit=limit))
         if job_roles is None:

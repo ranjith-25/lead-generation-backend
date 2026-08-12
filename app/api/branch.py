@@ -26,10 +26,9 @@ branch_router = APIRouter(prefix="/branch", tags=["Branch"])
 
 @branch_router.get("/")
 async def get_all_branches(
-    current_user: User = Depends(require_permission("branch", "read")),
     db: AsyncSession = Depends(get_db),
 ):
-    response: GetBranchResponse = await handle_get_all_branches(db, current_user)
+    response: GetBranchResponse = await handle_get_all_branches(db)
     return JSONResponse(
         content=response.model_dump(mode="json", exclude_none=True),
         status_code=200,

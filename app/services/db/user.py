@@ -6,10 +6,53 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from app.models.user import User
 
+from app.models.role import Role
 from app.models.user_personal_info import UserPersonalInfo
 from app.models.user_invitation import UserInvitation
 import logging
-import uuid
+from uuid import UUID
+
+async def get_all_user_by_role(db: AsyncSession, roles : list[UUID]) -> list[dict]:
+    if roles is None or len(roles) == 0:
+        roles = [UUID("67b38adf-f216-4208-ad2f-25db2e1f4248"), UUID("4395535d-d6f8-4069-aa42-54474ead361e")]
+    try:
+        query = select(
+            User.user_id,
+            User.email,
+            User.role_id,
+            User.reporting_to,
+            User.createdAt,
+            Role.roleName.label("role_name"),
+            UserPersonalInfo.first_name,
+            UserPersonalInfo.last_name,
+        ).outerjoin(Role, User.role_id == Role.role_id) \
+         .outerjoin(UserPersonalInfo, UserPersonalInfo.user_id == User.user_id)
+
+        if roles:
+            query = query.where(User.role_id.in_(roles))
+
+        result = await db.execute(query)
+
+        users = []
+        for row in result:
+            full_name = row.first_name or "Unknown User"
+            if row.first_name and row.last_name:
+                full_name = f"{row.first_name} {row.last_name}"
+
+            users.append({
+                "user_id": row.user_id,
+                "full_name": full_name,
+                "email": row.email,
+                "role_id": row.role_id,
+                "role_name": row.role_name,
+                "reporting_to": row.reporting_to,
+                "created_at": row.createdAt,
+            })
+
+        return users
+    except SQLAlchemyError as e:
+        logging.exception("Could not fetch users by role")
+        raise e
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
     try : 
@@ -70,7 +113,7 @@ async def register_user_from_invitation(
     db: AsyncSession,
     user: User,
     personal_info: UserPersonalInfo,
-    invitation_id: uuid.UUID,
+    invitation_id: UUID,
     invitation_update_data: dict,
 ) -> User:
     try:
