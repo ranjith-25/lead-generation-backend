@@ -53,3 +53,12 @@ class ConfirmPasswordMismatchException(AppException):
             status_code=status.HTTP_400_BAD_REQUEST,
             error_code=ErrorCode.CONFIRM_PASSWORD_MISMATCH,
         )
+
+class OpportunityAlreadyExistsException(AppException):
+    def __init__(self, opportunity_id=None):
+        super().__init__(
+            message="An opportunity for this job posting URL already exists",
+            status_code=status.HTTP_409_CONFLICT,
+            error_code=ErrorCode.OPPORTUNITY_ALREADY_EXISTS,
+            details={"opportunityID": str(opportunity_id)} if opportunity_id else None,
+        )

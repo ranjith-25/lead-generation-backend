@@ -9,7 +9,8 @@ from app.models.user_personal_info import UserPersonalInfo
 from app.services.hierarchy import handleGetHierarchyByUser
 from app.schemas.user import UserHierarchy
 from uuid import UUID
-
+from sqlalchemy.exc import SQLAlchemyError
+import logging
 def extract_hierarchy_user_ids(node: UserHierarchy) -> list[UUID]:
     if not node:
         return []
@@ -29,10 +30,16 @@ def extract_hierarchy_users(node: UserHierarchy) -> list[dict]:
 from sqlalchemy import select, or_, func
 
 async def addOpportunity(opportunity : Opportunity,db: AsyncSession) -> Opportunity:
-    db.add(opportunity)
-    await db.commit()
-    await db.refresh(opportunity)
-    return opportunity
+    try:
+        db.add(opportunity)
+        await db.commit()
+        await db.refresh(opportunity)
+        return opportunity
+
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception("Could not find Pipeline Opportunity Technical Preperations")
+        raise e
 
 async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityFilterRequest | None = None) -> tuple[list[Opportunity], int]:
     
@@ -114,6 +121,10 @@ async def get_opportunity_filter_values(db: AsyncSession, user_id) -> dict:
 
 async def get_opportunity_by_id(db: AsyncSession, opportunity_id, user_id) -> Opportunity | None:
     result = await db.execute(select(Opportunity).where(Opportunity.opportunityID == opportunity_id, Opportunity.createdBy == user_id))
+    return result.scalars().first()
+
+async def get_opportunity_by_url(db: AsyncSession, job_posting_url: str) -> Opportunity | None:
+    result = await db.execute(select(Opportunity).where(Opportunity.job_posting_url == job_posting_url))
     return result.scalars().first()
 
 async def get_opportunity_details_by_id(db: AsyncSession, opportunity_id) -> Opportunity | None:

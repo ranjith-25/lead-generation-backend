@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.connections.ai_connection import get_ai_client
 from app.core.connections.postgres import AsyncSessionLocal
 from app.exceptions.ai_exception import handle_ai_exception
+from app.exceptions.custom import AppException, OpportunityAlreadyExistsException
 from app.models.opportunity import Opportunity
 from app.models.pipeline_execution_status import PipelineExecutionStatusModel
 from app.models.pipeline_opportunity_project import PipelineOpportunityProjectModel
@@ -31,7 +32,7 @@ from app.schemas.pipeline_execution_status import (
     PipelineExecutionStatus,
     PipelineExecutionStatusUpdate,
 )
-from app.services.db.opportunity import addOpportunity
+from app.services.db.opportunity import addOpportunity, get_opportunity_by_url
 from app.services.db.pipeline_execution_status import (
     create_pipeline_execution_status,
     get_pipeline_execution_status_by_id,
@@ -439,6 +440,10 @@ async def handleGetScrapedData(
 ) -> CreateOpportunityResponse:
     """Initial entry point: Scrapes URL, saves Opportunity, and queues background pipeline."""
     try:
+        existing_opportunity = await get_opportunity_by_url(db, url)
+        if existing_opportunity:
+            raise OpportunityAlreadyExistsException(existing_opportunity.opportunityID)
+
         client = get_ai_client()
         start_time = perf_counter()
 
@@ -489,6 +494,9 @@ async def handleGetScrapedData(
             message="Opportunity fetched from AI successfully",
             opportunityID=opportunity.opportunityID,
         )
+
+    except AppException:
+        raise
 
     except Exception as exc:
         logger.exception("Failed to process scraped data for URL %s", url)
