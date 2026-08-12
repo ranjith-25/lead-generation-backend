@@ -171,6 +171,12 @@ class PipelineOpportunityResourceModel(Base):
         lazy="selectin",
     )
 
+    rejected_by_user: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[rejected_by],
+        lazy="selectin",
+    )
+
     user_details: Mapped["User | None"] = relationship(
         "User",
         foreign_keys=[user_id],
@@ -211,6 +217,15 @@ class PipelineOpportunityResourceModel(Base):
         try:
             if self.approved_by_user:
                 return self.approved_by_user.fullName
+            return None
+        except Exception:
+            return None
+    
+    @property
+    def resourceRejectedBy(self):
+        try:
+            if self.rejected_by:
+                return self.rejected_by_user.fullName
             return None
         except Exception:
             return None
