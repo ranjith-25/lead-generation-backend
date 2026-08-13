@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import Notification
 from app.schemas.notification import NotificationType, NotificationFilterRequest
+from app.services.db.filters import apply_time_range
 
 async def get_all_notification(
     db: AsyncSession,
@@ -20,11 +21,13 @@ async def get_all_notification(
         if user_id:
             query = query.where(Notification.user_id == user_id)
 
+        query = apply_time_range(query, Notification.created_at, filters.time_filter)
+
         if filters.is_read is not None:
             query = query.where(Notification.is_read == filters.is_read)
 
-        if filters.notification_type:
-            query = query.where(Notification.notification_type.in_(filters.notification_type))
+        # if filters.notification_type:
+        #     query = query.where(Notification.notification_type.in_(filters.notification_type))
 
         total = await db.scalar(select(func.count()).select_from(query.subquery())) or 0
 

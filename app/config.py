@@ -208,9 +208,21 @@ EMAIL_MESSAGE_CONTENT = {
 }
 
 NOTIFICATION_CONTENT = {
-    "OVERVIEW_AND_ANALYSIS":{
+    "ANALYSIS_COMPLETE":{
         "title": "AI discovery Complete",
         "body": "The job post has been analyzed. Click here visit the Overview & Analysis page to review the AI-generated insights."
+    },
+    # Sent to the invited user once they finish registering from their invite link.
+    # Context: user_name, role_name, reporting_to_name
+    "SETUP_COMPLETED": {
+        "title": "Welcome aboard, {user_name}",
+        "body": "Your account setup is complete. You have joined as {role_name} reporting to {reporting_to_name}. Click here to review your profile."
+    },
+    # Sent to the manager the invited user reports to.
+    # Context: user_name, role_name, user_id
+    "TEAM_MEMBER_SETUP_COMPLETED": {
+        "title": "{user_name} has completed their setup",
+        "body": "{user_name} accepted your invitation and joined as {role_name}. Click here to view them in your team."
     },
     "EMPTY": {
         "title": "",
@@ -218,13 +230,28 @@ NOTIFICATION_CONTENT = {
     },
 }
 
+# Placeholder front-end links — swap the host/paths once the real routes are fixed.
+# Values are rendered with the notification context, so {placeholders} are allowed.
 NOTIFICATION_NAVIGATION = {
-    "OVERVIEW_AND_ANALYSIS": "www.aidiscovery.com",
+    "OPPURTUNITY_PIPELINE": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline",
+    "MY_PROFILE": "https://macaw-otter-linoleum.ngrok-free.dev/profile",
+    "USER_HIERARCHY": "https://macaw-otter-linoleum.ngrok-free.dev/user-hierarchy?user_id={user_id}",
+}
+
+# notification type -> key in NOTIFICATION_NAVIGATION. An empty/absent entry means
+# the notification simply has no navigation url.
+NOTIFICATION_TYPE_NAVIGATION = {
+    "ANALYSIS_COMPLETE" : "OPPURTUNITY_PIPELINE",
+    "SETUP_COMPLETED" : "MY_PROFILE",
+    "TEAM_MEMBER_SETUP_COMPLETED" : "USER_HIERARCHY",
+    "PROJECT_ADDED" : ""
 }
 
 class NotificationType(str,Enum):
-    OVERVIEW_AND_ANALYSIS = "OVERVIEW_AND_ANALYSIS"
+    ANALYSIS_COMPLETE = "ANALYSIS_COMPLETE"
     PROJECT_ADDED = "PROJECT_ADDED"
+    SETUP_COMPLETED = "SETUP_COMPLETED"
+    TEAM_MEMBER_SETUP_COMPLETED = "TEAM_MEMBER_SETUP_COMPLETED"
     EMPTY = "EMPTY"
     # PIPELINE_ANALYSIS = "PIPELINE_ANALYSIS"
     # RELAVENT_PROJECTS = "RELAVENT_PROJECTS"
@@ -240,10 +267,41 @@ class TimeRange(str, Enum):
     LAST_7_DAYS = "last_7_days"
     LAST_30_DAYS = "last_30_days"
     THIS_YEAR = "this_year"
-    
+    LAST_MONTH = "last_month"
+    LAST_YEAR = "last_year"
+
+
+def _start_of_today() -> datetime:
+    return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def _start_of_this_month() -> datetime:
+    return _start_of_today().replace(day=1)
+
+
+def _start_of_this_year() -> datetime:
+    return _start_of_today().replace(month=1, day=1)
+
+
+def _start_of_previous_month() -> datetime:
+    return (_start_of_this_month() - timedelta(days=1)).replace(day=1)
+
+
+def _end_of_previous_month() -> datetime:
+    return _start_of_this_month() - timedelta(microseconds=1)
+
+
+def _start_of_previous_year() -> datetime:
+    return _start_of_today().replace(year=datetime.now().year - 1, month=1, day=1)
+
+
+def _end_of_previous_year() -> datetime:
+    return _start_of_this_year() - timedelta(microseconds=1)
+
+
 TIME_RANGE_DELAYS = {
     "today": {
-        "start": lambda: datetime.now().replace(hour=0, minute=0, second=0, microsecond=0),
+        "start": _start_of_today,
         "end": lambda: datetime.now()
         },
     "last_7_days": {
@@ -251,11 +309,19 @@ TIME_RANGE_DELAYS = {
         "end" : lambda: datetime.now()
         },
     "last_30_days": {
-        "start" :   lambda : (datetime.now() - timedelta(days=7)),
+        "start" :   lambda : (datetime.now() - timedelta(days=30)),
         "end" : lambda : datetime.now()
     },
     "this_year": {
-        "start" : lambda : (datetime.now().replace(month=1, day=1)),
+        "start" : _start_of_this_year,
         "end" : lambda : datetime.now()
+    },
+    "last_month": {
+        "start" : _start_of_previous_month,
+        "end" : _end_of_previous_month
+    },
+    "last_year": {
+        "start" : _start_of_previous_year,
+        "end" : _end_of_previous_year
     }
 }

@@ -2,7 +2,8 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 from app.config import (
-    OTP_MAX_ATTEMPTS
+    OTP_MAX_ATTEMPTS,
+    NotificationType
 )
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,8 +32,10 @@ from app.responses.authentication import AuthenticationResponse
 from app.responses.base import BaseResponse
 from app.responses.authentication import UserRegistrationFromInvitationResponse
 from app.services.db.user_invitation import update_user_invitation,get_user_invitation_by_id
-from app.services.db.user_personal_info import create_user_personal_info
+from app.services.db.user_personal_info import create_user_personal_info,get_user_personal_info_by_user_id
+from app.services.db.role import get_role_by_id
 from app.services.db.user import create_user,register_user_from_invitation
+from app.services.notifications import notify_users
 import uuid
 from app.exceptions.custom import NotFoundException
 import logging
@@ -182,6 +185,53 @@ async def handle_reset_password(db: AsyncSession, payload: ResetPasswordRequest)
         raise
 
 
+def _display_name(first_name: str | None, last_name: str | None) -> str:
+    return " ".join(part for part in (first_name, last_name) if part).strip()
+
+
+async def _notify_setup_completed(
+    db: AsyncSession,
+    user: User,
+    invitation: UserInvitationDTO,
+    personal_info: UserPersonalInfo,
+) -> None:
+    try:
+        user_name = _display_name(personal_info.first_name, personal_info.last_name)
+
+        role = await get_role_by_id(db, invitation.roleID)
+        role_name = role.roleName if role else ""
+
+        reporting_to_name = ""
+        if invitation.reporting_to:
+            manager_info = await get_user_personal_info_by_user_id(db, invitation.reporting_to)
+            if manager_info:
+                reporting_to_name = _display_name(manager_info.first_name, manager_info.last_name)
+
+        context = {
+            "user_name": user_name,
+            "role_name": role_name,
+            "reporting_to_name": reporting_to_name,
+            "user_id": str(user.user_id),
+        }
+        await notify_users(
+            db,
+            user_ids=[user.user_id],
+            notification_type=NotificationType.SETUP_COMPLETED,
+            context=context,
+            created_by=user.user_id,
+        )
+        if invitation.reporting_to:
+            await notify_users(
+                db,
+                user_ids=[invitation.reporting_to],
+                notification_type=NotificationType.TEAM_MEMBER_SETUP_COMPLETED,
+                context=context,
+                created_by=user.user_id,
+            )
+    except Exception:
+        logging.exception("Could not send setup completed notifications for user %s", user.user_id)
+
+
 async def handle_signup_invitation(db : AsyncSession , invitation_id : uuid.UUID,registration_data : UserRegistrationFromInvitation):
     try : 
         #Get Invitation Details
@@ -217,12 +267,14 @@ async def handle_signup_invitation(db : AsyncSession , invitation_id : uuid.UUID
         )
         
         
-        await register_user_from_invitation(db,user,new_personal_info,invitation_id,updateInvitationData.model_dump(exclude_none=True,exclude_unset=True))
+        registered_user = await register_user_from_invitation(db,user,new_personal_info,invitation_id,updateInvitationData.model_dump(exclude_none=True,exclude_unset=True))
+
+        await _notify_setup_completed(db,registered_user,invitationDetails,new_personal_info)
 
         return UserRegistrationFromInvitationResponse(
-            message = "User registration was successful."            
+            message = "User registration was successful."
         )
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logging.exception("Some error occurred while getting Invitation")
         raise e

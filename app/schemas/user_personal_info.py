@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.config import TimeRange
 from app.schemas.password import Password
 
 class UserPersonalInfoBase(BaseModel):
@@ -73,6 +74,7 @@ class UserPersonalInfoResponse(UserPersonalInfoBase):
 class UserPersonalInfoFilterRequest(BaseModel):
     page: int = Field(1, ge=1)
     limit: int = Field(10, ge=1, le=100)
+    time_filter: TimeRange | None = None
     search: str | None = None
     primary_role: list[str] | None = None
     working_status: list[str] | None = None
@@ -83,6 +85,7 @@ class UserPersonalInfoFilterRequest(BaseModel):
 class UserManagementFilterRequest(BaseModel):
     page: int = Field(1, ge=1)
     limit: int = Field(10, ge=1, le=100)
+    time_filter: TimeRange | None = None
     search: str | None = None
     role_id: UUID | None = None
 

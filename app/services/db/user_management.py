@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.job_role import JobRole
 from app.models.user_personal_info import UserPersonalInfo
 from app.schemas.user_personal_info import UserManagementFilterRequest
+from app.services.db.filters import apply_time_range
 
 
 async def get_all_user_management_info(
@@ -23,6 +24,8 @@ async def get_all_user_management_info(
             Role.roleName.label('role_name')
         ).outerjoin(User, UserPersonalInfo.user_id == User.user_id) \
          .outerjoin(Role, User.role_id == Role.role_id)
+
+        query = apply_time_range(query, UserPersonalInfo.createdAt, filters.time_filter)
 
         if filters.search:
             search_term = f"%{filters.search.strip()}%"
