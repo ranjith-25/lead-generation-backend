@@ -29,6 +29,35 @@ def _user_project_detail_query():
     )
 
 
+async def get_user_project_configurations(db: AsyncSession):
+    """Names available when building an allocation, one query per lookup table."""
+
+    try:
+        projects = await db.execute(
+            select(Projects.project_name).order_by(Projects.project_name)
+        )
+        roles = await db.execute(
+            select(JobRole.roleName)
+            .where(JobRole.is_active == True)
+            .order_by(JobRole.roleName)
+        )
+        techstacks = await db.execute(
+            select(TechStacks.techstack_name)
+            .where(TechStacks.is_active == True)
+            .order_by(TechStacks.techstack_name)
+        )
+
+        return (
+            projects.scalars().all(),
+            roles.scalars().all(),
+            techstacks.scalars().all(),
+        )
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception("Could not find User Project configurations")
+        raise e
+
+
 async def get_all_user_projects(db: AsyncSession, user_id: UUID | None = None):
     try:
         query = _user_project_detail_query()

@@ -9,6 +9,8 @@ from app.responses.user_project import (
     DeleteUserProjectResponse,
     GetUserProjectResponse,
     UpdateUserProjectResponse,
+    UserProjectConfigurationsData,
+    UserProjectConfigurationsResponse,
 )
 from app.schemas.user_project import (
     ProjectInfo,
@@ -24,8 +26,28 @@ from app.services.db.user_project import (
     delete_user_project,
     get_all_user_projects,
     get_user_project_by_id,
+    get_user_project_configurations,
     update_user_project,
 )
+
+
+async def handle_get_user_project_configurations(
+    db: AsyncSession, current_user: User
+) -> UserProjectConfigurationsResponse:
+    try:
+        projects, roles, techstacks = await get_user_project_configurations(db)
+
+        return UserProjectConfigurationsResponse(
+            data=UserProjectConfigurationsData(
+                projects=list(projects),
+                roles=list(roles),
+                techstacks=list(techstacks),
+            ),
+            message="User Project configurations fetched successfully",
+        )
+    except Exception as e:
+        logging.exception("Some error occurred while getting User Project configurations")
+        raise e
 
 
 def _to_detail_dto(row) -> UserProjectDetailDTO:
