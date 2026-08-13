@@ -10,6 +10,7 @@ from app.responses.user_project import (
     DeleteUserProjectResponse,
     GetUserProjectResponse,
     UpdateUserProjectResponse,
+    UserProjectConfigurationsResponse,
 )
 from app.schemas.user_project import UserProjectCreate, UserProjectFilter, UserProjectUpdate
 from app.services.user_project import (
@@ -17,6 +18,7 @@ from app.services.user_project import (
     handle_delete_user_project,
     handle_search_user_projects,
     handle_get_user_project_by_id,
+    handle_get_user_project_configurations,
     handle_update_user_project,
 )
 
@@ -33,6 +35,14 @@ async def search_user_projects(
     return await handle_search_user_projects(
         db, current_user, filters.user_id if filters else None
     )
+
+
+@router.get("/configurations")
+async def get_user_project_configurations(
+    current_user: User = Depends(require_permission("user_projects", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> UserProjectConfigurationsResponse:
+    return await handle_get_user_project_configurations(db, current_user)
 
 
 @router.get("/{user_project_id}")
