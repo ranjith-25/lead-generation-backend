@@ -166,20 +166,7 @@ async def create_project_service(
         delete_case_study(stored_path)
         raise
 
-    ingestion_result = await ingest_project_to_ai(saved_project)
-
-    # no case study document means nothing was sent to the AI service — nothing to announce
-    if ingestion_result is not None:
-        await notify_users(
-            db,
-            user_ids=[user_id],
-            notification_type=NotificationType.PROJECT_ADDED,
-            context={
-                "project_id": str(saved_project.project_id),
-                "project_name": saved_project.project_name,
-            },
-            created_by=user_id,
-        )
+    await ingest_project_to_ai(saved_project)
 
     return ProjectRead.model_validate(saved_project)
 
