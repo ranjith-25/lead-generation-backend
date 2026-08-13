@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.models.opportunity import Opportunity
 from app.models.opportunity_status import OpportunityStatus
 from app.schemas.opportunity import OpportunityFilterRequest
+from app.schemas.common import get_time_filter_options
 from app.models.platform import Platform
 from app.models.user import User
 from app.models.user_personal_info import UserPersonalInfo
@@ -146,6 +147,7 @@ async def get_opportunity_filter_values(db: AsyncSession, user_id) -> dict:
         "location": [l[0] for l in locations.all()],
         "status": [s[0] for s in statuses.all()],
         "team": team,
+        "time_filter": get_time_filter_options(),
     }
 
 

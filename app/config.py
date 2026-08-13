@@ -236,11 +236,37 @@ NOTIFICATION_CONTENT = {
         "title": "Resource approved for {company}",
         "body": "{approved_by_name} approved {resource_name} for {job_title} at {company}. Click here to review the opportunity pipeline."
     },
-    # Sent to the person whose profile was approved — second person, unlike every other
-    # template here, and the only one pointing at the technical preparation page.
+    "RESOURCE_PENDING_APPROVAL": {
+        "title": "{resource_name} needs your approval",
+        "body": "{selected_by_name} assigned {resource_name} to {job_title} at {company} and it is waiting on your approval. Click here to review the opportunity pipeline."
+    },
     "RESOURCE_ASSIGNED": {
         "title": "You are assigned to {company}",
-        "body": "You have been assigned to {job_title} at {company}. Click here to view your technical preparation."
+        "body": "You have been assigned to {job_title} at {company}. Start preparing — click here to view your technical preparation."
+    },
+    # The Team Lead already approved this person, so the generic "resource approved"
+    # blast tells them nothing new — what they want is the outcome for their own report.
+    "TEAM_MEMBER_ASSIGNED": {
+        "title": "Your team member {resource_name} is assigned",
+        "body": "{resource_name} from your team has been assigned to {job_title} at {company}. Click here to review the opportunity pipeline."
+    },
+    # Their approval was skipped, so the wording names who went around them instead of
+    # implying they signed off on it.
+    "TEAM_MEMBER_ASSIGNED_BYPASSED": {
+        "title": "{resource_name} was assigned without your approval",
+        "body": "{approved_by_name} approved {resource_name} for {job_title} at {company} directly. Click here to review the opportunity pipeline."
+    },
+    # The BD who raised the opportunity tracks it by company, not by resource — leading
+    # with their opportunity is what makes this actionable rather than an FYI.
+    "BD_RESOURCE_APPROVED": {
+        "title": "Your opportunity at {company} has a resource",
+        "body": "{approved_by_name} approved {resource_name} for {job_title} at {company}. Click here to review the opportunity pipeline."
+    },
+    # The owner has to find a replacement, so this one carries the reason up into the
+    # message the rest of the org's rejection notice does not need to emphasise.
+    "BD_RESOURCE_REJECTED": {
+        "title": "Resource rejected on your opportunity at {company}",
+        "body": "{rejected_by_name} rejected {resource_name} for {job_title} at {company}. Reason: {reject_reason}. Click here to review the opportunity pipeline."
     },
     "EMPTY": {
         "title": "",
@@ -252,9 +278,6 @@ NOTIFICATION_NAVIGATION = {
     "OPPURTUNITY_PIPELINE": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline",
     "MY_PROFILE": "https://macaw-otter-linoleum.ngrok-free.dev/profile",
     "USER_HIERARCHY": "https://macaw-otter-linoleum.ngrok-free.dev/user-hierarchy?user_id={user_id}",
-    # TODO: confirm the real frontend route and query key for technical preparation.
-    # `_resolve_navigation_url` only warns on an unknown page key, never on a key that
-    # resolves to a wrong URL, so a bad path here fails silently for the assignee.
     "TECHNICAL_PREPARATION": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline/technical-preparation?opportunity_id={opportunity_id}",
 }
 
@@ -265,29 +288,12 @@ NOTIFICATION_TYPE_NAVIGATION = {
     "RESOURCE_REJECTED" : "OPPURTUNITY_PIPELINE",
     "RESOURCE_APPROVED" : "OPPURTUNITY_PIPELINE",
     "RESOURCE_ASSIGNED" : "TECHNICAL_PREPARATION",
-    "PROJECT_ADDED" : ""
+    "RESOURCE_PENDING_APPROVAL" : "OPPURTUNITY_PIPELINE",
+    "TEAM_MEMBER_ASSIGNED" : "OPPURTUNITY_PIPELINE",
+    "TEAM_MEMBER_ASSIGNED_BYPASSED" : "OPPURTUNITY_PIPELINE",
+    "BD_RESOURCE_APPROVED" : "OPPURTUNITY_PIPELINE",
+    "BD_RESOURCE_REJECTED" : "OPPURTUNITY_PIPELINE",
 }
-
-# Roles notified when a pipeline resource is rejected. Matched against roles.roleName,
-# not role_id — ids are generated per environment, the names are the stable contract.
-# "User" and "Super Admin" are deliberately excluded.
-RESOURCE_REJECTION_NOTIFY_ROLES = [
-    "BD-Executive",
-    "Team Lead",
-    "Manager",
-]
-
-# Roles notified when a pipeline resource is approved. Deliberately wider than the
-# rejection list — an approval goes to every role, including "Super Admin" and "User".
-# The approved person is excluded from this blast and gets RESOURCE_ASSIGNED instead,
-# so nobody receives two notifications for one approval.
-RESOURCE_APPROVAL_NOTIFY_ROLES = [
-    "Super Admin",
-    "BD-Executive",
-    "Team Lead",
-    "Manager",
-    "User",
-]
 
 class NotificationType(str,Enum):
     ANALYSIS_COMPLETE = "ANALYSIS_COMPLETE"
@@ -298,16 +304,86 @@ class NotificationType(str,Enum):
     RESOURCE_REJECTED = "RESOURCE_REJECTED"
     RESOURCE_APPROVED = "RESOURCE_APPROVED"
     RESOURCE_ASSIGNED = "RESOURCE_ASSIGNED"
+    RESOURCE_PENDING_APPROVAL = "RESOURCE_PENDING_APPROVAL"
+    TEAM_MEMBER_ASSIGNED = "TEAM_MEMBER_ASSIGNED"
+    TEAM_MEMBER_ASSIGNED_BYPASSED = "TEAM_MEMBER_ASSIGNED_BYPASSED"
+    BD_RESOURCE_APPROVED = "BD_RESOURCE_APPROVED"
+    BD_RESOURCE_REJECTED = "BD_RESOURCE_REJECTED"
     EMPTY = "EMPTY"
-    # PIPELINE_ANALYSIS = "PIPELINE_ANALYSIS"
-    # RELAVENT_PROJECTS = "RELAVENT_PROJECTS"
-    # SALES_ENABLEMENT = "SALES_ENABLEMENT"
-    # DISCOVERY_QUESTIONS = "DISCOVERY_QUESTIONS"
-    # OUTREACH_TEMPLATE = "OUTREACH_TEMPLATE"
-    # SALES_TALKING_POINTS = "SALES_TALKING_POINTS"
-    # SETTINGS = "SETTINGS"
-    # INFO = "INFO"
-    
+
+
+class Audience(str, Enum):
+    """A named way of resolving one event to its recipients.
+
+    Relationship audiences (SUBJECT, SUBJECT_REPORTING_TO, OPPORTUNITY_OWNER) come from
+    the rows involved in the event. The rest are role audiences, resolved through
+    AUDIENCE_ROLES against roles.roleName.
+    """
+
+    SUBJECT = "SUBJECT"
+    SUBJECT_REPORTING_TO = "SUBJECT_REPORTING_TO"
+    OPPORTUNITY_OWNER = "OPPORTUNITY_OWNER"
+    BD_TEAM = "BD_TEAM"
+    MANAGERS = "MANAGERS"
+    TEAM_LEADS = "TEAM_LEADS"
+    SUPER_ADMINS = "SUPER_ADMINS"
+
+
+# Role audiences, matched against roles.roleName — role_id values are generated per
+# environment, the names are the stable contract. An audience absent from this map is a
+# relationship audience and is resolved from the event context instead.
+AUDIENCE_ROLES: dict[Audience, str] = {
+    Audience.BD_TEAM: "BD-Executive",
+    Audience.MANAGERS: "Manager",
+    Audience.TEAM_LEADS: "Team Lead",
+    Audience.SUPER_ADMINS: "Super Admin",
+}
+
+
+class NotificationEvent(str, Enum):
+    RESOURCE_SELECTED = "RESOURCE_SELECTED"
+    RESOURCE_APPROVED = "RESOURCE_APPROVED"
+    RESOURCE_SELF_APPROVED = "RESOURCE_SELF_APPROVED"
+    RESOURCE_REJECTED = "RESOURCE_REJECTED"
+
+
+# One event, several audiences — and the list order is precedence, not decoration. The
+# dispatcher walks it top to bottom and lets the first audience claim a person; later
+# audiences skip anyone already claimed, so each person hears about the event exactly
+# once. The lists are ordered most-specific-first for that reason: a Manager who is also
+# the resource's Team Lead should get "your team member is assigned", not the generic
+# announcement, because the personal message is the one that tells them something they
+# could not infer. The actor is claimed before the walk begins, so nobody is ever
+# notified about their own action — which is also why the Team Lead approving their own
+# report needs no special case, they are pre-claimed and their row resolves to nobody.
+NOTIFICATION_EVENTS: dict[NotificationEvent, list[tuple[Audience, NotificationType]]] = {
+    NotificationEvent.RESOURCE_SELECTED: [
+        (Audience.SUBJECT_REPORTING_TO, NotificationType.RESOURCE_PENDING_APPROVAL),
+    ],
+    NotificationEvent.RESOURCE_APPROVED: [
+        (Audience.SUBJECT, NotificationType.RESOURCE_ASSIGNED),
+        (Audience.SUBJECT_REPORTING_TO, NotificationType.TEAM_MEMBER_ASSIGNED),
+        (Audience.OPPORTUNITY_OWNER, NotificationType.BD_RESOURCE_APPROVED),
+        (Audience.BD_TEAM, NotificationType.RESOURCE_APPROVED),
+        (Audience.MANAGERS, NotificationType.RESOURCE_APPROVED),
+        (Audience.SUPER_ADMINS, NotificationType.RESOURCE_APPROVED),
+    ],
+    NotificationEvent.RESOURCE_SELF_APPROVED: [
+        (Audience.SUBJECT, NotificationType.RESOURCE_ASSIGNED),
+        (Audience.SUBJECT_REPORTING_TO, NotificationType.TEAM_MEMBER_ASSIGNED_BYPASSED),
+        (Audience.OPPORTUNITY_OWNER, NotificationType.BD_RESOURCE_APPROVED),
+        (Audience.BD_TEAM, NotificationType.RESOURCE_APPROVED),
+        (Audience.MANAGERS, NotificationType.RESOURCE_APPROVED),
+    ],
+    NotificationEvent.RESOURCE_REJECTED: [
+        (Audience.OPPORTUNITY_OWNER, NotificationType.BD_RESOURCE_REJECTED),
+        (Audience.BD_TEAM, NotificationType.RESOURCE_REJECTED),
+        (Audience.TEAM_LEADS, NotificationType.RESOURCE_REJECTED),
+        (Audience.MANAGERS, NotificationType.RESOURCE_REJECTED),
+    ],
+}
+
+
 class SortOrder(str, Enum):
     ASC = "asc"
     DESC = "desc"
@@ -320,6 +396,16 @@ class TimeRange(str, Enum):
     THIS_YEAR = "this_year"
     LAST_MONTH = "last_month"
     LAST_YEAR = "last_year"
+
+
+TIME_RANGE_LABELS: dict[TimeRange, str] = {
+    TimeRange.TODAY: "Today",
+    TimeRange.LAST_7_DAYS: "Last 7 Days",
+    TimeRange.LAST_30_DAYS: "Last 30 Days",
+    TimeRange.THIS_YEAR: "This Year",
+    TimeRange.LAST_MONTH: "Last Month",
+    TimeRange.LAST_YEAR: "Last Year",
+}
 
 
 def _start_of_today() -> datetime:

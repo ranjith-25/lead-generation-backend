@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 from app.config import SortOrder, TimeRange
+from app.schemas.common import TimeFilterOption
 
 from pydantic import BaseModel, Field, ConfigDict, AliasChoices
 
@@ -88,6 +89,7 @@ class OpportunityFilterValuesResponse(BaseModel):
     role: list[str]
     location: list[str]
     team: list[TeamMemberFilter] | None = None
+    time_filter: list[TimeFilterOption]
 
 class OpportunityStatusRead(BaseModel):
     id: UUID
