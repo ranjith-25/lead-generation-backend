@@ -12,9 +12,10 @@ CLAUDE.md
 .docs
 .opencode
 
-# uploaded case study documents — only their path belongs in the repo/DB
-case_studies/
+# uploaded documents — only their path belongs in the repo/DB
 uploads/
+# legacy case-study location, kept ignored until the relocation migration has been run
+case_studies/
 
 .idea/
 *.iml

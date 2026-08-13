@@ -36,8 +36,6 @@ class Projects(Base):
         server_default=text("true")
     )
 
-    # free-form label -> URL map: a column per link type would mean a migration every time
-    # the business wants to record a new kind of link
     links: Mapped[dict[str, str]] = mapped_column(
         JSONB,
         nullable=False,
@@ -45,8 +43,6 @@ class Projects(Base):
         server_default=text("'{}'::jsonb")
     )
 
-    # only the location of the uploaded document lives in the DB; the bytes sit under
-    # settings.CASE_STUDY_DIR
     case_study: Mapped[Optional[str]] = mapped_column(
         String(255),
         nullable=True
