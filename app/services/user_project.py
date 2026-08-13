@@ -10,7 +10,15 @@ from app.responses.user_project import (
     GetUserProjectResponse,
     UpdateUserProjectResponse,
 )
-from app.schemas.user_project import UserProjectCreate, UserProjectDTO, UserProjectUpdate
+from app.schemas.user_project import (
+    ProjectInfo,
+    RoleInfo,
+    TechStackInfo,
+    UserProjectCreate,
+    UserProjectDTO,
+    UserProjectDetailDTO,
+    UserProjectUpdate,
+)
 from app.services.db.user_project import (
     create_user_project,
     delete_user_project,
@@ -20,6 +28,33 @@ from app.services.db.user_project import (
 )
 
 
+def _to_detail_dto(row) -> UserProjectDetailDTO:
+    """Map a (UserProject, project_name, role_name, techstack_name) row to the read DTO."""
+
+    user_project, project_name, role_name, techstack_name = row
+
+    return UserProjectDetailDTO(
+        project=ProjectInfo(
+            project_id=user_project.project_id,
+            project_name=project_name,
+        ),
+        role=RoleInfo(
+            role_id=user_project.role_id,
+            role_name=role_name,
+        ),
+        techstack=TechStackInfo(
+            techstack_id=user_project.techstack_id,
+            techstack_name=techstack_name,
+        ),
+        user_id=user_project.user_id,
+        user_project_id=user_project.user_project_id,
+        allocated_by=user_project.allocated_by,
+        allocation_updated_by=user_project.allocation_updated_by,
+        created_at=user_project.created_at,
+        updated_at=user_project.updated_at,
+    )
+
+
 async def handle_search_user_projects(
     db: AsyncSession, current_user: User, user_id: UUID | None = None
 ) -> GetUserProjectResponse:
@@ -27,7 +62,7 @@ async def handle_search_user_projects(
         user_projects = await get_all_user_projects(db, user_id)
 
         return GetUserProjectResponse(
-            userProjectList=[UserProjectDTO.model_validate(up) for up in user_projects],
+            userProjectList=[_to_detail_dto(row) for row in user_projects],
             message="User Projects fetched successfully")
     except Exception as e:
         logging.exception("Some error occurred while getting User Projects list")
@@ -43,7 +78,7 @@ async def handle_get_user_project_by_id(
             raise NotFoundException()
 
         return GetUserProjectResponse(
-            userProject=UserProjectDTO.model_validate(user_project),
+            userProject=_to_detail_dto(user_project),
             message="User Project fetched successfully")
     except NotFoundException as e:
         logging.exception("Could not find User Project")

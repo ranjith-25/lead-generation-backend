@@ -1,11 +1,11 @@
 from pydantic import Field
 from app.responses.base import BaseResponse
-from app.schemas.user_project import UserProjectDTO
+from app.schemas.user_project import UserProjectDTO, UserProjectDetailDTO
 
 
 class GetUserProjectResponse(BaseResponse):
-    userProjectList: list[UserProjectDTO] | None = Field(default=None, description="List of User Projects")
-    userProject: UserProjectDTO | None = Field(default=None, description="User Project Details")
+    userProjectList: list[UserProjectDetailDTO] | None = Field(default=None, description="List of User Projects")
+    userProject: UserProjectDetailDTO | None = Field(default=None, description="User Project Details")
 
 
 class CreateUserProjectResponse(BaseResponse):

@@ -3,17 +3,40 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
+from app.models.job_role import JobRole
+from app.models.projects import Projects
+from app.models.techstacks import TechStacks
 from app.models.user_project import UserProject
+
+
+def _user_project_detail_query():
+    """Allocation rows joined to the names of their project, job role and techstack.
+
+    Inner joins are safe: all three FKs are NOT NULL, so every allocation has a match.
+    Returns (UserProject, project_name, role_name, techstack_name) tuples.
+    """
+
+    return (
+        select(
+            UserProject,
+            Projects.project_name,
+            JobRole.roleName,
+            TechStacks.techstack_name,
+        )
+        .join(Projects, UserProject.project_id == Projects.project_id)
+        .join(JobRole, UserProject.role_id == JobRole.id)
+        .join(TechStacks, UserProject.techstack_id == TechStacks.techstack_id)
+    )
 
 
 async def get_all_user_projects(db: AsyncSession, user_id: UUID | None = None):
     try:
-        query = select(UserProject)
+        query = _user_project_detail_query()
         if user_id is not None:
             query = query.where(UserProject.user_id == user_id)
 
         result = await db.execute(query)
-        return result.scalars().all()
+        return result.all()
     except SQLAlchemyError as e:
         await db.rollback()
         logging.exception("Could not find User Projects")
@@ -23,9 +46,11 @@ async def get_all_user_projects(db: AsyncSession, user_id: UUID | None = None):
 async def get_user_project_by_id(db: AsyncSession, user_project_id: UUID):
     try:
         result = await db.execute(
-            select(UserProject).where(UserProject.user_project_id == user_project_id)
+            _user_project_detail_query().where(
+                UserProject.user_project_id == user_project_id
+            )
         )
-        return result.scalars().first()
+        return result.first()
     except SQLAlchemyError as e:
         await db.rollback()
         logging.exception("Could not find User Project")
