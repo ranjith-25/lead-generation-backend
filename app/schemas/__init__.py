@@ -7,7 +7,16 @@ from app.schemas.user_personal_info import (
 )
 from app.schemas.opportunity import OpportunityCreate, OpportunityRead
 from app.schemas.profile_variant import ProfileVariantCreate, ProfileVariantUpdate, ProfileVariantDTO
-from app.schemas.user_project import UserProjectCreate, UserProjectUpdate, UserProjectDTO, UserProjectFilter
+from app.schemas.user_project import (
+    UserProjectCreate,
+    UserProjectUpdate,
+    UserProjectDTO,
+    UserProjectFilter,
+    UserProjectDetailDTO,
+    ProjectInfo,
+    RoleInfo,
+    TechStackInfo,
+)
 
 __all__ = [
     "UserCreate",
@@ -26,5 +35,9 @@ __all__ = [
     "UserProjectUpdate",
     "UserProjectDTO",
     "UserProjectFilter",
+    "UserProjectDetailDTO",
+    "ProjectInfo",
+    "RoleInfo",
+    "TechStackInfo",
 ]
 
