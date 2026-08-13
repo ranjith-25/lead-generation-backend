@@ -12,24 +12,31 @@ from app.services.db.filters import apply_time_range
 
 async def get_all_notification(
     db: AsyncSession,
+    filters: NotificationFilterRequest,
     user_id: UUID | None = None,
-    filters = NotificationFilterRequest
-) -> tuple[list[Notifications], int]:
+) -> dict:
     try:
         query = select(Notifications)
 
         if user_id:
             query = query.where(Notifications.user_id == user_id)
-
-        query = apply_time_range(query, Notifications.created_at, filters.time_filter)
+        
+        if filters.time_filter:
+            query = apply_time_range(query, Notifications.created_at, filters.time_filter)
 
         if filters.is_read is not None:
             query = query.where(Notifications.is_read == filters.is_read)
 
-        # if filters.notification_type:
-        #     query = query.where(Notifications.notification_type.in_(filters.notification_type))
+        total_count = await db.scalar(select(func.count()).select_from(query.subquery())) or 0
 
-        total = await db.scalar(select(func.count()).select_from(query.subquery())) or 0
+        if user_id:
+            unread_count = await get_unread_notification_count_db(db, user_id)
+        else:
+            unread_count = await db.scalar(
+                select(func.count())
+                .select_from(Notifications)
+                .where(Notifications.is_read == False)
+            ) or 0
 
         query = query.order_by(Notifications.created_at.desc())
 
@@ -37,7 +44,12 @@ async def get_all_notification(
             query = query.offset((filters.page - 1) * filters.limit).limit(filters.limit)
 
         notifications = (await db.execute(query)).scalars().all()
-        return list(notifications), total
+
+        return {
+            "notifications": list(notifications),
+            "unread_count": unread_count,
+            "total_count": total_count,
+        }
     except SQLAlchemyError as e:
         await db.rollback()
         logging.exception("Could not fetch notifications")

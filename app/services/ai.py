@@ -26,6 +26,7 @@ from app.responses.ai import (
 )
 from app.responses.opportunity import CreateOpportunityResponse
 from app.schemas.ai import AIGetRelaventProfilesRequest , AIManualJDRequest ,AITechnicalPreperationRequest
+from app.schemas.notification import NotificationType
 from app.schemas.opportunity import OpportunityBase
 from app.schemas.project import AIProjectRequest
 from app.schemas.pipeline_execution_status import (
@@ -47,17 +48,13 @@ from app.services.db.pipeline_opportunity_resource import (
 )
 from app.services.db.project import get_project_by_ids_list_db
 from app.services.db.sales_enablement import add_sales_enablement_db
+from app.services.notifications import notify_users
 from app.services.opportunity_status import get_new_opportunity_status_id
 
 from app.services.db.pipeline_opportunity_techincal_preperation import create_multiple_pipeline_opportunity_technical_preperation
 from app.models.pipeline_opportunity_techincal_preperation import PipelineOpportunityTechnicalPreperationModel
 
 logger = logging.getLogger(__name__)
-
-
-# ============================================================================
-# Private Helpers
-# ============================================================================
 
 async def _update_execution_status(
     db: AsyncSession,
@@ -488,6 +485,14 @@ async def handleGetScrapedData(
         logger.info(
             "Scrape execution completed in %.2f seconds",
             perf_counter() - start_time,
+        )
+
+        await notify_users(
+            db,
+            user_ids=[user_id],
+            notification_type=NotificationType.ANALYSIS_COMPLETE,
+            context={"opportunity_id": str(opportunity.opportunityID)},
+            created_by=user_id,
         )
 
         return CreateOpportunityResponse(

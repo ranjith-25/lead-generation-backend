@@ -50,8 +50,10 @@ class NotificationUpdate(BaseModel):
 
 
 class NotificationFilterRequest(BaseModel):
-    page: int = Field(1, ge=1)
-    limit: int = Field(10, ge=1, le=100)
+    # Optional rather than defaulted: the DB layer paginates only when both are set
+    # (`if filters.page and filters.limit`), so omitting them returns the whole list.
+    page: int | None = Field(None, ge=1)
+    limit: int | None = Field(None, ge=1, le=100)
     time_filter: TimeRange | None = None
     is_read: bool | None = None
     # notification_type: list[NotificationType] | None = None
@@ -61,6 +63,7 @@ class NotificationPaginatedResponse(BaseModel):
     items: list[NotificationRead]
     total: int
     unread_count: int
-    page: int
-    limit: int
+    # Null when the caller omitted pagination and received the whole list.
+    page: int | None = None
+    limit: int | None = None
     total_pages: int
