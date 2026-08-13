@@ -40,6 +40,7 @@ from app.api.pipeline_opportunity_project import pipeline_opportunity_project_ro
 from app.api.pipeline_opportunity_resource import pipeline_opportunity_resource_router
 from app.api.pipeline_opportunity_techincal_preperation import pipeline_opportunity_technical_preperation_router
 from app.api.settings import router as settings_router
+from app.api.user_project import router as user_project_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -91,6 +92,7 @@ app.include_router(pipeline_opportunity_resource_router)
 app.include_router(pipeline_opportunity_technical_preperation_router)
 app.include_router(platform_router)
 app.include_router(profile_variant_router)
+app.include_router(user_project_router)
 app.include_router(project_domain_router)
 app.include_router(project_router)
 app.include_router(role_permissions_router)
