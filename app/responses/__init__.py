@@ -17,6 +17,8 @@ from app.responses.user_project import (
     CreateUserProjectResponse,
     UpdateUserProjectResponse,
     DeleteUserProjectResponse,
+    UserProjectConfigurationsResponse,
+    UserProjectConfigurationsData,
 )
 
 __all__ = [
@@ -37,5 +39,7 @@ __all__ = [
     "CreateUserProjectResponse",
     "UpdateUserProjectResponse",
     "DeleteUserProjectResponse",
+    "UserProjectConfigurationsResponse",
+    "UserProjectConfigurationsData",
 ]
 
