@@ -12,6 +12,12 @@ from app.responses.profile_variant import (
     UpdateProfileVariantResponse,
     DeleteProfileVariantResponse,
 )
+from app.responses.user_project import (
+    GetUserProjectResponse,
+    CreateUserProjectResponse,
+    UpdateUserProjectResponse,
+    DeleteUserProjectResponse,
+)
 
 __all__ = [
     "UserCreate",
@@ -27,5 +33,9 @@ __all__ = [
     "CreateProfileVariantResponse",
     "UpdateProfileVariantResponse",
     "DeleteProfileVariantResponse",
+    "GetUserProjectResponse",
+    "CreateUserProjectResponse",
+    "UpdateUserProjectResponse",
+    "DeleteUserProjectResponse",
 ]
 
