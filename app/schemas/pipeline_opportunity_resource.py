@@ -10,6 +10,7 @@ class ApprovalStatus(str, Enum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     SUGGESTED = "SUGGESTED"
+    ASSIGNED_TO_TL = "ASSIGNED_TO_TL" 
 
 
 class PipelineOpportunityResourceBase(BaseModel):
@@ -45,6 +46,9 @@ class PipelineOpportunityResourceDTO(PipelineOpportunityResourceBase):
     rejected_at: Optional[datetime] = Field(None)
     resourceRejectedBy: Optional[str] = Field(None)
     reject_reason: Optional[str] = Field(None)
+    resourceAssignedToTLBy: Optional[str] = Field(
+        None, description="The person who assigned the resource to the TL"
+    )
     workingStatus: Optional[str] = Field(None)
     primaryJobRole: Optional[str] = Field(None)
     reportingTo: Optional[str] = Field(None)
@@ -70,6 +74,10 @@ class PipelineOpportunityResourceUpdate(PipelineOpportunityResourceBase):
 
 
 class PipelineOpportunityResourceSelectRequest(BaseModel):
+    pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
+
+
+class PipelineOpportunityResourceAssignToTLRequest(BaseModel):
     pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
 
 
