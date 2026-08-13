@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import select, or_, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.models.user import User
 from app.models.job_role import JobRole
@@ -11,7 +12,28 @@ from app.models.user_personal_info import UserPersonalInfo
 from app.models.profile_variant import ProfileVariant
 from app.models.branch import Branch
 from app.schemas.user_personal_info import UserPersonalInfoFilterRequest
-from app.services.db.filters import apply_time_range
+from app.services.db.filters import apply_sort, apply_time_range
+
+# Field names the API accepts for `sort_by`, mapped to the column each one sorts on.
+USER_PERSONAL_INFO_SORTABLE = {
+    "first_name": UserPersonalInfo.first_name,
+    "last_name": UserPersonalInfo.last_name,
+    "email": User.email,
+    "date_of_birth": UserPersonalInfo.date_of_birth,
+    "highest_qualification": UserPersonalInfo.highest_qualification,
+    "year_of_passout": UserPersonalInfo.year_of_passout,
+    "primary_role_name": JobRole.roleName,
+    "working_status_name": UserStatus.displayName,
+    "branch_name": Branch.name,
+    "createdAt": UserPersonalInfo.createdAt,
+}
+
+
+def _join_name(first_name: str | None, last_name: str | None) -> str | None:
+    """None rather than an empty string when the user has no manager."""
+    if not first_name:
+        return None
+    return f"{first_name} {last_name}".strip() if last_name else first_name
 
 
 async def create_user_personal_info(db: AsyncSession, personal_info: UserPersonalInfo) -> UserPersonalInfo:
@@ -43,8 +65,8 @@ async def get_all_user_personal_info(
 ) -> tuple[list[dict], int]:
     try:
         profiles_count_subquery = select(func.count(ProfileVariant.profile_variant_id)).where(ProfileVariant.created_by == UserPersonalInfo.user_id).scalar_subquery()
-        
-        query = select(
+
+        columns = [
             UserPersonalInfo.user_id,
             User.email,
             UserPersonalInfo.first_name,
@@ -55,11 +77,32 @@ async def get_all_user_personal_info(
             UserPersonalInfo.year_of_passout,
             UserStatus.displayName.label('working_status_name'),
             Branch.name.label('branch_name'),
-            profiles_count_subquery.label('profiles_count')
-        ).outerjoin(User, UserPersonalInfo.user_id == User.user_id) \
-         .outerjoin(JobRole, UserPersonalInfo.primary_role_id == JobRole.id) \
-         .outerjoin(UserStatus, UserPersonalInfo.working_status_id == UserStatus.id) \
-         .outerjoin(Branch, UserPersonalInfo.branch_id == Branch.id)
+            profiles_count_subquery.label('profiles_count'),
+        ]
+
+        # The manager is another row in the same two tables, so it needs its own aliases —
+        # joining User/UserPersonalInfo again unaliased would collide with the joins above.
+        reporting_user = aliased(User)
+        reporting_info = aliased(UserPersonalInfo)
+
+        if filters.is_reporting_to:
+            columns.extend([
+                User.reporting_to.label('reporting_to_id'),
+                reporting_info.first_name.label('reporting_to_first_name'),
+                reporting_info.last_name.label('reporting_to_last_name'),
+            ])
+
+        query = select(*columns) \
+            .outerjoin(User, UserPersonalInfo.user_id == User.user_id) \
+            .outerjoin(JobRole, UserPersonalInfo.primary_role_id == JobRole.id) \
+            .outerjoin(UserStatus, UserPersonalInfo.working_status_id == UserStatus.id) \
+            .outerjoin(Branch, UserPersonalInfo.branch_id == Branch.id)
+
+        if filters.is_reporting_to:
+            # Outer joins: a user with no manager still belongs in the list.
+            query = query \
+                .outerjoin(reporting_user, User.reporting_to == reporting_user.user_id) \
+                .outerjoin(reporting_info, reporting_user.user_id == reporting_info.user_id)
 
         query = apply_time_range(query, UserPersonalInfo.createdAt, filters.time_filter)
 
@@ -91,12 +134,20 @@ async def get_all_user_personal_info(
         count_query = select(func.count()).select_from(query.subquery())
         total = await db.scalar(count_query)
 
+        query = apply_sort(
+            query,
+            USER_PERSONAL_INFO_SORTABLE,
+            filters.sort_by,
+            filters.order_by,
+            default_column=UserPersonalInfo.createdAt,
+        )
+
         query = query.offset((filters.page - 1) * filters.limit).limit(filters.limit)
         result = await db.execute(query)
-        
+
         items = []
         for row in result:
-            items.append({
+            item = {
                 "user_id": row.user_id,
                 "email": row.email,
                 "first_name": row.first_name,
@@ -108,7 +159,16 @@ async def get_all_user_personal_info(
                 "working_status_name": row.working_status_name,
                 "branch_name": row.branch_name,
                 "profiles_count": row.profiles_count
-            })
+            }
+
+            # Only present when asked for, so the keys stay absent — not null — otherwise.
+            if filters.is_reporting_to:
+                item["reporting_to_id"] = row.reporting_to_id
+                item["reporting_to_name"] = _join_name(
+                    row.reporting_to_first_name, row.reporting_to_last_name
+                )
+
+            items.append(item)
 
         return items, total or 0
     except SQLAlchemyError as e:

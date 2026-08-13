@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -36,12 +36,24 @@ from app.services.user_personal_info import (
 router = APIRouter(prefix="/user-personal-info", tags=["User Profile"])
 
 
-@router.post("/all", response_model=UserPersonalInfoPaginatedResponse)
+@router.post(
+    "/all",
+    response_model=UserPersonalInfoPaginatedResponse,
+    # Keeps the reporting-to keys out of the payload entirely when they were not
+    # requested, so the default response shape is byte-for-byte what it was before.
+    response_model_exclude_unset=True,
+)
 async def get_all_user_personal_info_filtered(
     filters: UserPersonalInfoFilterRequest,
+    is_reporting_to: bool | None = Query(
+        None, description="Include each user's reporting-to person in the rows"
+    ),
     current_user: User = Depends(require_permission("user_personal_info", "read")),
     db: AsyncSession = Depends(get_db),
 ) -> UserPersonalInfoPaginatedResponse:
+    # The query param wins when sent; otherwise the body value (default False) stands.
+    if is_reporting_to is not None:
+        filters.is_reporting_to = is_reporting_to
     return await handle_get_all_user_personal_info(db, current_user, filters)
 
 

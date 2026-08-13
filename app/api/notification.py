@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import NotificationType, TimeRange
+from app.config import NotificationType, SortOrder, TimeRange
 from app.core.security import require_permission
 from app.core.connections.postgres import get_db
 from app.api.deps import get_current_user
@@ -18,6 +18,8 @@ async def get_notifications(
     page: int | None = None,
     limit: int | None = None,
     time_filter: TimeRange | None = None,
+    sort_by: str | None = None,
+    order_by: SortOrder | None = None,
     is_read: bool | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -28,6 +30,8 @@ async def get_notifications(
             page=page,
             limit=limit,
             time_filter=time_filter,
+            sort_by=sort_by,
+            order_by=order_by,
             is_read=is_read,
         ),
         user_id=current_user.user_id,
@@ -38,6 +42,8 @@ async def get_all_notifications(
     page: int | None = None,
     limit: int | None = None,
     time_filter: TimeRange | None = None,
+    sort_by: str | None = None,
+    order_by: SortOrder | None = None,
     is_read: bool | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -48,6 +54,8 @@ async def get_all_notifications(
             page=page,
             limit=limit,
             time_filter=time_filter,
+            sort_by=sort_by,
+            order_by=order_by,
             is_read=is_read,
         ),
     )

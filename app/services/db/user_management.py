@@ -9,7 +9,16 @@ from app.models.user import User
 from app.models.job_role import JobRole
 from app.models.user_personal_info import UserPersonalInfo
 from app.schemas.user_personal_info import UserManagementFilterRequest
-from app.services.db.filters import apply_time_range
+from app.services.db.filters import apply_sort, apply_time_range
+
+# Field names the API accepts for `sort_by`, mapped to the column each one sorts on.
+USER_MANAGEMENT_SORTABLE = {
+    "first_name": UserPersonalInfo.first_name,
+    "last_name": UserPersonalInfo.last_name,
+    "email": User.email,
+    "role_name": Role.roleName,
+    "createdAt": UserPersonalInfo.createdAt,
+}
 
 
 async def get_all_user_management_info(
@@ -43,6 +52,14 @@ async def get_all_user_management_info(
 
         count_query = select(func.count()).select_from(query.subquery())
         total = await db.scalar(count_query)
+
+        query = apply_sort(
+            query,
+            USER_MANAGEMENT_SORTABLE,
+            filters.sort_by,
+            filters.order_by,
+            default_column=UserPersonalInfo.createdAt,
+        )
 
         query = query.offset((filters.page - 1) * filters.limit).limit(filters.limit)
         result = await db.execute(query)

@@ -2,7 +2,11 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
-from app.exceptions.custom import NotFoundException
+from app.exceptions.custom import (
+    LegacyRoleDeleteException,
+    LegacyRoleUpdateException,
+    NotFoundException,
+)
 from app.models.role import Role
 from app.models.user import User
 from app.responses.role import (
@@ -71,7 +75,16 @@ async def handle_update_role(
     db: AsyncSession, current_user: User, role_update: RoleUpdate, role_id: UUID
 ) -> UpdateRoleResponse:
     try:
+        role = await get_role_by_id(db, role_id)
+        if role is None:
+            raise NotFoundException()
+
         update_data = role_update.model_dump(exclude_unset=True, exclude_none=True)
+
+        new_role_name = update_data.get("roleName")
+        if role.is_legacy_role and new_role_name is not None and new_role_name != role.roleName:
+            raise LegacyRoleUpdateException()
+
         updated_role = await update_role(db, update_data, role_id)
         if updated_role is None:
             raise NotFoundException()
@@ -84,6 +97,9 @@ async def handle_update_role(
     except NotFoundException as e:
         logging.exception("Could not find Role")
         raise e
+    except LegacyRoleUpdateException as e:
+        logging.exception(f"Cannot rename legacy Role for role_id: {role_id}")
+        raise e
     except Exception as e:
         logging.exception("Some error occurred while updating Role")
         raise e
@@ -93,6 +109,13 @@ async def handle_delete_role(
     db: AsyncSession, current_user: User, role_id: UUID
 ) -> DeleteRoleResponse:
     try:
+        role = await get_role_by_id(db, role_id)
+        if role is None:
+            raise NotFoundException()
+
+        if role.is_legacy_role:
+            raise LegacyRoleDeleteException()
+
         deleted_role = await delete_role(db, role_id)
         if deleted_role is None:
             raise NotFoundException()
@@ -103,6 +126,9 @@ async def handle_delete_role(
         )
     except NotFoundException as e:
         logging.exception("Could not find Role")
+        raise e
+    except LegacyRoleDeleteException as e:
+        logging.exception(f"Cannot delete legacy Role for role_id: {role_id}")
         raise e
     except Exception as e:
         logging.exception("Some error occurred while deleting Role")
