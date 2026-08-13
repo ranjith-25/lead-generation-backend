@@ -10,6 +10,10 @@ from app.models.base import Base
 from app.core.security import get_password_hash
 from app.exceptions.handlers import register_exception_handlers
 from app.core.connections.ai_connection import connect_ai,disconnect_ai
+from app.core.connections.notification_listener import (
+    connect_notification_listener,
+    disconnect_notification_listener,
+)
 
 
 from app.api.auth import router as auth_router
@@ -46,8 +50,10 @@ from app.api.user_project import router as user_project_router
 async def lifespan(app: FastAPI):
     logger.info("Application Started")
     await connect_ai()
+    await connect_notification_listener()
 
     yield
+    await disconnect_notification_listener()
     await disconnect_ai()
 
     await engine.dispose()

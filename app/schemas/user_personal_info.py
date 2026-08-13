@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.config import SortOrder, TimeRange
+from app.schemas.common import TimeFilterOption
 from app.schemas.password import Password
 
 class UserPersonalInfoBase(BaseModel):
@@ -127,6 +128,7 @@ class UserProfileFiltersResponse(BaseModel):
     year_of_passout: list[int]
     team: list[str]
     branch: list[str]
+    time_filter: list[TimeFilterOption]
 
 class UserPasswordUpdate(BaseModel):
     existing_password: str

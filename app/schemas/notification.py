@@ -61,6 +61,12 @@ class NotificationFilterRequest(BaseModel):
     # notification_type: list[NotificationType] | None = None
 
 
+class NotificationStreamToken(BaseModel):
+    token: str
+    # Seconds, so the client can refresh before opening a reconnecting EventSource.
+    expires_in: int
+
+
 class NotificationPaginatedResponse(BaseModel):
     items: list[NotificationRead]
     total: int

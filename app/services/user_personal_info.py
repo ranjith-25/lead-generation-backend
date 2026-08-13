@@ -17,6 +17,7 @@ from app.responses.user_personal_info import (
     GetUserPersonalInfoResponse,
     UpdateUserPersonalInfoResponse,
 )
+from app.schemas.common import get_time_filter_options
 from app.schemas.user_personal_info import (
     UserPersonalInfoCreate,
     UserPersonalInfoFilterRequest,
@@ -100,7 +101,8 @@ async def handle_get_user_profile_filters(
             extract_team(hierarchy_res.hierarchy)
             
         filters["team"] = team_list
-        
+        filters["time_filter"] = get_time_filter_options()
+
         return UserProfileFiltersResponse(**filters)
     except Exception as e:
         logging.exception("Some error occurred while getting user profile filters")

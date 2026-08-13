@@ -39,8 +39,6 @@ router = APIRouter(prefix="/user-personal-info", tags=["User Profile"])
 @router.post(
     "/all",
     response_model=UserPersonalInfoPaginatedResponse,
-    # Keeps the reporting-to keys out of the payload entirely when they were not
-    # requested, so the default response shape is byte-for-byte what it was before.
     response_model_exclude_unset=True,
 )
 async def get_all_user_personal_info_filtered(

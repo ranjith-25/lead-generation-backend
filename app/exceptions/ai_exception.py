@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Optional, Tuple
 
 import httpx
@@ -5,6 +6,12 @@ from fastapi import status
 
 from app.exceptions.custom import AppException
 from app.exceptions.error_codes import ErrorCode
+
+logger = logging.getLogger(__name__)
+
+# Error bodies are echoed back to the caller, and an AI service failing badly can answer
+# with a full HTML page or a stack trace. Cap what gets copied into the response.
+MAX_AI_ERROR_BODY_LENGTH = 2000
 
 
 class AIException(AppException):
@@ -218,6 +225,85 @@ class AIValueError(AIException):
         )
 
 
+def read_ai_error_body(response: Optional[httpx.Response]) -> Any:
+    """The AI service's error payload, parsed when it is JSON and truncated when it is not.
+
+    `str(httpx.HTTPStatusError)` only ever contains the status line and the URL, so the
+    body has to be lifted off the response itself — it is the only place the AI says what
+    was actually wrong.
+    """
+    if response is None:
+        return None
+
+    try:
+        return response.json()
+    except Exception:
+        pass
+
+    try:
+        text = (response.text or "").strip()
+    except Exception:
+        # A streamed response that was never read has no .text to fall back on.
+        return None
+
+    if not text:
+        return None
+
+    if len(text) > MAX_AI_ERROR_BODY_LENGTH:
+        return text[:MAX_AI_ERROR_BODY_LENGTH] + "…"
+    return text
+
+
+def extract_ai_error_message(body: Any) -> Optional[str]:
+    """Pull the human-readable sentence out of an AI error body.
+
+    Handles the shapes the AI service actually returns: FastAPI's `{"detail": "..."}`,
+    its validation form `{"detail": [{"loc": [...], "msg": "..."}]}`, and the
+    `{"message": ...}` envelope this codebase uses. Anything unrecognised returns None so
+    the caller can fall back to a generated message rather than surfacing a raw dict.
+    """
+    if isinstance(body, str):
+        text = body.strip()
+        # A bare-text body is only a message when it reads like one. A crashing AI service
+        # answers with a traceback or an HTML page, and neither belongs in a field the user
+        # reads — those stay in `details` and the caller generates a clean message instead.
+        if text and len(text) <= 200 and "\n" not in text and not text.startswith("<"):
+            return text
+        return None
+
+    if not isinstance(body, dict):
+        return None
+
+    detail = body.get("detail")
+
+    if isinstance(detail, str) and detail.strip():
+        return detail.strip()
+
+    if isinstance(detail, list):
+        parts = []
+        for item in detail:
+            if isinstance(item, dict):
+                message = item.get("msg")
+                if not message:
+                    continue
+                location = item.get("loc")
+                if isinstance(location, (list, tuple)) and location:
+                    parts.append(f"{'.'.join(str(part) for part in location)}: {message}")
+                else:
+                    parts.append(str(message))
+            elif item:
+                parts.append(str(item))
+        if parts:
+            return "; ".join(parts)
+
+    for key in ("message", "error", "error_message", "msg"):
+        value = body.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    return None
+
+
 def get_ai_message(exc: Exception) -> Tuple[str, str, int]:
     """
     Maps httpx and processing exceptions to a tuple of (message, error_code, status_code).
@@ -238,95 +324,102 @@ def get_ai_message(exc: Exception) -> Tuple[str, str, int]:
     """
     if isinstance(exc, httpx.ConnectTimeout):
         return (
-            "Connection to AI service timed out",
+            "Timed out trying to reach the AI service. It may be offline or unreachable.",
             ErrorCode.AI_CONNECT_TIMEOUT,
             status.HTTP_504_GATEWAY_TIMEOUT,
         )
 
     if isinstance(exc, httpx.ReadTimeout):
         return (
-            "AI service took too long to respond",
+            "The AI service accepted the request but did not respond in time. It may still be processing — try again shortly.",
             ErrorCode.AI_READ_TIMEOUT,
             status.HTTP_504_GATEWAY_TIMEOUT,
         )
 
     if isinstance(exc, httpx.WriteTimeout):
         return (
-            "Request upload to AI service timed out",
+            "Timed out while uploading the request to the AI service. This usually means a large file or a slow connection.",
             ErrorCode.AI_WRITE_TIMEOUT,
             status.HTTP_504_GATEWAY_TIMEOUT,
         )
 
     if isinstance(exc, httpx.PoolTimeout):
         return (
-            "No connection available in pool for AI service",
+            "Too many AI requests are already in flight and no connection was free. Try again shortly.",
             ErrorCode.AI_POOL_TIMEOUT,
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
     if isinstance(exc, httpx.TimeoutException):
         return (
-            "AI service request operation timed out",
+            "The request to the AI service timed out.",
             ErrorCode.AI_TIMEOUT_ERROR,
             status.HTTP_504_GATEWAY_TIMEOUT,
         )
 
     if isinstance(exc, httpx.ConnectError):
         return (
-            "Unable to connect to the AI server",
+            "Unable to reach the AI service. It may be offline, or AI_BASE_URL may be misconfigured.",
             ErrorCode.AI_CONNECT_ERROR,
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
     if isinstance(exc, httpx.NetworkError):
         return (
-            "Network-level problem occurred while contacting AI service",
+            "A network error interrupted the call to the AI service before it completed.",
             ErrorCode.AI_NETWORK_ERROR,
             status.HTTP_502_BAD_GATEWAY,
         )
 
     if isinstance(exc, httpx.RemoteProtocolError):
         return (
-            "Invalid HTTP response from AI server",
+            "The AI service sent a malformed HTTP response.",
             ErrorCode.AI_REMOTE_PROTOCOL_ERROR,
             status.HTTP_502_BAD_GATEWAY,
         )
 
     if isinstance(exc, httpx.TooManyRedirects):
         return (
-            "Too many redirects encountered while connecting to AI service",
+            "The AI service redirected too many times — the configured AI endpoint is likely wrong.",
             ErrorCode.AI_TOO_MANY_REDIRECTS,
             status.HTTP_502_BAD_GATEWAY,
         )
 
     if isinstance(exc, httpx.HTTPStatusError):
+        response = getattr(exc, "response", None)
         status_code = (
-            exc.response.status_code
-            if hasattr(exc, "response") and exc.response is not None
-            else status.HTTP_502_BAD_GATEWAY
+            response.status_code if response is not None else status.HTTP_502_BAD_GATEWAY
         )
+
+        # A 4xx here means the AI is up and rejecting the request, so its own wording is
+        # more useful than anything generated locally — it is passed through verbatim and
+        # the status it chose is preserved.
+        ai_message = extract_ai_error_message(read_ai_error_body(response))
+        if ai_message:
+            return (ai_message, ErrorCode.AI_HTTP_STATUS_ERROR, status_code)
+
         return (
-            f"AI Service is Offline.",
+            f"AI service rejected the request with status {status_code} and gave no reason",
             ErrorCode.AI_HTTP_STATUS_ERROR,
             status_code,
         )
 
     if isinstance(exc, httpx.RequestError):
         return (
-            "Request error occurred while contacting AI service",
+            "The request to the AI service could not be completed.",
             ErrorCode.AI_REQUEST_ERROR,
             status.HTTP_502_BAD_GATEWAY,
         )
 
     if isinstance(exc, ValueError):
         return (
-            "Invalid JSON or bad input processing",
+            "The AI service returned a response that was not valid JSON.",
             ErrorCode.AI_INVALID_RESPONSE_FORMAT,
             status.HTTP_400_BAD_REQUEST,
         )
 
     return (
-        "Unknown AI service error",
+        "An unexpected error occurred while contacting the AI service.",
         ErrorCode.AI_SERVICE_ERROR,
         status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
@@ -336,12 +429,31 @@ def handle_ai_exception(exc: Exception) -> AIException:
     """
     Translates an incoming httpx or ValueError exception into an AIException instance.
     """
-    print(type(exc))
-    print(repr(exc))
     message, error_code, status_code = get_ai_message(exc)
+
+    if isinstance(exc, httpx.HTTPStatusError):
+        response = getattr(exc, "response", None)
+        # Everything the AI said, kept intact alongside the status it chose. Every AI call
+        # site funnels through here, so this is the one place that has to preserve it —
+        # `str(exc)` carries only the status line and URL, never the body.
+        details: Any = {
+            "ai_status_code": status_code,
+            "ai_url": str(response.request.url) if response is not None and response.request else None,
+            "ai_response": read_ai_error_body(response),
+        }
+        logger.error(
+            "AI service returned %s for %s: %s",
+            status_code,
+            details["ai_url"],
+            details["ai_response"],
+        )
+    else:
+        details = str(exc) or None
+        logger.error("AI service call failed (%s): %s", type(exc).__name__, exc)
+
     return AIException(
         message=message,
         status_code=status_code,
         error_code=error_code,
-        details=str(exc) if str(exc) else None,
+        details=details,
     )

@@ -1,9 +1,10 @@
 from datetime import datetime
 import logging
+from typing import Any
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import RESOURCE_APPROVAL_NOTIFY_ROLES, RESOURCE_REJECTION_NOTIFY_ROLES
+from app.config import NotificationEvent
 from app.exceptions.custom import AppException, NotFoundException
 from app.exceptions.error_codes import ErrorCode
 from app.models.pipeline_opportunity_resource import PipelineOpportunityResourceModel
@@ -34,10 +35,11 @@ from app.services.db.pipeline_opportunity_resource import (
     get_pipeline_opportunity_resource_by_opportunity_id
 )
 from app.schemas.ai import AITechnicalPreperationRequest
-from app.schemas.notification import NotificationType
 from app.services.db.opportunity import get_opportunity_details_by_id
-from app.services.db.user import get_user_ids_by_role_names
-from app.services.notifications import notify_users
+from app.services.notifications import (
+    NotificationEventContext,
+    dispatch_notification_event,
+)
 from app.models.opportunity import Opportunity
 import json
 from app.schemas.opportunity import OpportunityRead
@@ -74,22 +76,6 @@ async def _apply_pipeline_opportunity_resource_status(
     )
 
 
-async def _role_recipients(
-    db: AsyncSession,
-    role_names: list[str],
-    exclude: set[UUID],
-) -> list[UUID]:
-    """User ids holding any of `role_names`, minus `exclude`.
-
-    Recipients are resolved by role rather than by hierarchy — a status change on a
-    resource is a pipeline-wide signal, not something scoped to the actor's reporting
-    line. `exclude` keeps people from being told about their own action, and keeps
-    anyone who gets a dedicated message from also receiving the broadcast.
-    """
-    recipient_ids = await get_user_ids_by_role_names(db, role_names)
-    return [user_id for user_id in recipient_ids if user_id not in exclude]
-
-
 def _resource_display_name(
     pipeline_opportunity_resource: PipelineOpportunityResourceModel,
 ) -> str:
@@ -100,103 +86,83 @@ def _resource_display_name(
     return pipeline_opportunity_resource.variant_title
 
 
-async def _notify_resource_rejected(
+async def _build_notification_context(
     db: AsyncSession,
     current_user: User,
     pipeline_opportunity_resource: PipelineOpportunityResourceModel,
-    reject_reason: str | None,
-) -> None:
-    try:
-        recipient_ids = await _role_recipients(
-            db,
-            RESOURCE_REJECTION_NOTIFY_ROLES,
-            exclude={current_user.user_id},
-        )
+    opportunity: Opportunity | None = None,
+    **extra: Any,
+) -> NotificationEventContext:
+    """Assemble the single context an event's audiences all share.
 
-        if not recipient_ids:
-            return
+    The dispatcher renders a different template per audience, but every one of them reads
+    from this one dict: `build_notification_content` blanks out placeholders a template
+    does not need, so a superset is safe and no per-audience assembly is required. Only
+    the values that differ per event (who acted, why) come in through `extra`.
 
+    `opportunity` is a parameter so the approve path can hand over the row it already
+    loaded; the select and reject paths leave it None and let it be fetched here, which is
+    what gives every event access to `job_title` and `company`.
+    """
+    if opportunity is None:
         opportunity = await get_opportunity_details_by_id(
             db, pipeline_opportunity_resource.opportunity_id
         )
 
-        await notify_users(
-            db,
-            user_ids=recipient_ids,
-            notification_type=NotificationType.RESOURCE_REJECTED,
-            context={
-                "rejected_by_name": current_user.fullName,
-                "variant_title": pipeline_opportunity_resource.variant_title,
-                "job_title": opportunity.title if opportunity else "",
-                "company": opportunity.company if opportunity else "",
-                "reject_reason": reject_reason or "No reason provided",
-                "opportunity_id": str(pipeline_opportunity_resource.opportunity_id),
-            },
-            created_by=current_user.user_id,
-        )
-    except Exception:
-        # The rejection itself has already committed — a notification problem must not
-        # turn a successful status change into a 500.
-        logging.exception(
-            "Could not send rejection notifications for resource %s",
-            pipeline_opportunity_resource.id,
-        )
+    # user_details can be absent for a variant with no linked person, so the reporting
+    # line is read defensively — an unresolved audience is skipped by the dispatcher.
+    user_details = pipeline_opportunity_resource.user_details
+    subject_reporting_to = user_details.reporting_to if user_details else None
+
+    content = {
+        "resource_name": _resource_display_name(pipeline_opportunity_resource),
+        "variant_title": pipeline_opportunity_resource.variant_title,
+        "job_title": opportunity.title if opportunity else "",
+        "company": opportunity.company if opportunity else "",
+        "opportunity_id": str(pipeline_opportunity_resource.opportunity_id),
+        **extra,
+    }
+
+    return NotificationEventContext(
+        actor_id=current_user.user_id,
+        content=content,
+        subject_id=pipeline_opportunity_resource.user_id,
+        subject_reporting_to=subject_reporting_to,
+        # createdBy on the opportunity is the BD who owns it — the audience that cares
+        # about the outcome without being part of the reporting line.
+        opportunity_owner_id=opportunity.createdBy if opportunity else None,
+    )
 
 
-async def _notify_resource_approved(
+async def _dispatch_resource_event(
     db: AsyncSession,
+    event: NotificationEvent,
     current_user: User,
     pipeline_opportunity_resource: PipelineOpportunityResourceModel,
-    opportunity: Opportunity | None,
-    is_auto_approved: bool,
+    opportunity: Opportunity | None = None,
+    **extra: Any,
 ) -> None:
-    """Fan an approval out to two audiences.
+    """Build the context and dispatch, with the whole thing guarded.
 
-    Everyone in RESOURCE_APPROVAL_NOTIFY_ROLES gets the announcement, while the person
-    whose profile was approved gets a second-person message pointing at their technical
-    preparation instead. The assignee is excluded from the announcement so that one
-    approval never produces two notifications for the same person.
+    `dispatch_notification_event` swallows its own failures, but assembling the context
+    can hit the database on the paths that do not already hold the opportunity. That read
+    happens after the status change has committed, inside a handler whose `except` re-raises,
+    so it needs the same guarantee the notification itself has: a notification problem must
+    never turn a successful status change into a 500.
     """
     try:
-        assignee_id = pipeline_opportunity_resource.user_id
-        context = {
-            "approved_by_name": current_user.fullName,
-            "resource_name": _resource_display_name(pipeline_opportunity_resource),
-            "variant_title": pipeline_opportunity_resource.variant_title,
-            "job_title": opportunity.title if opportunity else "",
-            "company": opportunity.company if opportunity else "",
-            "opportunity_id": str(pipeline_opportunity_resource.opportunity_id),
-            "is_auto_approved": is_auto_approved,
-        }
-
-        announcement_ids = await _role_recipients(
+        notification_context = await _build_notification_context(
             db,
-            RESOURCE_APPROVAL_NOTIFY_ROLES,
-            exclude={current_user.user_id, assignee_id},
+            current_user,
+            pipeline_opportunity_resource,
+            opportunity=opportunity,
+            **extra,
         )
-
-        if announcement_ids:
-            await notify_users(
-                db,
-                user_ids=announcement_ids,
-                notification_type=NotificationType.RESOURCE_APPROVED,
-                context=context,
-                created_by=current_user.user_id,
-            )
-
-        # The approved person is notified regardless of the role they hold — the
-        # assignment is about them, not about which bucket their role falls into.
-        if assignee_id:
-            await notify_users(
-                db,
-                user_ids=[assignee_id],
-                notification_type=NotificationType.RESOURCE_ASSIGNED,
-                context=context,
-                created_by=current_user.user_id,
-            )
+        await dispatch_notification_event(db, event, notification_context)
     except Exception:
         logging.exception(
-            "Could not send approval notifications for resource %s",
+            "Could not dispatch %s for resource %s",
+            event,
             pipeline_opportunity_resource.id,
         )
 
@@ -261,11 +227,21 @@ async def _approve_pipeline_opportunity_resource(
 
     # Hooked here rather than in the two callers so the manual approval and the auto
     # approval both notify — `job_details` is reused instead of re-querying the opportunity.
-    await _notify_resource_approved(
-        db=db,
-        current_user=current_user,
-        pipeline_opportunity_resource=pipeline_opportunity_resource,
+    # A self-approval bypassed the reporting Team Lead, which changes who hears about it
+    # and what they are told, so it is a separate event rather than a branch in the code —
+    # the difference lives in NOTIFICATION_EVENTS.
+    event = (
+        NotificationEvent.RESOURCE_SELF_APPROVED
+        if is_auto_approved
+        else NotificationEvent.RESOURCE_APPROVED
+    )
+    await _dispatch_resource_event(
+        db,
+        event,
+        current_user,
+        pipeline_opportunity_resource,
         opportunity=job_details,
+        approved_by_name=current_user.fullName,
         is_auto_approved=is_auto_approved,
     )
 
@@ -443,13 +419,25 @@ async def handle_select_pipeline_opportunity_resource(
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
 
-        return await _apply_pipeline_opportunity_resource_status(
+        response = await _apply_pipeline_opportunity_resource_status(
             db=db,
             current_user=current_user,
             pipeline_opportunity_resource_id=request.pipeline_resource_id,
             status_data={"status": ApprovalStatus.SELECTED},
             message="Pipeline Opportunity Resource selected successfully",
         )
+
+        # SELECTED is the state that puts the resource in the reporting Team Lead's
+        # approval queue, so they are told only once the transition has committed.
+        await _dispatch_resource_event(
+            db,
+            NotificationEvent.RESOURCE_SELECTED,
+            current_user,
+            pipeline_opportunity_resource,
+            selected_by_name=current_user.fullName,
+        )
+
+        return response
     except (NotFoundException, AppException) as e:
         raise e
     except Exception as e:
@@ -604,11 +592,15 @@ async def handle_reject_pipeline_opportunity_resource(
             message="Pipeline Opportunity Resource rejected successfully",
         )
 
-        await _notify_resource_rejected(
-            db=db,
-            current_user=current_user,
-            pipeline_opportunity_resource=pipeline_opportunity_resource,
-            reject_reason=request.reject_reason,
+        # Fired after the transition has committed, so a notification problem can never
+        # undo a rejection that already happened.
+        await _dispatch_resource_event(
+            db,
+            NotificationEvent.RESOURCE_REJECTED,
+            current_user,
+            pipeline_opportunity_resource,
+            rejected_by_name=current_user.fullName,
+            reject_reason=request.reject_reason or "No reason provided",
         )
 
         return response
