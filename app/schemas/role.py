@@ -17,6 +17,7 @@ class RoleUpdate(BaseModel):
 
 class RoleRead(RoleBase):
     role_id: UUID
+    is_legacy_role: bool
     createdAt: datetime
 
     model_config = ConfigDict(from_attributes=True)

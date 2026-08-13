@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.config import TimeRange
+from app.config import SortOrder, TimeRange
 from app.schemas.password import Password
 
 class UserPersonalInfoBase(BaseModel):
@@ -75,6 +75,10 @@ class UserPersonalInfoFilterRequest(BaseModel):
     page: int = Field(1, ge=1)
     limit: int = Field(10, ge=1, le=100)
     time_filter: TimeRange | None = None
+    sort_by: str | None = None
+    order_by: SortOrder | None = None
+    # Off by default so the response shape only widens when the caller asks for it.
+    is_reporting_to: bool = False
     search: str | None = None
     primary_role: list[str] | None = None
     working_status: list[str] | None = None
@@ -86,6 +90,8 @@ class UserManagementFilterRequest(BaseModel):
     page: int = Field(1, ge=1)
     limit: int = Field(10, ge=1, le=100)
     time_filter: TimeRange | None = None
+    sort_by: str | None = None
+    order_by: SortOrder | None = None
     search: str | None = None
     role_id: UUID | None = None
 
@@ -101,6 +107,11 @@ class UserPersonalInfoListRead(BaseModel):
     working_status_name: str
     branch_name: str | None = None
     profiles_count: int
+    # Populated only when is_reporting_to is requested. The route serialises with
+    # exclude_unset, so these stay absent from the payload otherwise rather than
+    # appearing as nulls.
+    reporting_to_id: UUID | None = None
+    reporting_to_name: str | None = None
 
 class UserPersonalInfoPaginatedResponse(BaseModel):
     items: list[UserPersonalInfoListRead]

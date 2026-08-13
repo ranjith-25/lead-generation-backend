@@ -54,6 +54,24 @@ class ConfirmPasswordMismatchException(AppException):
             error_code=ErrorCode.CONFIRM_PASSWORD_MISMATCH,
         )
 
+class LegacyRoleDeleteException(AppException):
+    def __init__(self):
+        super().__init__(
+            message="This is a default role and cannot be deleted",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code=ErrorCode.LEGACY_ROLE_DELETE_NOT_ALLOWED,
+        )
+
+
+class LegacyRoleUpdateException(AppException):
+    def __init__(self):
+        super().__init__(
+            message="This is a default role and cannot be renamed",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code=ErrorCode.LEGACY_ROLE_UPDATE_NOT_ALLOWED,
+        )
+
+
 class OpportunityAlreadyExistsException(AppException):
     def __init__(self, opportunity_id=None):
         super().__init__(

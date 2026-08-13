@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
 from app.api.deps import get_current_user
-from app.config import TimeRange
+from app.config import SortOrder, TimeRange
 from app.core.connections.postgres import get_db
 from app.core.security import require_permission
 from app.models.user import User
@@ -29,11 +29,20 @@ async def get_projects(
     limit: int = Query(10, ge=1, le=100),
     page: int = Query(1, ge=1),
     time_filter: TimeRange | None = Query(None),
+    sort_by: str | None = Query(None, description="Field to sort on; unsupported names are ignored"),
+    order_by: SortOrder | None = Query(None),
     current_user: User = Depends(require_permission("projects", "read")),
     db: AsyncSession = Depends(get_db),
 ) -> ProjectListResponse:
     return await get_all_projects_service(
-        db, ProjectFilters(page=page, limit=limit, time_filter=time_filter)
+        db,
+        ProjectFilters(
+            page=page,
+            limit=limit,
+            time_filter=time_filter,
+            sort_by=sort_by,
+            order_by=order_by,
+        ),
     )
 
 

@@ -3,6 +3,10 @@ from datetime import datetime, timedelta
 
 OTP_MAX_ATTEMPTS = 5
 
+# Matched against roles.roleName — the Super Admin role is internal and is hidden
+# from the roles / role-permission listings the settings screens consume.
+SUPER_ADMIN_ROLE_NAME = "Super Admin"
+
 EMAIL_MESSAGE_CONTENT = {
     "INVITATION_TEMPLATE": {
         "subject": "You're invited to join Lead Generation",
@@ -299,6 +303,11 @@ class NotificationType(str,Enum):
     # SETTINGS = "SETTINGS"
     # INFO = "INFO"
     
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
 class TimeRange(str, Enum):
     TODAY = "today"
     LAST_7_DAYS = "last_7_days"

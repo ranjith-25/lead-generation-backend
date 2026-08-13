@@ -12,6 +12,18 @@ from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 import logging
 from app.config import TIME_RANGE_DELAYS
+from app.services.db.filters import apply_sort
+
+# Field names the API accepts for `sort_by`, mapped to the column each one sorts on.
+OPPORTUNITY_SORTABLE = {
+    "title": Opportunity.title,
+    "company": Opportunity.company,
+    "role": Opportunity.role,
+    "location": Opportunity.location,
+    "platform": Opportunity.platform,
+    "createdAt": Opportunity.createdAt,
+    "updatedAt": Opportunity.updatedAt,
+}
 
 def extract_hierarchy_user_ids(node: UserHierarchy) -> list[UUID]:
     if not node:
@@ -94,6 +106,14 @@ async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityF
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total_count = total_result.scalar() or 0
+
+    query = apply_sort(
+        query,
+        OPPORTUNITY_SORTABLE,
+        filters.sort_by if filters else None,
+        filters.order_by if filters else None,
+        default_column=Opportunity.createdAt,
+    )
 
     # Apply pagination
     if filters:

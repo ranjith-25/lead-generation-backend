@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 
-from app.config import NotificationType, TimeRange
+from app.config import NotificationType, SortOrder, TimeRange
 
 
 class NotificationContentBase(BaseModel):
@@ -55,6 +55,8 @@ class NotificationFilterRequest(BaseModel):
     page: int | None = Field(None, ge=1)
     limit: int | None = Field(None, ge=1, le=100)
     time_filter: TimeRange | None = None
+    sort_by: str | None = None
+    order_by: SortOrder | None = None
     is_read: bool | None = None
     # notification_type: list[NotificationType] | None = None
 

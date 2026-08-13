@@ -9,7 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import AfterValidator, BaseModel, ConfigDict, TypeAdapter, ValidationError, Field
 from pydantic_core import core_schema
 
-from app.config import TimeRange
+from app.config import SortOrder, TimeRange
 
 MAX_LINK_KEY_LENGTH = 50
 MAX_LINK_VALUE_LENGTH = 255
@@ -267,6 +267,8 @@ class ProjectRead(ProjectBase):
 
 class ProjectFilters(BaseModel):
     time_filter: TimeRange | None = None
+    sort_by: str | None = None
+    order_by: SortOrder | None = None
     search : str | None = None
     project_domains : list[str] | None = None
     project_techstacks : list[str] | None = None
