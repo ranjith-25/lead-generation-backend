@@ -54,6 +54,29 @@ async def get_all_user_by_role(db: AsyncSession, roles : list[UUID]) -> list[dic
         logging.exception("Could not fetch users by role")
         raise e
 
+
+async def get_user_ids_by_role_names(db: AsyncSession, role_names: list[str]) -> list[UUID]:
+    """User ids for the given roles, matched by name rather than by role_id.
+
+    Companion to `get_all_user_by_role`, which takes role_ids — those are generated per
+    environment, so notification recipient lists are configured by the stable role name
+    instead. An unknown name simply contributes no rows.
+    """
+    if not role_names:
+        return []
+
+    try:
+        query = (
+            select(User.user_id)
+            .join(Role, User.role_id == Role.role_id)
+            .where(Role.roleName.in_(role_names))
+        )
+        result = await db.execute(query)
+        return list(result.scalars().all())
+    except SQLAlchemyError as e:
+        logging.exception("Could not fetch user ids by role names")
+        raise e
+
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
     try : 
         result = await db.execute(select(User).where(User.email == email))

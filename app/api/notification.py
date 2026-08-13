@@ -19,14 +19,35 @@ async def get_notifications(
     limit: int | None = None,
     time_filter: TimeRange | None = None,
     is_read: bool | None = None,
-    # notification_type: list[NotificationType] | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await get_all_notification(db, current_user.user_id, NotificationFilterRequest(
-        page = page,
-        limit=limit,
-        time_filter=time_filter,
-        is_read=is_read,
-        # notification_type=notification_type
-    ))
+    return await get_all_notification(
+        db,
+        filters=NotificationFilterRequest(
+            page=page,
+            limit=limit,
+            time_filter=time_filter,
+            is_read=is_read,
+        ),
+        user_id=current_user.user_id,
+    )
+    
+@router.get('/all_notification')
+async def get_all_notifications(
+    page: int | None = None,
+    limit: int | None = None,
+    time_filter: TimeRange | None = None,
+    is_read: bool | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await get_all_notification(
+        db,
+        filters=NotificationFilterRequest(
+            page=page,
+            limit=limit,
+            time_filter=time_filter,
+            is_read=is_read,
+        ),
+    )

@@ -220,6 +220,20 @@ NOTIFICATION_CONTENT = {
         "title": "{user_name} has completed their setup",
         "body": "{user_name} accepted your invitation and joined as {role_name}. Click here to view them in your team."
     },
+    "RESOURCE_REJECTED": {
+        "title": "Resource rejected for {company}",
+        "body": "{rejected_by_name} rejected {variant_title} for {job_title} at {company}. Reason: {reject_reason}. Click here to review the opportunity pipeline."
+    },
+    "RESOURCE_APPROVED": {
+        "title": "Resource approved for {company}",
+        "body": "{approved_by_name} approved {resource_name} for {job_title} at {company}. Click here to review the opportunity pipeline."
+    },
+    # Sent to the person whose profile was approved — second person, unlike every other
+    # template here, and the only one pointing at the technical preparation page.
+    "RESOURCE_ASSIGNED": {
+        "title": "You are assigned to {company}",
+        "body": "You have been assigned to {job_title} at {company}. Click here to view your technical preparation."
+    },
     "EMPTY": {
         "title": "",
         "body": ""
@@ -230,20 +244,51 @@ NOTIFICATION_NAVIGATION = {
     "OPPURTUNITY_PIPELINE": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline",
     "MY_PROFILE": "https://macaw-otter-linoleum.ngrok-free.dev/profile",
     "USER_HIERARCHY": "https://macaw-otter-linoleum.ngrok-free.dev/user-hierarchy?user_id={user_id}",
+    # TODO: confirm the real frontend route and query key for technical preparation.
+    # `_resolve_navigation_url` only warns on an unknown page key, never on a key that
+    # resolves to a wrong URL, so a bad path here fails silently for the assignee.
+    "TECHNICAL_PREPARATION": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline/technical-preparation?opportunity_id={opportunity_id}",
 }
 
 NOTIFICATION_TYPE_NAVIGATION = {
     "ANALYSIS_COMPLETE" : "OPPURTUNITY_PIPELINE",
     "SETUP_COMPLETED" : "MY_PROFILE",
     "TEAM_MEMBER_SETUP_COMPLETED" : "USER_HIERARCHY",
+    "RESOURCE_REJECTED" : "OPPURTUNITY_PIPELINE",
+    "RESOURCE_APPROVED" : "OPPURTUNITY_PIPELINE",
+    "RESOURCE_ASSIGNED" : "TECHNICAL_PREPARATION",
     "PROJECT_ADDED" : ""
 }
+
+# Roles notified when a pipeline resource is rejected. Matched against roles.roleName,
+# not role_id — ids are generated per environment, the names are the stable contract.
+# "User" and "Super Admin" are deliberately excluded.
+RESOURCE_REJECTION_NOTIFY_ROLES = [
+    "BD-Executive",
+    "Team Lead",
+    "Manager",
+]
+
+# Roles notified when a pipeline resource is approved. Deliberately wider than the
+# rejection list — an approval goes to every role, including "Super Admin" and "User".
+# The approved person is excluded from this blast and gets RESOURCE_ASSIGNED instead,
+# so nobody receives two notifications for one approval.
+RESOURCE_APPROVAL_NOTIFY_ROLES = [
+    "Super Admin",
+    "BD-Executive",
+    "Team Lead",
+    "Manager",
+    "User",
+]
 
 class NotificationType(str,Enum):
     ANALYSIS_COMPLETE = "ANALYSIS_COMPLETE"
     PROJECT_ADDED = "PROJECT_ADDED"
     SETUP_COMPLETED = "SETUP_COMPLETED"
     TEAM_MEMBER_SETUP_COMPLETED = "TEAM_MEMBER_SETUP_COMPLETED"
+    RESOURCE_REJECTED = "RESOURCE_REJECTED"
+    RESOURCE_APPROVED = "RESOURCE_APPROVED"
+    RESOURCE_ASSIGNED = "RESOURCE_ASSIGNED"
     EMPTY = "EMPTY"
     # PIPELINE_ANALYSIS = "PIPELINE_ANALYSIS"
     # RELAVENT_PROJECTS = "RELAVENT_PROJECTS"
