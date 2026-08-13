@@ -101,7 +101,7 @@ async def update_user_personal_info_status(
 @router.delete("/{user_id}")
 async def delete_user_personal_info(
     user_id: UUID,
-    current_user: User = Depends(),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> DeleteUserPersonalInfoResponse:
     return await handle_delete_user_personal_info(db, current_user, user_id)

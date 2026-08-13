@@ -11,7 +11,7 @@ from app.services.notifications import (
 )
 from app.schemas.notification import NotificationFilterRequest
 
-router = APIRouter(prefix="/notifications", tags=["Notification"])
+router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 @router.get('')
 async def get_notifications(

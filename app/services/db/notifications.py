@@ -6,7 +6,7 @@ from sqlalchemy import select, func, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.notification import Notification
+from app.models.notifications import Notifications
 from app.schemas.notification import NotificationType, NotificationFilterRequest
 from app.services.db.filters import apply_time_range
 
@@ -14,24 +14,24 @@ async def get_all_notification(
     db: AsyncSession,
     user_id: UUID | None = None,
     filters = NotificationFilterRequest
-) -> tuple[list[Notification], int]:
+) -> tuple[list[Notifications], int]:
     try:
-        query = select(Notification)
+        query = select(Notifications)
 
         if user_id:
-            query = query.where(Notification.user_id == user_id)
+            query = query.where(Notifications.user_id == user_id)
 
-        query = apply_time_range(query, Notification.created_at, filters.time_filter)
+        query = apply_time_range(query, Notifications.created_at, filters.time_filter)
 
         if filters.is_read is not None:
-            query = query.where(Notification.is_read == filters.is_read)
+            query = query.where(Notifications.is_read == filters.is_read)
 
         # if filters.notification_type:
-        #     query = query.where(Notification.notification_type.in_(filters.notification_type))
+        #     query = query.where(Notifications.notification_type.in_(filters.notification_type))
 
         total = await db.scalar(select(func.count()).select_from(query.subquery())) or 0
 
-        query = query.order_by(Notification.created_at.desc())
+        query = query.order_by(Notifications.created_at.desc())
 
         if filters.page and filters.limit:
             query = query.offset((filters.page - 1) * filters.limit).limit(filters.limit)
@@ -46,12 +46,12 @@ async def get_all_notification(
 
 async def get_notification_by_id(
     db: AsyncSession, notification_id: UUID, user_id: UUID | None = None
-) -> Notification | None:
+) -> Notifications | None:
     try:
-        query = select(Notification).where(Notification.id == notification_id)
+        query = select(Notifications).where(Notifications.id == notification_id)
 
         if user_id:
-            query = query.where(Notification.user_id == user_id)
+            query = query.where(Notifications.user_id == user_id)
 
         return (await db.execute(query)).scalars().first()
     except SQLAlchemyError as e:
@@ -64,8 +64,8 @@ async def get_unread_notification_count_db(db: AsyncSession, user_id: UUID) -> i
     try:
         count = await db.scalar(
             select(func.count())
-            .select_from(Notification)
-            .where(Notification.user_id == user_id, Notification.is_read == False)
+            .select_from(Notifications)
+            .where(Notifications.user_id == user_id, Notifications.is_read == False)
         )
         return count or 0
     except SQLAlchemyError as e:
@@ -74,9 +74,9 @@ async def get_unread_notification_count_db(db: AsyncSession, user_id: UUID) -> i
         raise e
 
 
-async def create_notification_db(db: AsyncSession, notification_data: dict) -> Notification:
+async def create_notification_db(db: AsyncSession, notification_data: dict) -> Notifications:
     try:
-        notification = Notification(**notification_data)
+        notification = Notifications(**notification_data)
         db.add(notification)
         await db.commit()
         await db.refresh(notification)
@@ -89,9 +89,9 @@ async def create_notification_db(db: AsyncSession, notification_data: dict) -> N
 
 async def create_notifications_db(
     db: AsyncSession, notifications_data: list[dict]
-) -> list[Notification]:
+) -> list[Notifications]:
     try:
-        notifications = [Notification(**data) for data in notifications_data]
+        notifications = [Notifications(**data) for data in notifications_data]
 
         if not notifications:
             return []
@@ -110,8 +110,8 @@ async def create_notifications_db(
 
 
 async def update_notification_db(
-    db: AsyncSession, notification: Notification, update_data: dict
-) -> Notification:
+    db: AsyncSession, notification: Notifications, update_data: dict
+) -> Notifications:
     try:
         for key, value in update_data.items():
             setattr(notification, key, value)
@@ -128,8 +128,8 @@ async def update_notification_db(
 async def mark_all_notifications_read_db(db: AsyncSession, user_id: UUID) -> int:
     try:
         result = await db.execute(
-            update(Notification)
-            .where(Notification.user_id == user_id, Notification.is_read == False)
+            update(Notifications)
+            .where(Notifications.user_id == user_id, Notifications.is_read == False)
             .values(
                 is_read=True,
                 read_at=datetime.now(timezone.utc).replace(tzinfo=None),

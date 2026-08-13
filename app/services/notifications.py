@@ -67,7 +67,7 @@ def _resolve_navigation_url(notification_type: NotificationType, context: dict[s
 
     if not link:
         logging.warning(
-            f"Notification type {notification_type.value} points at unknown navigation page: {page_key}"
+            f"Notifications type {notification_type.value} points at unknown navigation page: {page_key}"
         )
         return None
 
