@@ -6,6 +6,7 @@ from app.models.projects import Projects
 from app.schemas.project import ProjectFilters
 from app.models.project_domains import ProjectDomain
 from app.models.techstacks import TechStacks
+from app.services.db.filters import apply_time_range
 
 
 def _apply_project_filters(query: Select, filters: ProjectFilters) -> Select:
@@ -15,6 +16,8 @@ def _apply_project_filters(query: Select, filters: ProjectFilters) -> Select:
     would return it once per match, which would both duplicate it in the page and
     inflate the total. EXISTS matches the row at most once.
     """
+
+    query = apply_time_range(query, Projects.createdAt, filters.time_filter)
 
     if filters.search and filters.search != "string":
         query = query.where(

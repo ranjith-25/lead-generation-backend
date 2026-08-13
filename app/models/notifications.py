@@ -9,7 +9,7 @@ from app.models.base import Base
 from app.schemas.notification import NotificationType
 
 
-class Notification(Base):
+class Notifications(Base):
     __tablename__ = "notifications"
 
     id: Mapped[uuid.UUID] = mapped_column(

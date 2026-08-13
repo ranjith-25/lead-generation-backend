@@ -11,6 +11,7 @@ from app.models.user_personal_info import UserPersonalInfo
 from app.models.profile_variant import ProfileVariant
 from app.models.branch import Branch
 from app.schemas.user_personal_info import UserPersonalInfoFilterRequest
+from app.services.db.filters import apply_time_range
 
 
 async def create_user_personal_info(db: AsyncSession, personal_info: UserPersonalInfo) -> UserPersonalInfo:
@@ -59,6 +60,8 @@ async def get_all_user_personal_info(
          .outerjoin(JobRole, UserPersonalInfo.primary_role_id == JobRole.id) \
          .outerjoin(UserStatus, UserPersonalInfo.working_status_id == UserStatus.id) \
          .outerjoin(Branch, UserPersonalInfo.branch_id == Branch.id)
+
+        query = apply_time_range(query, UserPersonalInfo.createdAt, filters.time_filter)
 
         if filters.search:
             search_term = f"%{filters.search.strip()}%"

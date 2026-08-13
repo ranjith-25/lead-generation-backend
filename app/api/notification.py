@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import NotificationType
+from app.config import NotificationType, TimeRange
 from app.core.security import require_permission
 from app.core.connections.postgres import get_db
 from app.api.deps import get_current_user
@@ -17,14 +17,16 @@ router = APIRouter(prefix="/notifications", tags=["Notification"])
 async def get_notifications(
     page: int | None = None,
     limit: int | None = None,
+    time_filter: TimeRange | None = None,
     is_read: bool | None = None,
-    notification_type: list[NotificationType] | None = None,
+    # notification_type: list[NotificationType] | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     return await get_all_notification(db, current_user.user_id, NotificationFilterRequest(
         page = page,
         limit=limit,
+        time_filter=time_filter,
         is_read=is_read,
-        notification_type=notification_type
+        # notification_type=notification_type
     ))

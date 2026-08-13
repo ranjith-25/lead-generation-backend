@@ -31,7 +31,8 @@ from app.services.db.notifications import (
 )
 from app.config import (
     NOTIFICATION_CONTENT,
-    NOTIFICATION_NAVIGATION
+    NOTIFICATION_NAVIGATION,
+    NOTIFICATION_TYPE_NAVIGATION,
 )
 
 
@@ -54,14 +55,26 @@ def _render(template: str | None, context: dict[str, Any]) -> str | None:
         return template
 
 
-def build_notification_content(content: NotificationContentBase) -> dict:
-    """Resolve title/body/url for a notification type.
+def _resolve_navigation_url(notification_type: NotificationType, context: dict[str, Any]) -> str | None:
+    """notification type -> page key (NOTIFICATION_TYPE_NAVIGATION) -> link (NOTIFICATION_NAVIGATION)."""
+    page_key = NOTIFICATION_TYPE_NAVIGATION.get(notification_type.value)
 
-    Content comes from ``NOTIFICATION_CONTENT`` / ``NOTIFICATION_NAVIGATION`` in
-    ``app/config.py`` and is rendered with ``content.context``, so a new notification type
-    only needs an enum member plus config entries — no change here. Anything passed
-    explicitly on the schema wins over the configured template.
-    """
+    if not page_key:
+        # Deliberately unnavigable notification type — not a misconfiguration.
+        return None
+
+    link = NOTIFICATION_NAVIGATION.get(page_key)
+
+    if not link:
+        logging.warning(
+            f"Notification type {notification_type.value} points at unknown navigation page: {page_key}"
+        )
+        return None
+
+    return _render(link, context)
+
+
+def build_notification_content(content: NotificationContentBase) -> dict:
     notification_type = content.notification_type
     configured = NOTIFICATION_CONTENT.get(notification_type.value)
 
@@ -70,7 +83,7 @@ def build_notification_content(content: NotificationContentBase) -> dict:
 
     title = content.title or _render(configured.get("title", ""), content.context)
     body = content.body or _render(configured.get("body", ""), content.context)
-    url = content.url or _render(NOTIFICATION_NAVIGATION.get(notification_type.value), content.context)
+    url = content.url or _resolve_navigation_url(notification_type, content.context)
 
     return {
         "notification_type": notification_type,
@@ -102,7 +115,6 @@ async def create_bulk_notification(
         return []
 
     content = build_notification_content(notification_data)
-    # de-duplicate so the same user is not notified twice for one event
     user_ids = list(dict.fromkeys(notification_data.user_ids))
 
     created_notifications = await create_notifications_db(
