@@ -48,6 +48,16 @@ class PipelineOpportunityResourceModel(Base):
         nullable=False,
     )
 
+    candidate_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    role: Mapped[str] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
     email: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -128,6 +138,15 @@ class PipelineOpportunityResourceModel(Base):
         nullable=True,
     )
 
+    assigned_to_tl_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "users.user_id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+    )
+
 
 
     rejected_by: Mapped[uuid.UUID | None] = mapped_column(
@@ -184,6 +203,12 @@ class PipelineOpportunityResourceModel(Base):
         lazy="selectin",
     )
 
+    assigned_to_tl_by_user: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[assigned_to_tl_by],
+        lazy="selectin",
+    )
+
     user_details: Mapped["User | None"] = relationship(
         "User",
         foreign_keys=[user_id],
@@ -233,6 +258,15 @@ class PipelineOpportunityResourceModel(Base):
         try:
             if self.rejected_by:
                 return self.rejected_by_user.fullName
+            return None
+        except Exception:
+            return None
+
+    @property
+    def resourceAssignedToTLBy(self):
+        try:
+            if self.assigned_to_tl_by_user:
+                return self.assigned_to_tl_by_user.fullName
             return None
         except Exception:
             return None

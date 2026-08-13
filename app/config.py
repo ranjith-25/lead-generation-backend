@@ -220,6 +220,10 @@ NOTIFICATION_CONTENT = {
         "title": "{user_name} has completed their setup",
         "body": "{user_name} accepted your invitation and joined as {role_name}. Click here to view them in your team."
     },
+    "RESOURCE_ASSIGNED_TO_TL": {
+        "title": "Resource pending your approval",
+        "body": "{candidate_name} has been assigned to you for the {variant_title} requirement. Review the resource and approve or reject it."
+    },
     "RESOURCE_REJECTED": {
         "title": "Resource rejected for {company}",
         "body": "{rejected_by_name} rejected {variant_title} for {job_title} at {company}. Reason: {reject_reason}. Click here to review the opportunity pipeline."
@@ -286,6 +290,7 @@ class NotificationType(str,Enum):
     PROJECT_ADDED = "PROJECT_ADDED"
     SETUP_COMPLETED = "SETUP_COMPLETED"
     TEAM_MEMBER_SETUP_COMPLETED = "TEAM_MEMBER_SETUP_COMPLETED"
+    RESOURCE_ASSIGNED_TO_TL = "RESOURCE_ASSIGNED_TO_TL"
     RESOURCE_REJECTED = "RESOURCE_REJECTED"
     RESOURCE_APPROVED = "RESOURCE_APPROVED"
     RESOURCE_ASSIGNED = "RESOURCE_ASSIGNED"

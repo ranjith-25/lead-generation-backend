@@ -16,6 +16,7 @@ from app.schemas.pipeline_opportunity_resource import (
     PipelineOpportunityResourceCreate,
     PipelineOpportunityResourceUpdate,
     PipelineOpportunityResourceSelectRequest,
+    PipelineOpportunityResourceAssignToTLRequest,
     PipelineOpportunityResourceApproveRequest,
     PipelineOpportunityResourceAutoApproveRequest,
     PipelineOpportunityResourceRejectRequest,
@@ -28,6 +29,7 @@ from app.services.pipeline_opportunity_resource import (
     handle_update_pipeline_opportunity_resource,
     handle_get_pipeline_opportunity_resource_by_opportunity_id,
     handle_select_pipeline_opportunity_resource,
+    handle_assign_pipeline_opportunity_resource_to_tl,
     handle_approve_pipeline_opportunity_resource,
     handle_auto_approve_pipeline_opportunity_resource,
     handle_reject_pipeline_opportunity_resource,
@@ -133,6 +135,21 @@ async def select_pipeline_opportunity_resource(
     )
 
 
+@pipeline_opportunity_resource_router.patch("/assign-to-tl")
+async def assign_pipeline_opportunity_resource_to_tl(
+    request: PipelineOpportunityResourceAssignToTLRequest,
+    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "resource_assign_to_tl")),
+    db: AsyncSession = Depends(get_db),
+):
+    response: UpdatePipelineOpportunityResourceResponse = await handle_assign_pipeline_opportunity_resource_to_tl(
+        db, current_user, request
+    )
+    return JSONResponse(
+        content=response.model_dump(mode="json", exclude_none=True),
+        status_code=200,
+    )
+
+
 @pipeline_opportunity_resource_router.patch("/approve")
 async def approve_pipeline_opportunity_resource(
     request: PipelineOpportunityResourceApproveRequest,
@@ -168,7 +185,7 @@ async def auto_approve_pipeline_opportunity_resource(
 @pipeline_opportunity_resource_router.patch("/reject")
 async def reject_pipeline_opportunity_resource(
     request: PipelineOpportunityResourceRejectRequest,
-    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "approve")),
+    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "reject")),
     db: AsyncSession = Depends(get_db),
 ):
     response: UpdatePipelineOpportunityResourceResponse = await handle_reject_pipeline_opportunity_resource(

@@ -20,6 +20,7 @@ from app.schemas.pipeline_opportunity_resource import (
     PipelineOpportunityResourceDTO,
     PipelineOpportunityResourceUpdate,
     PipelineOpportunityResourceSelectRequest,
+    PipelineOpportunityResourceAssignToTLRequest,
     PipelineOpportunityResourceApproveRequest,
     PipelineOpportunityResourceAutoApproveRequest,
     PipelineOpportunityResourceRejectRequest,
@@ -42,6 +43,8 @@ from app.models.opportunity import Opportunity
 import json
 from app.schemas.opportunity import OpportunityRead
 from app.services.ai import handleTechnicalPreperation
+from app.services.notifications import notify_users
+from app.schemas.notification import NotificationType
 from fastapi import BackgroundTasks
 from sqlalchemy.exc import IntegrityError
 
@@ -457,6 +460,84 @@ async def handle_select_pipeline_opportunity_resource(
         raise e
 
 
+async def handle_assign_pipeline_opportunity_resource_to_tl(
+    db: AsyncSession,
+    current_user: User,
+    request: PipelineOpportunityResourceAssignToTLRequest,
+) -> UpdatePipelineOpportunityResourceResponse:
+    """Hand a selected resource over to the TL (the resource's reporting user).
+
+    The update permission is enforced on the route, so reaching this handler already
+    means the caller (BD team) is allowed to move the resource through the workflow.
+    The TL is not stored on the resource — it is the reporting user of the resource's
+    user, the same person the approve/reject handlers authorise against.
+    """
+    try:
+        pipeline_opportunity_resource: PipelineOpportunityResourceModel = await get_pipeline_opportunity_resource_by_id(
+            db, request.pipeline_resource_id
+        )
+
+        if pipeline_opportunity_resource is None:
+            raise NotFoundException()
+
+        if pipeline_opportunity_resource.status == ApprovalStatus.ASSIGNED_TO_TL:
+            raise AppException(
+                message="This resource is already assigned to the TL.",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        if pipeline_opportunity_resource.status != ApprovalStatus.SELECTED:
+            raise AppException(
+                message="Only selected resources can be assigned to the TL",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        tl_user_id = (
+            pipeline_opportunity_resource.user_details.reporting_to
+            if pipeline_opportunity_resource.user_details
+            else None
+        )
+        if tl_user_id is None:
+            raise AppException(
+                message="This resource has no reporting user to assign to",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        result: UpdatePipelineOpportunityResourceResponse = await _apply_pipeline_opportunity_resource_status(
+            db=db,
+            current_user=current_user,
+            pipeline_opportunity_resource_id=request.pipeline_resource_id,
+            status_data={
+                "status": ApprovalStatus.ASSIGNED_TO_TL,
+                "assigned_to_tl_by": current_user.user_id,
+            },
+            message="Pipeline Opportunity Resource assigned to TL successfully",
+        )
+
+        await notify_users(
+            db,
+            user_ids=[tl_user_id],
+            notification_type=NotificationType.RESOURCE_ASSIGNED_TO_TL,
+            context={
+                "opportunity_id": str(pipeline_opportunity_resource.opportunity_id),
+                "pipeline_resource_id": str(pipeline_opportunity_resource.id),
+                "candidate_name": pipeline_opportunity_resource.candidate_name,
+                "variant_title": pipeline_opportunity_resource.variant_title,
+            },
+            created_by=current_user.user_id,
+        )
+
+        return result
+    except (NotFoundException, AppException) as e:
+        raise e
+    except Exception as e:
+        logging.exception("Some error occurred while assigning Pipeline Opportunity Resource to TL")
+        raise e
+
+
 async def handle_approve_pipeline_opportunity_resource(
     db: AsyncSession,
     current_user: User,
@@ -480,9 +561,9 @@ async def handle_approve_pipeline_opportunity_resource(
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
 
-        if pipeline_opportunity_resource.status != ApprovalStatus.SELECTED:
+        if pipeline_opportunity_resource.status !=  ApprovalStatus.ASSIGNED_TO_TL:
             raise AppException(
-                message="Only selected resources can be approved",
+                message="Only TL assigned resources can be approved",
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
@@ -582,9 +663,9 @@ async def handle_reject_pipeline_opportunity_resource(
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
 
-        if pipeline_opportunity_resource.status != ApprovalStatus.SELECTED:
+        if pipeline_opportunity_resource.status != ApprovalStatus.ASSIGNED_TO_TL:
             raise AppException(
-                message="Only selected resources can be rejected",
+                message="Only TL assigned resources can be rejected",
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
