@@ -11,6 +11,10 @@ from app.exceptions.notification import (
     NotificationNotFoundException,
     NotificationTypeNotConfiguredException,
 )
+from app.responses.notification import (
+    MarkAllNotificationsReadResponse,
+    MarkNotificationReadResponse,
+)
 from app.schemas.notification import (
     NotificationBulkCreateSchema,
     NotificationContentBase,
@@ -221,9 +225,7 @@ async def dispatch_notification_event(
             logging.warning(f"No audiences configured for notification event: {event}")
             return
 
-        # Seeding the actor is what stops anyone being told about their own action.
         claimed: set[UUID] = {ctx.actor_id}
-        # One role can serve several audiences of the same event — query it once per dispatch.
         role_cache: dict[str, list[UUID]] = {}
 
         for audience, notification_type in audiences:
@@ -300,3 +302,37 @@ async def mark_notification_as_read(
 async def mark_all_notifications_as_read(db: AsyncSession, user_id: UUID) -> int:
     """Returns how many notifications were flipped to read."""
     return await mark_all_notifications_read_db(db, user_id)
+
+
+async def handle_mark_notification_as_read(
+    db: AsyncSession, notification_id: UUID, user_id: UUID
+) -> MarkNotificationReadResponse:
+    try:
+        notification = await mark_notification_as_read(db, notification_id, user_id)
+        unread_count = await get_unread_notification_count(db, user_id)
+
+        return MarkNotificationReadResponse(
+            notification=notification,
+            unread_count=unread_count,
+            message="Notification marked as read",
+        )
+    except Exception as e:
+        logging.exception("Some error occurred while marking notification as read")
+        raise e
+
+
+async def handle_mark_all_notifications_as_read(
+    db: AsyncSession, user_id: UUID
+) -> MarkAllNotificationsReadResponse:
+    try:
+        updated_count = await mark_all_notifications_as_read(db, user_id)
+        unread_count = await get_unread_notification_count(db, user_id)
+
+        return MarkAllNotificationsReadResponse(
+            updated_count=updated_count,
+            unread_count=unread_count,
+            message="All notifications marked as read",
+        )
+    except Exception as e:
+        logging.exception("Some error occurred while marking all notifications as read")
+        raise e

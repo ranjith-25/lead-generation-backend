@@ -13,8 +13,14 @@ from app.core.connections.postgres import AsyncSessionLocal, get_db
 from app.api.deps import get_current_user, oauth2_scheme
 from app.exceptions.auth import SessionExpiredException
 from app.models.user import User
+from app.responses.notification import (
+    MarkAllNotificationsReadResponse,
+    MarkNotificationReadResponse
+)
 from app.services.notifications import (
-    get_all_notification
+    get_all_notification,
+    handle_mark_all_notifications_as_read,
+    handle_mark_notification_as_read
 )
 from app.services.notification_stream import notification_events
 from app.services.db.session import get_active_session_by_id, get_session_by_token
@@ -65,10 +71,6 @@ async def issue_stream_token(
 
 
 async def _assert_session_active(user_id: UUID, session_id: UUID) -> None:
-    # An explicit short-lived session, never Depends(get_db): FastAPI holds a dependency's
-    # session open until the response finishes, and a stream finishes when the user closes
-    # the tab. Against this app's pool ceiling (DB_POOL_SIZE + DB_MAX_OVERFLOW) a handful
-    # of open streams would exhaust the pool and stall every other request.
     async with AsyncSessionLocal() as db:
         if not await get_active_session_by_id(db, session_id, user_id):
             raise SessionExpiredException()
@@ -155,3 +157,22 @@ async def get_all_notifications(
             is_read=is_read,
         ),
     )
+
+
+@router.patch('/read-all', response_model=MarkAllNotificationsReadResponse)
+async def mark_all_notifications_read(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> MarkAllNotificationsReadResponse:
+    """Mark every notification belonging to the current user as read."""
+    return await handle_mark_all_notifications_as_read(db, current_user.user_id)
+
+
+@router.patch('/{notification_id}/read', response_model=MarkNotificationReadResponse)
+async def mark_notification_read(
+    notification_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> MarkNotificationReadResponse:
+    """Mark a single notification owned by the current user as read."""
+    return await handle_mark_notification_as_read(db, notification_id, current_user.user_id)
