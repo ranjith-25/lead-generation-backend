@@ -40,6 +40,17 @@ class Settings(BaseSettings):
     
     DB_LOGS: bool = False
 
+    # EventSource cannot set an Authorization header, so the notification stream is opened
+    # with a token in the query string. Keep the window short enough that the copy left
+    # behind in an access log or a proxy cache is worthless by the time anyone reads it.
+    STREAM_TOKEN_EXPIRE_SECONDS: int = 60
+    # Comment frames stop proxies culling an idle stream, and the write that fails is how
+    # a browser that vanished without a FIN gets noticed.
+    STREAM_KEEPALIVE_SECONDS: int = 25
+    # How often an already-open stream re-checks that its session survives — this is what
+    # makes logout close the connection instead of leaving it fed until the tab dies.
+    STREAM_SESSION_RECHECK_SECONDS: int = 300
+
     # Connection pool ceiling for this process: DB_POOL_SIZE + DB_MAX_OVERFLOW.
     # Keep (ceiling * number of app processes) well under the server's
     # max_connections, and leave headroom for Alembic and DB clients.

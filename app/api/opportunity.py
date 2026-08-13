@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.responses import JSONResponse
 from fastapi import status
 from uuid import UUID
 
 from app.api.deps import get_current_user
+from app.config import SortOrder, TimeRange
 from app.core.connections.postgres import get_db
 from app.core.security import require_permission
 from app.models.user import User
@@ -47,9 +48,24 @@ async def create_opportunity(
 
 @router.get("", response_model=OpportunityPaginatedResponse)
 async def get_opportunities(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
+    time_filter: TimeRange | None = Query(None),
+    sort_by: str | None = Query(None, description="Field to sort on; unsupported names are ignored"),
+    order_by: SortOrder | None = Query(None),
     current_user: User = Depends(require_permission("overview_and_analysis","read")), db: AsyncSession = Depends(get_db)
 ) -> OpportunityPaginatedResponse:
-    return await get_all_opportunities_service(db, current_user.user_id)
+    return await get_all_opportunities_service(
+        db,
+        current_user.user_id,
+        OpportunityFilterRequest(
+            page=page,
+            size=size,
+            time_filter=time_filter,
+            sort_by=sort_by,
+            order_by=order_by,
+        ),
+    )
 
 
 @router.get("/filter-values", response_model=OpportunityFilterValuesResponse)

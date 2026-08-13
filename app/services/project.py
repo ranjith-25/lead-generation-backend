@@ -33,6 +33,7 @@ from app.exceptions.project import (
 from app.models.projects import Projects
 from app.responses.base import BaseResponse
 from app.responses.project import ProjectListResponse
+from app.schemas.common import get_time_filter_options
 from app.schemas.project import (
     ProjectCreate,
     ProjectRead,
@@ -265,6 +266,7 @@ async def get_project_filters(db: AsyncSession):
         response = {
             "Domains": [],
             "Techstack": [],
+            "time_filter": get_time_filter_options(),
             "message": "Project filters fetched successfully"
         }
         for domain in all_domains:

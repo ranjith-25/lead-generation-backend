@@ -8,7 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notifications import Notifications
 from app.schemas.notification import NotificationType, NotificationFilterRequest
-from app.services.db.filters import apply_time_range
+from app.services.db.filters import apply_sort, apply_time_range
+
+# Field names the API accepts for `sort_by`, mapped to the column each one sorts on.
+NOTIFICATION_SORTABLE = {
+    "created_at": Notifications.created_at,
+    "updated_at": Notifications.updated_at,
+    "read_at": Notifications.read_at,
+    "is_read": Notifications.is_read,
+    "notification_type": Notifications.notification_type,
+    "title": Notifications.title,
+}
 
 async def get_all_notification(
     db: AsyncSession,
@@ -38,7 +48,13 @@ async def get_all_notification(
                 .where(Notifications.is_read == False)
             ) or 0
 
-        query = query.order_by(Notifications.created_at.desc())
+        query = apply_sort(
+            query,
+            NOTIFICATION_SORTABLE,
+            filters.sort_by,
+            filters.order_by,
+            default_column=Notifications.created_at,
+        )
 
         if filters.page and filters.limit:
             query = query.offset((filters.page - 1) * filters.limit).limit(filters.limit)

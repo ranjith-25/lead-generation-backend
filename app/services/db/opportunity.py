@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.models.opportunity import Opportunity
 from app.models.opportunity_status import OpportunityStatus
 from app.schemas.opportunity import OpportunityFilterRequest
+from app.schemas.common import get_time_filter_options
 from app.models.platform import Platform
 from app.models.user import User
 from app.models.user_personal_info import UserPersonalInfo
@@ -12,6 +13,18 @@ from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 import logging
 from app.config import TIME_RANGE_DELAYS
+from app.services.db.filters import apply_sort
+
+# Field names the API accepts for `sort_by`, mapped to the column each one sorts on.
+OPPORTUNITY_SORTABLE = {
+    "title": Opportunity.title,
+    "company": Opportunity.company,
+    "role": Opportunity.role,
+    "location": Opportunity.location,
+    "platform": Opportunity.platform,
+    "createdAt": Opportunity.createdAt,
+    "updatedAt": Opportunity.updatedAt,
+}
 
 def extract_hierarchy_user_ids(node: UserHierarchy) -> list[UUID]:
     if not node:
@@ -95,6 +108,14 @@ async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityF
     total_result = await db.execute(count_query)
     total_count = total_result.scalar() or 0
 
+    query = apply_sort(
+        query,
+        OPPORTUNITY_SORTABLE,
+        filters.sort_by if filters else None,
+        filters.order_by if filters else None,
+        default_column=Opportunity.createdAt,
+    )
+
     # Apply pagination
     if filters:
         query = query.offset((filters.page - 1) * filters.size).limit(filters.size)
@@ -126,6 +147,7 @@ async def get_opportunity_filter_values(db: AsyncSession, user_id) -> dict:
         "location": [l[0] for l in locations.all()],
         "status": [s[0] for s in statuses.all()],
         "team": team,
+        "time_filter": get_time_filter_options(),
     }
 
 

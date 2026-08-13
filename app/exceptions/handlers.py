@@ -90,12 +90,16 @@ def register_exception_handlers(app: FastAPI):
         request: Request,
         exc: AIException,
     ):
+        # AIException subclasses AppException, so this more specific handler is the one that
+        # runs — it has to forward details itself or the AI service's own error body, which
+        # handle_ai_exception went to the trouble of capturing, is dropped here.
         return JSONResponse(
             status_code=exc.status_code,
             content=error_response(
                 exc.message,
                 exc.error_code,
-                exc.status_code
+                exc.status_code,
+                exc.details,
             ),
         )
 

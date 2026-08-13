@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import uuid
-from sqlalchemy import DateTime, Integer, String, func, text
+from sqlalchemy import Boolean, DateTime, Integer, String, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,6 +20,11 @@ class Role(Base):
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     roleName: Mapped[str] = mapped_column(String(50), nullable=False)
+    
+    is_legacy_role: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    
     createdAt: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

@@ -2,11 +2,22 @@ from sqlalchemy import Select, or_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
+from app.config import SortOrder
 from app.models.projects import Projects
 from app.schemas.project import ProjectFilters
 from app.models.project_domains import ProjectDomain
 from app.models.techstacks import TechStacks
-from app.services.db.filters import apply_time_range
+from app.services.db.filters import apply_sort, apply_time_range
+
+# Field names the API accepts for `sort_by`, mapped to the column each one sorts on.
+# Domain and techstack are excluded: they are filtered via EXISTS, and sorting on them
+# would need the join this query deliberately avoids.
+PROJECT_SORTABLE = {
+    "project_name": Projects.project_name,
+    "createdAt": Projects.createdAt,
+    "updatedAt": Projects.updatedAt,
+    "is_draft": Projects.is_draft,
+}
 
 
 def _apply_project_filters(query: Select, filters: ProjectFilters) -> Select:
@@ -51,9 +62,16 @@ async def get_all_projects_db(
 
     total_column = func.count().over().label("total")
 
-    query = _apply_project_filters(
-        select(Projects, total_column), filters
-    ).order_by(Projects.project_id)
+    query = apply_sort(
+        _apply_project_filters(select(Projects, total_column), filters),
+        PROJECT_SORTABLE,
+        filters.sort_by,
+        filters.order_by,
+        # project_id kept as the fallback so paging stays stable for callers that
+        # never send a sort — it is the only column guaranteed unique here.
+        default_column=Projects.project_id,
+        default_order=SortOrder.ASC,
+    )
 
     if filters.limit is not None:
         offset = (filters.page - 1) * filters.limit
