@@ -39,6 +39,7 @@ from app.services.db.user import get_user_by_id
 from app.services.db.user_personal_info import get_user_personal_info_by_user_id
 from app.services.db.branch import get_branch_by_id
 from app.services.db.project_domains import get_project_domain_by_id
+from app.services.db.user_status import get_user_status_by_id
 
 
 async def handle_get_all_profile_variants(db: AsyncSession, current_user: User) -> GetProfileVariantResponse:
@@ -98,6 +99,7 @@ async def ingest_profile_variant_to_ai(db: AsyncSession, profile_variant: Profil
     personal_info = await get_user_personal_info_by_user_id(db, profile_variant.user_id)
 
     candidate_name = ""
+    resource_status = "On Bench"
     education = ""
     passout_year = 0
     dob = ""
@@ -112,6 +114,13 @@ async def ingest_profile_variant_to_ai(db: AsyncSession, profile_variant: Profil
         education = personal_info.highest_qualification or ""
         passout_year = personal_info.year_of_passout or 0
         dob = personal_info.date_of_birth or ""
+
+        working_status_id = personal_info.working_status_id
+        if working_status_id:
+            # Fetch working status explicitly using DB layer
+            user_status = await get_user_status_by_id(db, working_status_id)
+            if user_status and user_status.displayName:
+                resource_status = user_status.displayName
 
         # Fetch branch explicitly using DB layer
         if personal_info.branch_id:
@@ -153,6 +162,7 @@ async def ingest_profile_variant_to_ai(db: AsyncSession, profile_variant: Profil
     payload = {
         "candidate_id": str(profile_variant.user_id),
         "candidate_name": candidate_name,
+        "resource_status": resource_status,
         "email": email,
         "education": education,
         "passout_year": passout_year,
@@ -162,8 +172,8 @@ async def ingest_profile_variant_to_ai(db: AsyncSession, profile_variant: Profil
             {
                 "variant_id": str(profile_variant.profile_variant_id),
                 "variant_title": profile_variant.name or "",
-                "experience_years": parse_experience_years(profile_variant.experience),
                 "role": profile_variant_role_name or "",
+                "experience_years": parse_experience_years(profile_variant.experience),
                 "no_of_projects": len(projects),
                 "tech_stacks": profile_variant.highlighted_skills or [],
                 "certifications": profile_variant.certificate or [],
