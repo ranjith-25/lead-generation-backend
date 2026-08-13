@@ -8,7 +8,7 @@ class NotificationNotFoundException(AppException):
 
     def __init__(self, notification_id=None):
         super().__init__(
-            message="Notification not found",
+            message="Notifications not found",
             status_code=status.HTTP_404_NOT_FOUND,
             error_code=ErrorCode.NOTIFICATION_NOT_FOUND,
             details={"notification_id": str(notification_id)} if notification_id else None,

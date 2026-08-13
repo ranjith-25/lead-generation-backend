@@ -212,14 +212,10 @@ NOTIFICATION_CONTENT = {
         "title": "AI discovery Complete",
         "body": "The job post has been analyzed. Click here visit the Overview & Analysis page to review the AI-generated insights."
     },
-    # Sent to the invited user once they finish registering from their invite link.
-    # Context: user_name, role_name, reporting_to_name
     "SETUP_COMPLETED": {
         "title": "Welcome aboard, {user_name}",
         "body": "Your account setup is complete. You have joined as {role_name} reporting to {reporting_to_name}. Click here to review your profile."
     },
-    # Sent to the manager the invited user reports to.
-    # Context: user_name, role_name, user_id
     "TEAM_MEMBER_SETUP_COMPLETED": {
         "title": "{user_name} has completed their setup",
         "body": "{user_name} accepted your invitation and joined as {role_name}. Click here to view them in your team."
@@ -230,16 +226,12 @@ NOTIFICATION_CONTENT = {
     },
 }
 
-# Placeholder front-end links — swap the host/paths once the real routes are fixed.
-# Values are rendered with the notification context, so {placeholders} are allowed.
 NOTIFICATION_NAVIGATION = {
     "OPPURTUNITY_PIPELINE": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline",
     "MY_PROFILE": "https://macaw-otter-linoleum.ngrok-free.dev/profile",
     "USER_HIERARCHY": "https://macaw-otter-linoleum.ngrok-free.dev/user-hierarchy?user_id={user_id}",
 }
 
-# notification type -> key in NOTIFICATION_NAVIGATION. An empty/absent entry means
-# the notification simply has no navigation url.
 NOTIFICATION_TYPE_NAVIGATION = {
     "ANALYSIS_COMPLETE" : "OPPURTUNITY_PIPELINE",
     "SETUP_COMPLETED" : "MY_PROFILE",
