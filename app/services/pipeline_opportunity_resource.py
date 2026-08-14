@@ -49,7 +49,7 @@ from app.services.notifications import notify_users
 from app.schemas.notification import NotificationType
 from fastapi import BackgroundTasks
 from sqlalchemy.exc import IntegrityError
-
+from app.core.security import hasPermissions
 
 async def _apply_pipeline_opportunity_resource_status(
     db: AsyncSession,
@@ -471,6 +471,13 @@ async def handle_assign_pipeline_opportunity_resource_to_tl(
         if pipeline_opportunity_resource.status == ApprovalStatus.ASSIGNED_TO_TL:
             raise AppException(
                 message="This resource is already assigned to the TL.",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        if not hasPermissions( db = db, role_id= pipeline_opportunity_resource.user_details.reportingUser.role_id,feature_key="pipeline_opportunity_resource",action_key="approve") and  not hasPermissions( db = db, role_id= pipeline_opportunity_resource.user_details.reportingUser.role_id,feature_key="pipeline_opportunity_resource",action_key="reject"):
+            raise AppException(
+                message="This reporting user doesn't have permission to approve or reject this resource.",
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
