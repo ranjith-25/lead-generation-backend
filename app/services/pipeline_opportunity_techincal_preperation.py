@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-
+import json
 from app.exceptions.custom import NotFoundException
 from app.models.pipeline_opportunity_techincal_preperation import PipelineOpportunityTechnicalPreperationModel
 from app.models.user import User
@@ -159,4 +159,30 @@ async def handle_delete_pipeline_opportunity_technical_preperation(
         raise e
     except Exception as e:
         logging.exception("Some error occurred while deleting Pipeline Opportunity Technical Preperation")
+        raise e
+
+async def handle_update_pipeline_opportunity_technical_preperation_comments(
+    db: AsyncSession,
+    current_user: User,
+    pipeline_opportunity_technical_preperation_comments: list[str],
+    pipeline_opportunity_technical_preperation_id: UUID,
+) -> UpdatePipelineOpportunityTechnicalPreperationResponse:
+    try:
+        update_data = {"comments" : pipeline_opportunity_technical_preperation_comments, "updatedBy" : current_user.user_id}
+        updated_pipeline_opportunity_technical_preperation = await update_pipeline_opportunity_technical_preperation(
+            db, update_data, pipeline_opportunity_technical_preperation_id
+        )
+        if updated_pipeline_opportunity_technical_preperation is None:
+            raise NotFoundException()
+
+        return UpdatePipelineOpportunityTechnicalPreperationResponse(
+            updatedPipelineOpportunityTechnicalPreperation=PipelineOpportunityTechnicalPreperationDTO.model_validate(updated_pipeline_opportunity_technical_preperation),
+            message="Pipeline Opportunity Technical Preperation updated successfully",
+            status_code=200,
+        )
+    except NotFoundException as e:
+        logging.exception("Could not find Pipeline Opportunity Technical Preperation")
+        raise e
+    except Exception as e:
+        logging.exception("Some error occurred while updating Pipeline Opportunity Technical Preperation")
         raise e

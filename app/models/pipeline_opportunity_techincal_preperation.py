@@ -22,6 +22,8 @@ class PipelineOpportunityTechnicalPreperationModel(Base):
     variant_title : Mapped[str] = mapped_column(String(255),nullable=False)
     technical_briefing_note : Mapped[str] = mapped_column(String(1000),nullable=False)
     interview_preparation_guide : Mapped[list[dict]] = mapped_column(JSON,nullable=False)
+
+    comments : Mapped[list[str]] = mapped_column(JSON,nullable=True)
     
     createdAt: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
