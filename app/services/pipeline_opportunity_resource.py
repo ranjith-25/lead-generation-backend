@@ -475,7 +475,7 @@ async def handle_assign_pipeline_opportunity_resource_to_tl(
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
 
-        if not hasPermissions( db = db, role_id= pipeline_opportunity_resource.user_details.reportingUser.role_id,feature_key="pipeline_opportunity_resource",action_key="approve") and  not hasPermissions( db = db, role_id= pipeline_opportunity_resource.user_details.reportingUser.role_id,feature_key="pipeline_opportunity_resource",action_key="reject"):
+        if not hasPermissions( db = db, role_id= pipeline_opportunity_resource.user_details.reportingUser.role_id,feature_key="pipeline_opportunity_resource",permission_name="approve") and  not hasPermissions( db = db, role_id= pipeline_opportunity_resource.user_details.reportingUser.role_id,feature_key="pipeline_opportunity_resource",permission_name="reject"):
             raise AppException(
                 message="This reporting user doesn't have permission to approve or reject this resource.",
                 status_code=400,
