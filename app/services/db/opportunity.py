@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 import logging
 from app.config import TIME_RANGE_DELAYS
 from app.services.db.filters import apply_sort
+from app.models.pipeline_opportunity_resource import PipelineOpportunityResourceModel
 
 # Field names the API accepts for `sort_by`, mapped to the column each one sorts on.
 OPPORTUNITY_SORTABLE = {
@@ -56,29 +57,82 @@ async def addOpportunity(opportunity : Opportunity,db: AsyncSession) -> Opportun
         logging.exception("Could not find Pipeline Opportunity Technical Preperations")
         raise e
 
-async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityFilterRequest | None = None) -> tuple[list[Opportunity], int]:
-    
+from sqlalchemy import select, func, and_, or_, exists
+
+
+async def get_all_opportunities(
+    db: AsyncSession,
+    user_id,
+    filters: OpportunityFilterRequest | None = None,
+) -> tuple[list[Opportunity], int]:
+
     target_user_ids = [user_id]
+
     if filters and filters.view == "Team view":
         hierarchy_res = await handleGetHierarchyByUser(db, user_id)
+
         if hierarchy_res.hierarchy:
-            target_user_ids = extract_hierarchy_user_ids(hierarchy_res.hierarchy)
-            
-    query = select(Opportunity).where(Opportunity.createdBy.in_(target_user_ids))
-    
-    if filters.time_filter:
-        query = query.where(
+            target_user_ids = extract_hierarchy_user_ids(
+                hierarchy_res.hierarchy
+            )
+
+    # ---------------------------------------------------------
+    # Resource visibility
+    # ---------------------------------------------------------
+    resource_access = exists(
+        select(1)
+        .select_from(PipelineOpportunityResourceModel)
+        .where(
             and_(
-                Opportunity.createdAt >= TIME_RANGE_DELAYS[filters.time_filter]["start"](),
-                Opportunity.createdAt <= TIME_RANGE_DELAYS[filters.time_filter]["end"]()
+                PipelineOpportunityResourceModel.opportunity_id
+                == Opportunity.opportunityID,
+
+                or_(
+                    PipelineOpportunityResourceModel.user_id.in_(target_user_ids),
+                    PipelineOpportunityResourceModel.approved_by.in_(target_user_ids),
+                    PipelineOpportunityResourceModel.assigned_to_tl_by.in_(target_user_ids),
+                    PipelineOpportunityResourceModel.rejected_by.in_(target_user_ids),
+                ),
             )
         )
-    
+    )
+
+    # ---------------------------------------------------------
+    # Opportunity visibility
+    # ---------------------------------------------------------
+    query = select(Opportunity).where(
+        or_(
+            Opportunity.createdBy.in_(target_user_ids),
+            resource_access,
+        )
+    )
+
+    # ---------------------------------------------------------
+    # Time filter
+    # ---------------------------------------------------------
+    if filters and filters.time_filter:
+        query = query.where(
+            and_(
+                Opportunity.createdAt
+                >= TIME_RANGE_DELAYS[filters.time_filter]["start"](),
+                Opportunity.createdAt
+                <= TIME_RANGE_DELAYS[filters.time_filter]["end"](),
+            )
+        )
+
+    # ---------------------------------------------------------
+    # Search
+    # ---------------------------------------------------------
     if filters:
         if filters.search:
             search_term = f"%{filters.search.strip()}%"
+
             query = query.outerjoin(Opportunity.assigned_user)
-            query = query.outerjoin(UserPersonalInfo, User.user_id == UserPersonalInfo.user_id)
+            query = query.outerjoin(
+                UserPersonalInfo,
+                User.user_id == UserPersonalInfo.user_id,
+            )
+
             query = query.where(
                 or_(
                     Opportunity.title.ilike(search_term),
@@ -86,41 +140,75 @@ async def get_all_opportunities(db: AsyncSession, user_id, filters: OpportunityF
                     Opportunity.location.ilike(search_term),
                     Opportunity.platform.ilike(search_term),
                     UserPersonalInfo.first_name.ilike(search_term),
-                    UserPersonalInfo.last_name.ilike(search_term)
+                    UserPersonalInfo.last_name.ilike(search_term),
                 )
             )
 
         if filters.platform:
-            query = query.where(Opportunity.platform.in_(filters.platform))
-        if filters.company:
-            query = query.where(Opportunity.company.in_(filters.company))
-        if filters.role:
-            query = query.where(Opportunity.role.in_(filters.role))
-        if filters.location:
-            query = query.where(Opportunity.location.in_(filters.location))
-        if filters.status:
-            query = query.join(Opportunity.status).where(OpportunityStatus.status.in_(filters.status))
-        if filters.team:
-            query = query.where(Opportunity.assigned_to.in_(filters.team))
+            query = query.where(
+                Opportunity.platform.in_(filters.platform)
+            )
 
-    # Calculate total count before pagination
-    count_query = select(func.count()).select_from(query.subquery())
+        if filters.company:
+            query = query.where(
+                Opportunity.company.in_(filters.company)
+            )
+
+        if filters.role:
+            query = query.where(
+                Opportunity.role.in_(filters.role)
+            )
+
+        if filters.location:
+            query = query.where(
+                Opportunity.location.in_(filters.location)
+            )
+
+        if filters.status:
+            query = query.join(Opportunity.status).where(
+                OpportunityStatus.status.in_(filters.status)
+            )
+
+        if filters.team:
+            query = query.where(
+                Opportunity.assigned_to.in_(filters.team)
+            )
+
+    # ---------------------------------------------------------
+    # Count
+    # ---------------------------------------------------------
+    count_query = select(func.count()).select_from(
+        query.subquery()
+    )
+
     total_result = await db.execute(count_query)
     total_count = total_result.scalar() or 0
 
+    # ---------------------------------------------------------
+    # Sorting
+    # ---------------------------------------------------------
     query = apply_sort(
         query,
         OPPORTUNITY_SORTABLE,
         filters.sort_by if filters else None,
         filters.order_by if filters else None,
+        default_column=Opportunity.updatedAt,
+    )
+
+    # ---------------------------------------------------------
+    # Pagination
+    # ---------------------------------------------------------
         default_column=Opportunity.createdAt,
     )
 
     # Apply pagination
     if filters:
-        query = query.offset((filters.page - 1) * filters.size).limit(filters.size)
+        query = query.offset(
+            (filters.page - 1) * filters.size
+        ).limit(filters.size)
 
     result = await db.execute(query)
+
     return list(result.scalars().all()), total_count
 
 async def get_opportunity_filter_values(db: AsyncSession, user_id) -> dict:
@@ -152,7 +240,7 @@ async def get_opportunity_filter_values(db: AsyncSession, user_id) -> dict:
 
 
 async def get_opportunity_by_id(db: AsyncSession, opportunity_id, user_id) -> Opportunity | None:
-    result = await db.execute(select(Opportunity).where(Opportunity.opportunityID == opportunity_id, Opportunity.createdBy == user_id))
+    result = await db.execute(select(Opportunity).where(Opportunity.opportunityID == opportunity_id))
     return result.scalars().first()
 
 async def get_opportunity_by_url(db: AsyncSession, job_posting_url: str) -> Opportunity | None:
