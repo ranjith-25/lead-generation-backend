@@ -15,7 +15,7 @@ async def get_feature_names_by_role_id(
         select(Feature.display_name)
         .distinct()
         .join(RolePermission, Feature.feature_id == RolePermission.feature_id)
-        .where(RolePermission.role_id == role_id)
+        .where(RolePermission.role_id == role_id , RolePermission.isDeleted == False)
     )
 
     result = await db.execute(query)
@@ -32,7 +32,8 @@ async def hasPermissions(db: AsyncSession, role_id: UUID, feature_key: str, perm
             .where(
                 RolePermission.role_id == role_id,
                 Feature.feature_key == feature_key,
-                Permission.permission_key == permission_name
+                Permission.permission_key == permission_name,
+                RolePermission.isDeleted == False
             )
         )
 
