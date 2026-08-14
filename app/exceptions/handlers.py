@@ -3,6 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi import Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -61,7 +62,9 @@ def register_exception_handlers(app: FastAPI):
                 "Validation Error",
                 ErrorCode.VALIDATION_ERROR,
                 422,
-                exc.errors(),
+                # errors() can carry a raw exception object under "ctx", which
+                # json.dumps cannot serialise — that turned a 422 into a 500
+                jsonable_encoder(exc.errors()),
             ),
         )
 

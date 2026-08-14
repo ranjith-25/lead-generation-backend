@@ -56,11 +56,17 @@ async def create_profile_variant(
 @router.put("/{id}")
 async def update_profile_variant(
     id: UUID,
-    profile_variant: ProfileVariantUpdate,
+    profile_variant: ProfileVariantUpdate = Depends(ProfileVariantUpdate.as_form),
+    upload_profile: UploadFile | str | None = File(None),
     current_user: User = Depends(require_permission("profile_variants", "update")),
     db: AsyncSession = Depends(get_db),
 ) -> UpdateProfileVariantResponse:
-    return await handle_update_profile_variant(db, current_user, profile_variant, id)
+    # the PDF is optional here, but a client that leaves the file picker empty still
+    # submits the part — as an empty string, which is not an UploadFile
+    new_upload_profile = None if isinstance(upload_profile, str) else upload_profile
+    return await handle_update_profile_variant(
+        db, current_user, profile_variant, id, new_upload_profile
+    )
 
 
 @router.delete("/{id}")
