@@ -22,7 +22,8 @@ from app.services.pipeline_opportunity_techincal_preperation import (
     handle_get_all_pipeline_opportunity_technical_preperations,
     handle_get_pipeline_opportunity_technical_preperation_by_id,
     handle_update_pipeline_opportunity_technical_preperation,
-    handle_get_pipeline_opportunity_technical_preperation_by_opportunity_id
+    handle_get_pipeline_opportunity_technical_preperation_by_opportunity_id,
+    handle_update_pipeline_opportunity_technical_preperation_comments
 )
 
 pipeline_opportunity_technical_preperation_router = APIRouter(prefix="/pipeline-opportunity-technical-preperation", tags=["Pipeline Opportunity Technical Preparation"])
@@ -102,6 +103,19 @@ async def delete_pipeline_opportunity_technical_preperation(
     db: AsyncSession = Depends(get_db),
 ):
     response: DeletePipelineOpportunityTechnicalPreperationResponse = await handle_delete_pipeline_opportunity_technical_preperation(db, current_user, id)
+    return JSONResponse(
+        content=response.model_dump(mode="json", exclude_none=True),
+        status_code=200,
+    )
+
+@pipeline_opportunity_technical_preperation_router.patch("/{id}/comments")
+async def update_technical_preperation_comments(
+    id: UUID,
+    pipeline_opportunity_technical_preperation_comments: list[str],
+    current_user: User = Depends(require_permission("pipeline_opportunity_technical_preperation", "update")),
+    db: AsyncSession = Depends(get_db),
+):
+    response: UpdatePipelineOpportunityTechnicalPreperationResponse = await handle_update_pipeline_opportunity_technical_preperation_comments(db, current_user, pipeline_opportunity_technical_preperation_comments, id)
     return JSONResponse(
         content=response.model_dump(mode="json", exclude_none=True),
         status_code=200,

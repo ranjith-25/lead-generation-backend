@@ -10,6 +10,7 @@ class PipelineOpportunityTechnicalPreperationBase(BaseModel):
     variant_title: Optional[str] = Field(None,  max_length=255)
     technical_briefing_note: Optional[str] = Field(None, max_length=1000)
     interview_preparation_guide: Optional[list[dict]] = Field(None)
+    comments : Optional[list[str]]  = Field(None)
     is_active: bool = Field(True)
 
 
@@ -26,7 +27,7 @@ class PipelineOpportunityTechnicalPreperationCreate(PipelineOpportunityTechnical
     pass
 
 
-class PipelineOpportunityTechnicalPreperationUpdate(PipelineOpportunityTechnicalPreperationBase):
+class PipelineOpportunityTechnicalPreperationUpdate(BaseModel):
     opportunity_id: Optional[UUID] = Field(None)
     user_id: Optional[UUID] = Field(None)
     candidate_name: Optional[str] = Field(None, min_length=1, max_length=255)
