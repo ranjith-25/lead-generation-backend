@@ -123,7 +123,7 @@ async def delete_pipeline_opportunity_resource(
 @pipeline_opportunity_resource_router.patch("/select")
 async def select_pipeline_opportunity_resource(
     request: PipelineOpportunityResourceSelectRequest,
-    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "update")),
+    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "select_resource")),
     db: AsyncSession = Depends(get_db),
 ):
     response: UpdatePipelineOpportunityResourceResponse = await handle_select_pipeline_opportunity_resource(
