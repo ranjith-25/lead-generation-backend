@@ -198,6 +198,10 @@ async def get_all_opportunities(
     # ---------------------------------------------------------
     # Pagination
     # ---------------------------------------------------------
+        default_column=Opportunity.createdAt,
+    )
+
+    # Apply pagination
     if filters:
         query = query.offset(
             (filters.page - 1) * filters.size
