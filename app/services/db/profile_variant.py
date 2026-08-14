@@ -67,11 +67,17 @@ async def update_profile_variant(db: AsyncSession, update_data: dict, projects_d
             if key not in ("profile_variant_id", "projects"):
                 setattr(db_profile_variant, key, value) # db_profile_variant.key = value
 
-        # Update M2M Projects relation if provided
+        # Sync M2M Projects relation: full replace of every mapping, never a diff
         if projects_data is not None:
             # Clear old mappings (orphan removal deletes them from DB)
             db_profile_variant.projects = []
-            
+
+            # Emit those DELETEs before the new rows are added. Without this flush a
+            # re-sent project id matches the (profile_variant_id, project_id) primary key
+            # of the row being removed, so SQLAlchemy collapses the pair into an UPDATE
+            # and the mapping keeps its original created_at instead of being reinserted.
+            await db.flush()
+
             if projects_data:
                 for proj in projects_data:
                     pv_project = ProfileVariantProject(

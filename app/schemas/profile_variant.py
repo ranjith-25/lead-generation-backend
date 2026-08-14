@@ -154,16 +154,10 @@ class ProfileVariantCreate(ProfileVariantBase):
         )
 
 
-class ProfileVariantUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    role: Optional[uuid.UUID] = Field(None, description="Job Role ID")
-    experience: Optional[str] = Field(None, min_length=1, max_length=255)
-    highlighted_skills: Optional[List[str]] = Field(None, description="List of highlighted skills")
-    upload_profile: Optional[str] = Field(None, max_length=255)
-    certificate: Optional[List[str]] = Field(None, description="List of certificates")
-    is_draft: Optional[bool] = Field(None)
-    user_id: Optional[uuid.UUID] = Field(None, description="Associated User ID")
-    projects: Optional[List[ProfileVariantProjectUpdate]] = Field(None)
+# PUT replaces the whole record, so it takes the same complete payload as POST:
+# every required field must be sent, and optional fields left out are cleared
+class ProfileVariantUpdate(ProfileVariantCreate):
+    pass
 
 
 class DownloadProfileRequest(BaseModel):

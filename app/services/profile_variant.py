@@ -22,7 +22,12 @@ from app.responses.profile_variant import (
     ProjectsDomainsResponse, ProjectDomainRelationItem, ProjectItem, ProjectDomainItem,
 )
 from app.schemas.job_role import JobRoleFilters
-from app.schemas.profile_variant import ProfileVariantCreate, ProfileVariantDTO, ProfileVariantUpdate
+from app.schemas.profile_variant import (
+    ProfileVariantCreate,
+    ProfileVariantDTO,
+    ProfileVariantProjectCreate,
+    ProfileVariantUpdate,
+)
 from app.schemas.project import ProjectFilters
 from app.schemas.techstack import TechstackFilters
 from app.services.db.job_role import get_all_job_roles
@@ -275,27 +280,125 @@ async def handle_create_profile_variant(
         raise e
 
 
+_PDF_BACKUP_SUFFIX = ".bak"
+
+
+def _restore_profile_variant_pdf(project_root: Path, stored_path: str | None, backup_path: Path | None) -> None:
+    """Undo a PDF replacement: drop the newly written file and put the previous one back."""
+
+    if stored_path:
+        (project_root / stored_path).unlink(missing_ok=True)
+    if backup_path and backup_path.is_file():
+        backup_path.replace(backup_path.with_name(backup_path.name[: -len(_PDF_BACKUP_SUFFIX)]))
+
+
 async def handle_update_profile_variant(
-    db: AsyncSession, current_user: User, profile_variant_update: ProfileVariantUpdate, profile_variant_id: UUID
+    db: AsyncSession,
+    current_user: User,
+    profile_variant_update: ProfileVariantUpdate,
+    profile_variant_id: UUID,
+    upload_profile: UploadFile | None = None,
 ) -> UpdateProfileVariantResponse:
+    # Validate PDF extension before touching the database or disk
+    if has_upload(upload_profile):
+        filename = upload_profile.filename or ""
+        extension = Path(filename).suffix.lower()
+        if extension != ".pdf":
+            raise RequestValidationError(
+                [
+                    {
+                        "type": "value_error",
+                        "loc": ("body", "upload_profile"),
+                        "msg": "Only PDF files are allowed",
+                        "input": filename,
+                    }
+                ]
+            )
+
+    project_root = Path(__file__).resolve().parents[2]
+    previous_data = None
+    previous_projects = None
+    backup_path = None
+    stored_path = None
     try:
-        update_data = profile_variant_update.model_dump(exclude={"projects"}, exclude_unset=True, exclude_none=True)
+        existing_profile_variant = await get_profile_variant_by_id(db, profile_variant_id)
+        if existing_profile_variant is None:
+            raise NotFoundException()
+
+        # Snapshot the current row now — update_profile_variant commits, so a failed
+        # ingestion can only be undone by writing the old values back
+        previous_upload_profile = existing_profile_variant.upload_profile
+        previous_data = {
+            "name": existing_profile_variant.name,
+            "role": existing_profile_variant.role,
+            "experience": existing_profile_variant.experience,
+            "highlighted_skills": existing_profile_variant.highlighted_skills,
+            "upload_profile": previous_upload_profile,
+            "certificate": existing_profile_variant.certificate,
+            "is_draft": existing_profile_variant.is_draft,
+            "user_id": existing_profile_variant.user_id,
+            "updated_by": existing_profile_variant.updated_by,
+        }
+        previous_projects = [
+            ProfileVariantProjectCreate(
+                project_id=proj.project_id,
+                project_name=proj.project_name,
+                projectDomainID=proj.projectDomainID,
+                techstacks=proj.techstacks,
+                description=proj.description,
+                links=proj.links,
+            )
+            for proj in existing_profile_variant.projects
+        ]
+
+        # Full replacement: every settable column comes from the request, so optional
+        # fields the client left out are cleared instead of carried over
+        update_data = profile_variant_update.model_dump(exclude={"projects", "upload_profile"})
         update_data["updated_by"] = current_user.user_id
-        
+
+        # 1. Replace the PDF on disk, keeping the old one aside until ingestion succeeds
+        if has_upload(upload_profile):
+            old_file = project_root / previous_upload_profile if previous_upload_profile else None
+            if old_file and old_file.is_file():
+                backup_path = old_file.with_name(old_file.name + _PDF_BACKUP_SUFFIX)
+                old_file.replace(backup_path)
+
+            stored_path = await save_profile_variant(
+                upload_profile,
+                profile_variant_update.user_id,
+                profile_variant_id,
+            )
+            update_data["upload_profile"] = stored_path
+
+        # 2. Update database record
         updated_profile_variant = await update_profile_variant(
             db, update_data, profile_variant_update.projects, profile_variant_id
         )
         if updated_profile_variant is None:
             raise NotFoundException()
 
+        # 3. Ingest profile variant to AI
+        await ingest_profile_variant_to_ai(db, updated_profile_variant)
+
+        # 4. Ingestion succeeded — the replaced PDF is no longer needed
+        if backup_path:
+            backup_path.unlink(missing_ok=True)
+
         return UpdateProfileVariantResponse(
             updatedProfileVariant=ProfileVariantDTO.model_validate(updated_profile_variant),
             message="Profile Variant updated successfully",
         )
     except NotFoundException as e:
+        _restore_profile_variant_pdf(project_root, stored_path, backup_path)
         logging.exception("Could not find Profile Variant")
         raise e
     except Exception as e:
+        _restore_profile_variant_pdf(project_root, stored_path, backup_path)
+        if previous_data is not None:
+            try:
+                await update_profile_variant(db, previous_data, previous_projects, profile_variant_id)
+            except Exception:
+                pass
         logging.exception("Some error occurred while updating Profile Variant")
         raise e
 
