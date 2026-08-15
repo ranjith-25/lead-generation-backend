@@ -77,6 +77,19 @@ async def get_user_ids_by_role_names(db: AsyncSession, role_names: list[str]) ->
         logging.exception("Could not fetch user ids by role names")
         raise e
 
+async def get_users_by_ids(db: AsyncSession, user_ids: list[UUID]) -> list[User]:
+    """Several users in one round trip, for callers resolving a batch of ids to names."""
+    if not user_ids:
+        return []
+
+    try:
+        result = await db.execute(select(User).where(User.user_id.in_(user_ids)))
+        return list(result.scalars().all())
+    except SQLAlchemyError as e:
+        logging.exception("Could not fetch users by ids")
+        raise e
+
+
 async def get_users_by_role_id(db: AsyncSession, role_id: UUID) -> list[User]:
     """Users currently holding one role.
 
