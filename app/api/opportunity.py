@@ -5,26 +5,30 @@ from fastapi import status
 from uuid import UUID
 
 from app.api.deps import get_current_user
-from app.config import SortOrder, TimeRange
+from app.config import PageName, SortOrder, TimeRange
 from app.core.connections.postgres import get_db
 from app.core.security import require_permission
 from app.models.user import User
 from app.schemas.opportunity import (
     OpportunityRead, 
     OpportunityListRead, 
-    OpportunityCreate, 
-    OpportunityFilterRequest, 
+    OpportunityCreate,
+    OpportunityPatch,
+    OpportunityFilterRequest,
     OpportunityFilterValuesResponse, 
     OpportunityPaginatedResponse,
     OpportunityStatusRead,
     OpportunityStatusUpdate
 )
+from app.schemas.opportunity_edit_history import OpportunityEditHistoryPaginatedResponse
 from app.responses.base import BaseResponse
+from app.services.opportunity_edit_history import get_opportunity_edit_history_service
 from app.services.opportunity import (
     get_opportunity_service, 
     create_opportunity_service, 
-    update_opportunity_service, 
-    delete_opportunity_service, 
+    update_opportunity_service,
+    patch_opportunity_service,
+    delete_opportunity_service,
     get_all_opportunities_service, 
     get_opportunity_filter_values_service,
     get_opportunity_statuses_service,
@@ -94,6 +98,18 @@ async def update_opportunity_status(
     return await update_opportunity_status_service(db, opportunityID, status_data.status_id, current_user.user_id)
 
 
+@router.get("/{opportunityID}/edit-history", response_model=OpportunityEditHistoryPaginatedResponse)
+async def get_opportunity_edit_history(
+    opportunityID: UUID,
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
+    page_name: PageName | None = Query(None, description="Filter to one screen; defaults to all"),
+    current_user: User = Depends(require_permission("overview_and_analysis","read")),
+    db: AsyncSession = Depends(get_db)
+) -> OpportunityEditHistoryPaginatedResponse:
+    return await get_opportunity_edit_history_service(db, opportunityID, current_user.user_id, page_name, page, size)
+
+
 @router.get("/{opportunityID}", response_model=OpportunityRead)
 async def get_opportunity(
     opportunityID: UUID,
@@ -111,6 +127,16 @@ async def update_opportunity(
     db: AsyncSession = Depends(get_db)
 ) -> OpportunityRead:
     return await update_opportunity_service(db, opportunityID, opp_data, current_user.user_id)
+
+
+@router.patch("/{opportunityID}", response_model=OpportunityRead)
+async def patch_opportunity(
+    opportunityID: UUID,
+    opp_data: OpportunityPatch,
+    current_user: User = Depends(require_permission("overview_and_analysis","update")),
+    db: AsyncSession = Depends(get_db)
+) -> OpportunityRead:
+    return await patch_opportunity_service(db, opportunityID, opp_data, current_user.user_id)
 
 
 @router.delete("/{opportunityID}", response_model=BaseResponse)

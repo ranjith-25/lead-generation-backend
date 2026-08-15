@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import NotificationType, SortOrder, TimeRange
-from app.core.security import create_stream_token, decode_stream_token, require_permission
+from app.config import SortOrder, TimeRange
+from app.core.security import create_stream_token, decode_stream_token
 from app.core.settings import settings
 from app.core.connections.postgres import AsyncSessionLocal, get_db
 from app.api.deps import get_current_user, oauth2_scheme

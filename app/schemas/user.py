@@ -45,7 +45,7 @@ class UserHierarchy(BaseModel):
     user_id: UUID
     fullName: str
     working_status : str | None = None
-    roleName : str 
+    roleName : str | None = None
     children: list["UserHierarchy"] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
@@ -59,3 +59,23 @@ class UserRegistrationFromInvitation(BaseModel):
     
 class UserReportingRead(UserRead):
     reporting_to: UUID
+
+
+class UserRoleChangeUser(BaseModel):
+    user_id: UUID
+    email: str
+    fullName: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserRoleChangeResult(BaseModel):
+    """Outcome of a bulk role move — `users` lists who was on the source role before it ran."""
+
+    current_role: str
+    current_role_id: UUID
+    destination_role: str
+    destination_role_id: UUID
+    changed_count: int
+    dry_run: bool = False
+    users: list[UserRoleChangeUser] = Field(default_factory=list)

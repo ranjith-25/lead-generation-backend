@@ -59,6 +59,41 @@ class OpportunityCreate(BaseModel):
 class OpportunityStatusUpdate(BaseModel):
     status_id: UUID
 
+
+class OpportunityPatch(BaseModel):
+    """Partial update. Only keys present in the request body are written —
+    an omitted field is left untouched, an explicit ``null`` clears the column."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = None
+    description: str | None = None
+    company: str | None = None
+    location: str | None = None
+    employment_type: str | None = None
+    industry: str | None = None
+    role: str | None = None
+    experience: str | None = None
+    duration: str | None = None
+    level: str | None = None
+    salary: str | None = None
+    posted_date: str | None = None
+    required_skills: list[str] | None = None
+    preferred_skills: list[str] | None = None
+    benefits: list[str] | None = None
+    client_information: dict | None = None
+    apply_url: str | None = None
+    ai_job_summary: str | None = None
+    required_proposal_questions: list[str] | None = None
+    company_profile: CompanyProfileBase | None = None
+    company_website: str | None = None
+    additional_notes: str | None = None
+    platform: str | None = None
+    status_id: UUID | None = None
+    assigned_to: UUID | None = None
+    additional_fields: dict | None = None
+
+
 class GetOpportunityContent(BaseModel):
     url : str = Field(...,description="URL that must be scraped")
 

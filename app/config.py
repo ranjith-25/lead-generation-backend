@@ -384,6 +384,13 @@ NOTIFICATION_EVENTS: dict[NotificationEvent, list[tuple[Audience, NotificationTy
 }
 
 
+class PageName(str, Enum):
+
+    OPPORTUNITY_ANALYSIS = "OPPORTUNITY_ANALYSIS"
+
+class RolesMap(str, Enum):
+    USER = "User"
+
 class SortOrder(str, Enum):
     ASC = "asc"
     DESC = "desc"

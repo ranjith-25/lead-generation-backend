@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from app.models.user import User
@@ -76,6 +76,38 @@ async def get_user_ids_by_role_names(db: AsyncSession, role_names: list[str]) ->
     except SQLAlchemyError as e:
         logging.exception("Could not fetch user ids by role names")
         raise e
+
+async def get_users_by_role_id(db: AsyncSession, role_id: UUID) -> list[User]:
+    """Users currently holding one role.
+
+    Distinct from `get_all_user_by_role`, which takes a list and substitutes two hardcoded
+    role_ids when handed an empty one — that fallback makes it unsafe for a caller that
+    means "exactly this role".
+    """
+    try:
+        result = await db.execute(select(User).where(User.role_id == role_id))
+        return list(result.scalars().all())
+    except SQLAlchemyError as e:
+        logging.exception(f"Could not fetch users for role_id: {role_id}")
+        raise e
+
+
+async def bulk_update_users_role(db: AsyncSession, from_role_id: UUID, to_role_id: UUID) -> int:
+    """Move every user on `from_role_id` to `to_role_id`. Returns the number of rows changed."""
+    try:
+        result = await db.execute(
+            update(User)
+            .where(User.role_id == from_role_id)
+            .values(role_id=to_role_id)
+            .execution_options(synchronize_session=False)
+        )
+        await db.commit()
+        return result.rowcount or 0
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception(f"Could not move users from role {from_role_id} to {to_role_id}")
+        raise e
+
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
     try : 

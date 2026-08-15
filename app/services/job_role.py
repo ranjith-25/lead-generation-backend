@@ -23,6 +23,7 @@ from app.services.db.user import (
     getAllUsers
 )
 from app.schemas.job_role import JobRoleFilters
+from app.services.db.opportunity import get_roles_count
 
 async def handle_get_all_job_roles(db: AsyncSession, page: int = 0, limit : int | None = None) -> GetJobRoleResponse: 
     try:
@@ -50,6 +51,20 @@ async def handle_get_all_job_roles(db: AsyncSession, page: int = 0, limit : int 
         logging.exception("Some error occurred while getting Job Roles list")
         raise e
 
+async def get_top_job_roles_service(db: AsyncSession, count: int):
+    try:
+        opportunities = await get_roles_count(db, count)
+        result = []
+        for opportunity in opportunities:
+            result.append({
+                "role" : opportunity.role,
+                "count": opportunity.role_count
+            })
+        return result
+    except Exception as e:
+        logging.exception("Some error occurred while getting Job Roles list")
+        raise e
+    
 
 async def handle_get_job_role_by_id(db: AsyncSession, current_user: User, job_role_id: UUID) -> GetJobRoleResponse:
     try:

@@ -1,8 +1,10 @@
 from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.opportunity import OpportunityRead, OpportunityListRead, OpportunityCreate, OpportunityFilterRequest, OpportunityFilterValuesResponse, OpportunityPaginatedResponse, OpportunityStatusRead
-from app.services.db.opportunity import Opportunity, get_opportunity_by_id, get_all_opportunities, addOpportunity, update_opportunity_db, delete_opportunity_db, get_opportunity_filter_values
+from app.schemas.opportunity import OpportunityRead, OpportunityListRead, OpportunityCreate, OpportunityPatch, OpportunityFilterRequest, OpportunityFilterValuesResponse, OpportunityPaginatedResponse, OpportunityStatusRead
+from app.services.db.opportunity import Opportunity, get_opportunity_by_id, get_all_opportunities, addOpportunity, update_opportunity_db, delete_opportunity_db, get_opportunity_filter_values, get_all_opportunity_statuses_db
+from app.services.db.user import get_user_by_id
+from app.services.opportunity_edit_history import record_opportunity_edit
 from app.responses.base import BaseResponse
 from app.responses.opportunity import CreateOpportunityResponse
 from app.schemas.ai import AIManualJDRequest
@@ -82,6 +84,9 @@ async def update_opportunity_service(db: AsyncSession, opportunityID: UUID | str
         
     update_dict = opp_data.model_dump()
     update_dict['updatedBy'] = user_id
+    # Staged before the update lands so the diff still sees the old values; the commit
+    # inside update_opportunity_db covers both rows.
+    await record_opportunity_edit(db, opportunity, update_dict, user_id)
     updated_opp = await update_opportunity_db(db, opportunity, update_dict)
     return OpportunityRead.model_validate(updated_opp)
 
@@ -123,5 +128,41 @@ async def update_opportunity_status_service(db: AsyncSession, opportunityID: UUI
         raise HTTPException(status_code=400, detail="Invalid status_id")
 
     update_dict = {"status_id": status_id, "updatedBy": user_id}
+    await record_opportunity_edit(db, opportunity, update_dict, user_id)
+    updated_opp = await update_opportunity_db(db, opportunity, update_dict)
+    return OpportunityRead.model_validate(updated_opp)
+
+PATCH_NON_NULLABLE_FIELDS = ("title", "status_id")
+
+async def patch_opportunity_service(db: AsyncSession, opportunityID: UUID | str, opp_data: OpportunityPatch, user_id: UUID) -> OpportunityRead:
+
+    try:
+        opp_id = UUID(str(opportunityID))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid Opportunity ID format")
+
+    opportunity = await get_opportunity_by_id(db, opp_id, user_id)
+    if not opportunity:
+        raise HTTPException(status_code=404, detail="Opportunity not found or unauthorized")
+
+    update_dict = opp_data.model_dump(exclude_unset=True)
+    if not update_dict:
+        return OpportunityRead.model_validate(opportunity)
+
+    for field in PATCH_NON_NULLABLE_FIELDS:
+        if field in update_dict and update_dict[field] is None:
+            raise HTTPException(status_code=400, detail=f"'{field}' cannot be set to null")
+
+    if update_dict.get("status_id") is not None:
+        statuses = await get_all_opportunity_statuses_db(db)
+        if update_dict["status_id"] not in [s.id for s in statuses]:
+            raise HTTPException(status_code=400, detail="Invalid status_id")
+
+    if update_dict.get("assigned_to") is not None:
+        if not await get_user_by_id(db, update_dict["assigned_to"]):
+            raise HTTPException(status_code=400, detail="Invalid assigned_to user")
+
+    update_dict['updatedBy'] = user_id
+    await record_opportunity_edit(db, opportunity, update_dict, user_id)
     updated_opp = await update_opportunity_db(db, opportunity, update_dict)
     return OpportunityRead.model_validate(updated_opp)

@@ -14,6 +14,7 @@ from app.responses.job_role import (
 from app.schemas.job_role import JobRoleCreate, JobRoleUpdate
 from app.services.job_role import (
     handle_create_job_role,
+    get_top_job_roles_service,
     handle_delete_job_role,
     handle_get_all_job_roles,
     handle_get_job_role_by_id,
@@ -31,6 +32,12 @@ async def get_all_job_roles(
 ) -> GetJobRoleResponse:
     return await handle_get_all_job_roles(db, page, limit)
 
+@router.get("/top-roles")
+async def get_top_job_roles(
+    count : int | None = 5,
+    db: AsyncSession = Depends(get_db),
+):
+    return await get_top_job_roles_service(db, count)
 
 @router.get("/{id}")
 async def get_job_role_by_id(

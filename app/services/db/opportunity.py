@@ -268,3 +268,19 @@ async def update_opportunity_db(db: AsyncSession, opportunity: Opportunity, upda
 async def delete_opportunity_db(db: AsyncSession, opportunity: Opportunity) -> None:
     await db.delete(opportunity)
     await db.commit()
+
+async def get_roles_count(db: AsyncSession, limit: int):
+    query = (
+    select(
+        Opportunity.role,
+        func.count(Opportunity.opportunityID).label("role_count"),
+    )
+    .where(Opportunity.role.is_not(None))
+    .group_by(Opportunity.role)
+    .order_by(func.count(Opportunity.opportunityID).desc())
+    ).limit(limit)
+
+    result = await db.execute(query)
+    roles = result.all()
+    
+    return roles

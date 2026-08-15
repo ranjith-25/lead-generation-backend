@@ -15,7 +15,7 @@ async def handleGetHierarchy(db) -> HierarchyListResponse:
             nodes[user.user_id] = UserHierarchy(
                 user_id=user.user_id,
                 fullName=user.fullName,
-                roleName=user.role.roleName,
+                roleName=user.role.roleName if user.role else None,
                 working_status=user.personal_info.userStatus.displayName if getattr(user, 'personal_info', None) and getattr(user.personal_info, 'userStatus', None) else None,
                 children=[]
             )
@@ -52,7 +52,7 @@ async def handleGetHierarchyByUser(db, current_user_id: UUID) -> HierarchyRespon
             nodes[user.user_id] = UserHierarchy(
                 user_id=user.user_id,
                 fullName=user.fullName,
-                roleName=user.role.roleName,
+                roleName=user.role.roleName if user.role else None,
                 working_status=user.personal_info.userStatus.displayName if getattr(user, 'personal_info', None) and getattr(user.personal_info, 'userStatus', None) else None,
                 children=[]
             )

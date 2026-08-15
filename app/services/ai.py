@@ -53,6 +53,8 @@ from app.services.opportunity_status import get_new_opportunity_status_id
 
 from app.services.db.pipeline_opportunity_techincal_preperation import create_multiple_pipeline_opportunity_technical_preperation
 from app.models.pipeline_opportunity_techincal_preperation import PipelineOpportunityTechnicalPreperationModel
+from app.services.db.job_role import get_all_job_roles
+from app.schemas.job_role import JobRoleFilters
 
 logger = logging.getLogger(__name__)
 
@@ -443,8 +445,10 @@ async def handleGetScrapedData(
 
         client = get_ai_client()
         start_time = perf_counter()
+        
+        all_job_roles = [job_role.roleName for job_role in (await get_all_job_roles(db, JobRoleFilters()))]
 
-        response = await client.post("/api/v1/scrape", json={"url": url})
+        response = await client.post("/api/v1/scrape", json={"url": url, "job_roles": all_job_roles})
         response.raise_for_status()
 
         ai_response = GetScrapedURLDataResponse(**response.json())

@@ -27,6 +27,17 @@ async def get_role_by_id(db: AsyncSession, role_id: int) -> Role | None:
         raise e
 
 
+async def get_role_by_name(db: AsyncSession, role_name: str) -> Role | None:
+    """Companion to `get_role_by_id` — role_id values are generated per environment, so
+    scripts and config refer to roles by their stable name instead."""
+    try:
+        result = await db.execute(select(Role).where(Role.roleName == role_name))
+        return result.scalars().first()
+    except SQLAlchemyError as e:
+        logging.exception(f"Could not fetch Role for roleName: {role_name}")
+        raise e
+
+
 async def get_all_roles(db: AsyncSession) -> list[Role]:
     try:
         result = await db.execute(select(Role))

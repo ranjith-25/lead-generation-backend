@@ -6,6 +6,7 @@ from app.exceptions.custom import (
     LegacyRoleDeleteException,
     LegacyRoleUpdateException,
     NotFoundException,
+    RoleReassignmentException,
 )
 from app.models.role import Role
 from app.models.user import User
@@ -22,8 +23,10 @@ from app.services.db.role import (
     get_all_roles,
     get_role_by_id,
     update_role,
+    get_role_by_name
 )
-
+from app.services.user import change_users_role
+from app.config import RolesMap
 
 async def handle_get_role(
     db: AsyncSession, current_user: User, role_id: UUID
@@ -106,13 +109,36 @@ async def handle_update_role(
 
 
 async def handle_delete_role(
-    db: AsyncSession, current_user: User, role_id: UUID
+    db: AsyncSession,
+    current_user: User,
+    role_id: UUID | None = None
 ) -> DeleteRoleResponse:
     try:
         role = await get_role_by_id(db, role_id)
         if role is None:
             raise NotFoundException()
+        
+        destination_role = await get_role_by_name(db, RolesMap.USER)
+        if destination_role is None:
+            logging.error(f"Fallback role '{RolesMap.USER}' is missing — cannot reassign users")
+            raise RoleReassignmentException(
+                role_id=role_id,
+                destination_role=RolesMap.USER,
+            )
 
+        try:
+            await change_users_role(
+                db,
+                role_id,
+                destination_role.role_id
+            )
+        except Exception as e:
+            logging.exception(f"Could not move users off role {role_id}")
+            raise RoleReassignmentException(
+                role_id=role_id,
+                destination_role=destination_role.roleName,
+            ) from e
+        
         if role.is_legacy_role:
             raise LegacyRoleDeleteException()
 
@@ -129,6 +155,9 @@ async def handle_delete_role(
         raise e
     except LegacyRoleDeleteException as e:
         logging.exception(f"Cannot delete legacy Role for role_id: {role_id}")
+        raise e
+    except RoleReassignmentException as e:
+        logging.exception(f"Could not reassign users after deleting role_id: {role_id}")
         raise e
     except Exception as e:
         logging.exception("Some error occurred while deleting Role")

@@ -72,6 +72,38 @@ class LegacyRoleUpdateException(AppException):
         )
 
 
+class RoleNotFoundException(AppException):
+    def __init__(self, role=None):
+        super().__init__(
+            message="Role not found",
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code=ErrorCode.ROLE_NOT_FOUND,
+            details={"role": str(role)} if role else None,
+        )
+
+
+class RoleReassignmentException(AppException):
+    """Users on a role being deleted could not be moved onto the fallback role.
+
+    Raised instead of letting the underlying error escape, so the caller sees the step that
+    failed rather than a bare "Role not found" from deep inside the move.
+    """
+
+    def __init__(self, role_id=None, destination_role=None):
+        details = {}
+        if role_id:
+            details["role_id"] = str(role_id)
+        if destination_role:
+            details["destination_role"] = str(destination_role)
+
+        super().__init__(
+            message="Could not move the users of this role onto the fallback role",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code=ErrorCode.ROLE_REASSIGNMENT_FAILED,
+            details=details or None,
+        )
+
+
 class OpportunityAlreadyExistsException(AppException):
     def __init__(self, opportunity_id=None):
         super().__init__(
