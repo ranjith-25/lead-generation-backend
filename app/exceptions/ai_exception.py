@@ -9,9 +9,17 @@ from app.exceptions.error_codes import ErrorCode
 
 logger = logging.getLogger(__name__)
 
-# Error bodies are echoed back to the caller, and an AI service failing badly can answer
-# with a full HTML page or a stack trace. Cap what gets copied into the response.
 MAX_AI_ERROR_BODY_LENGTH = 2000
+
+PASSTHROUGH_AI_STATUS_CODES = frozenset(
+    {
+        400,  # bad request
+        409,  # conflict
+        413,  # payload too large
+        415,  # unsupported media type
+        422,  # unprocessable content
+    }
+)
 
 
 class AIException(AppException):
@@ -387,21 +395,32 @@ def get_ai_message(exc: Exception) -> Tuple[str, str, int]:
 
     if isinstance(exc, httpx.HTTPStatusError):
         response = getattr(exc, "response", None)
-        status_code = (
+        ai_status = (
             response.status_code if response is not None else status.HTTP_502_BAD_GATEWAY
         )
-
-        # A 4xx here means the AI is up and rejecting the request, so its own wording is
-        # more useful than anything generated locally — it is passed through verbatim and
-        # the status it chose is preserved.
         ai_message = extract_ai_error_message(read_ai_error_body(response))
+
+        if ai_status in PASSTHROUGH_AI_STATUS_CODES:
+            if ai_message:
+                return (ai_message, ErrorCode.AI_HTTP_STATUS_ERROR, ai_status)
+
+            return (
+                f"AI service rejected the request with status {ai_status} and gave no reason",
+                ErrorCode.AI_HTTP_STATUS_ERROR,
+                ai_status,
+            )
+
         if ai_message:
-            return (ai_message, ErrorCode.AI_HTTP_STATUS_ERROR, status_code)
+            return (
+                f"The AI service failed with status {ai_status}: {ai_message}",
+                ErrorCode.AI_UPSTREAM_FAILURE,
+                status.HTTP_502_BAD_GATEWAY,
+            )
 
         return (
-            f"AI service rejected the request with status {status_code} and gave no reason",
-            ErrorCode.AI_HTTP_STATUS_ERROR,
-            status_code,
+            f"The AI service failed with status {ai_status} and gave no reason",
+            ErrorCode.AI_UPSTREAM_FAILURE,
+            status.HTTP_502_BAD_GATEWAY,
         )
 
     if isinstance(exc, httpx.RequestError):
@@ -433,18 +452,17 @@ def handle_ai_exception(exc: Exception) -> AIException:
 
     if isinstance(exc, httpx.HTTPStatusError):
         response = getattr(exc, "response", None)
-        # Everything the AI said, kept intact alongside the status it chose. Every AI call
-        # site funnels through here, so this is the one place that has to preserve it —
-        # `str(exc)` carries only the status line and URL, never the body.
+        ai_status_code = response.status_code if response is not None else None
         details: Any = {
-            "ai_status_code": status_code,
+            "ai_status_code": ai_status_code,
             "ai_url": str(response.request.url) if response is not None and response.request else None,
             "ai_response": read_ai_error_body(response),
         }
         logger.error(
-            "AI service returned %s for %s: %s",
-            status_code,
+            "AI service returned %s for %s (surfaced as %s): %s",
+            ai_status_code,
             details["ai_url"],
+            status_code,
             details["ai_response"],
         )
     else:

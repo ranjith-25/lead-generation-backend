@@ -13,7 +13,13 @@ from app.exceptions.project import (
 
 ALLOWED_CASE_STUDY_EXTENSIONS = {".pdf", ".doc", ".docx"}
 
-CASE_STUDY_DIR = Path(settings.CASE_STUDY_DIR)
+# every upload lands under <project root>/uploads/, so a stored path means the same thing
+# no matter which directory the process happens to be started from
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+UPLOAD_ROOT = PROJECT_ROOT / "uploads"
+
+# an absolute CASE_STUDY_DIR is honoured as-is; a relative one hangs off the project root
+CASE_STUDY_DIR = (PROJECT_ROOT / settings.CASE_STUDY_DIR).resolve()
 
 _CHUNK_SIZE = 1024 * 1024
 _UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9._-]+")
@@ -28,6 +34,16 @@ def _stored_name(original_name: str) -> str:
     source = Path(original_name)
     stem = _UNSAFE_CHARS.sub("-", source.stem).strip("-.")[:60] or "case-study"
     return f"{stem}_{uuid.uuid4().hex[:8]}{source.suffix.lower()}"
+
+
+def _to_stored_path(destination: Path) -> str:
+    """The value persisted on the row — relative to the project root whenever possible."""
+
+    try:
+        return destination.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        # CASE_STUDY_DIR was pointed somewhere outside the project; nothing to be relative to
+        return destination.as_posix()
 
 
 async def save_case_study(file: UploadFile) -> str:
@@ -62,7 +78,7 @@ async def save_case_study(file: UploadFile) -> str:
     finally:
         await file.close()
 
-    return destination.as_posix()
+    return _to_stored_path(destination)
 
 
 def resolve_case_study(stored_path: str | None) -> Path | None:
@@ -71,11 +87,11 @@ def resolve_case_study(stored_path: str | None) -> Path | None:
     if not stored_path:
         return None
 
-    base = CASE_STUDY_DIR.resolve()
-    candidate = Path(stored_path).resolve()
+    # stored values are project-root relative; an absolute one is left alone by `/`
+    candidate = (PROJECT_ROOT / stored_path).resolve()
 
     # a stored path is only ever read back out of our own directory — anything else is tampering
-    if base not in candidate.parents:
+    if CASE_STUDY_DIR not in candidate.parents:
         return None
 
     return candidate if candidate.is_file() else None
@@ -105,15 +121,12 @@ async def save_profile_variant(file: UploadFile, user_id: uuid.UUID, profile_var
             ]
         )
 
-    # Base folder uploads/
-    # C:\Users\Softsuave\Projects\BDLead-Generation-Backend\uploads\profile-variants\<user_id>\<profile_variant_id>_<original-filename>.pdf
-    project_root = Path(__file__).resolve().parents[2]
-    upload_dir = project_root / "uploads" / "profile-variants" / str(user_id)
+    # <project root>/uploads/profile-variants/<user_id>/<profile_variant_id>_<original-filename>.pdf
+    upload_dir = UPLOAD_ROOT / "profile-variants" / str(user_id)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     destination = upload_dir / f"{profile_variant_id}_{filename}"
 
-    _CHUNK_SIZE = 1024 * 1024
     await file.seek(0)
     try:
         with destination.open("wb") as target:
@@ -125,4 +138,4 @@ async def save_profile_variant(file: UploadFile, user_id: uuid.UUID, profile_var
     finally:
         await file.close()
 
-    return destination.relative_to(project_root).as_posix()
+    return _to_stored_path(destination)

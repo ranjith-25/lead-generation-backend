@@ -13,3 +13,8 @@ class ProjectFilterResponse(BaseResponse):
     Domains: list[str]
     Techstack: list[str]
     time_filter: list[TimeFilterOption]
+
+class CreateProjectResponse(BaseResponse):
+    project: ProjectRead
+    ai_ingest_failed: bool = False
+    ai_error: str | None = None

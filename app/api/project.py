@@ -9,7 +9,7 @@ from app.core.connections.postgres import get_db
 from app.core.security import require_permission
 from app.models.user import User
 from app.responses.base import BaseResponse
-from app.responses.project import ProjectListResponse, ProjectFilterResponse 
+from app.responses.project import ProjectListResponse, ProjectFilterResponse, CreateProjectResponse
 from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate, ProjectFilters
 from app.services.project import (
     create_project_service,
@@ -46,13 +46,13 @@ async def get_projects(
     )
 
 
-@router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CreateProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
     project: ProjectCreate = Depends(ProjectCreate.as_form),
     case_study: UploadFile | None = File(None),
     current_user: User = Depends(require_permission("projects", "create")),
     db: AsyncSession = Depends(get_db),
-) -> ProjectRead:
+) -> CreateProjectResponse:
     return await create_project_service(db, project, current_user.user_id, case_study)
 
 @router.post("/get_all", response_model=ProjectListResponse)

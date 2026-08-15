@@ -15,7 +15,7 @@ from app.services.notifications import (
 from app.schemas.notification import (
     NotificationType
 )
-from app.exceptions.ai_exception import handle_ai_exception
+from app.exceptions.ai_exception import AIException, handle_ai_exception
 from app.core.storage import (
     delete_case_study,
     has_upload,
@@ -32,7 +32,7 @@ from app.exceptions.project import (
 )
 from app.models.projects import Projects
 from app.responses.base import BaseResponse
-from app.responses.project import ProjectListResponse
+from app.responses.project import CreateProjectResponse, ProjectListResponse
 from app.schemas.common import get_time_filter_options
 from app.schemas.project import (
     ProjectCreate,
@@ -88,8 +88,11 @@ async def ingest_project_to_ai(project) -> dict | None:
         "description": projectData["description"],
         "domain": projectData["projectDomain"]["domain"],
         "techstacks": [techstack["techstack_name"] for techstack in projectData["techstacks"]],
-        "links": json.dumps(projectData["links"])
+        "links": projectData["links"]
     }
+    
+    print(payload["links"], type(payload["links"]))
+    
     try:
         client = get_ai_client()
         with document.open("rb") as handle:
@@ -104,6 +107,7 @@ async def ingest_project_to_ai(project) -> dict | None:
                     )
                 },
             )
+        print("vanakkam da mapla\n\n", response)
         response.raise_for_status()
         return response.json()
     except Exception as exc:
@@ -140,7 +144,7 @@ async def create_project_service(
     project_data: ProjectCreate,
     user_id: UUID,
     case_study: UploadFile | None = None,
-) -> ProjectRead:
+) -> CreateProjectResponse:
 
     existing = await get_project_by_name_db(db, project_data.project_name)
     if existing:
@@ -166,10 +170,24 @@ async def create_project_service(
     except Exception:
         delete_case_study(stored_path)
         raise
+    try:
+        await ingest_project_to_ai(saved_project)
+    except AIException as exc:
+        logging.exception(
+            "Project %s was created but could not be ingested into the AI service",
+            saved_project.project_id,
+        )
+        return CreateProjectResponse(
+            message="Project created, but AI ingestion failed",
+            project=ProjectRead.model_validate(saved_project),
+            ai_ingest_failed=True,
+            ai_error=exc.message,
+        )
 
-    await ingest_project_to_ai(saved_project)
-
-    return ProjectRead.model_validate(saved_project)
+    return CreateProjectResponse(
+        message="Project created successfully",
+        project=ProjectRead.model_validate(saved_project),
+    )
 
 
 async def update_project_service(
