@@ -28,7 +28,7 @@ techstack_router = APIRouter(prefix="/settings/configurations/techstacks", tags=
 
 @techstack_router.get("/")
 async def get_all_techstacks(
-    current_user: User = Depends(require_permission("projects", "read")),
+    current_user: User = Depends(require_permission("tech_stack", "read")),
     db: AsyncSession = Depends(get_db),
     page: int = 1,
     limit: int | None = None
@@ -43,7 +43,7 @@ async def get_all_techstacks(
 @techstack_router.get("/{techstack_id}")
 async def get_techstack_by_id(
     techstack_id: UUID,
-    current_user: User = Depends(require_permission("projects", "read")),
+    current_user: User = Depends(require_permission("tech_stack", "read")),
     db: AsyncSession = Depends(get_db),
 ):
     response: GetTechStackResponse = await handle_get_techstack_by_id(db, current_user, techstack_id)
@@ -56,7 +56,7 @@ async def get_techstack_by_id(
 @techstack_router.post("/")
 async def create_techstack(
     techstack: TechStackCreate,
-    current_user: User = Depends(require_permission("projects", "create")),
+    current_user: User = Depends(require_permission("tech_stack", "create")),
     db: AsyncSession = Depends(get_db),
 ):
     response: CreateTechStackResponse = await handle_create_techstack(db, current_user, techstack)
@@ -70,7 +70,7 @@ async def create_techstack(
 async def update_techstack(
     techstack_id: UUID,
     techstack: TechStackUpdate,
-    current_user: User = Depends(require_permission("projects", "update")),
+    current_user: User = Depends(require_permission("tech_stack", "update")),
     db: AsyncSession = Depends(get_db),
 ):
     response: UpdateTechStackResponse = await handle_update_techstack(
@@ -85,7 +85,7 @@ async def update_techstack(
 @techstack_router.delete("/{techstack_id}")
 async def delete_techstack(
     techstack_id: UUID,
-    current_user: User = Depends(require_permission("projects", "delete")),
+    current_user: User = Depends(require_permission("tech_stack", "delete")),
     db: AsyncSession = Depends(get_db),
 ):
     response: DeleteTechStackResponse = await handle_delete_techstack(db, current_user, techstack_id)
