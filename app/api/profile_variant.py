@@ -111,6 +111,6 @@ async def download_profile_variant_pdf(
         headers={
             "Content-Disposition": (
                 f'attachment; filename="{response.file_name}"'
-            )
+            )   
         },
     )

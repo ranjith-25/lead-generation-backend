@@ -214,15 +214,19 @@ EMAIL_MESSAGE_CONTENT = {
 NOTIFICATION_CONTENT = {
     "ANALYSIS_COMPLETE":{
         "title": "AI discovery Complete",
-        "body": "The job post has been analyzed. Click here visit the Overview & Analysis page to review the AI-generated insights."
+        "body": "The job post has been analyzed. Review the Overview & Analysis page to see the AI-generated insights."
+    },
+    "PROJECT_ADDED": {
+        "title": "New project added",
+        "body": "A new project has been added. View the project for details."
     },
     "SETUP_COMPLETED": {
         "title": "Welcome aboard, {user_name}",
-        "body": "Your account setup is complete. You have joined as {role_name} reporting to {reporting_to_name}. Click here to review your profile."
+        "body": "Your account setup is complete. You have joined as {role_name} reporting to {reporting_to_name}. Review your profile."
     },
     "TEAM_MEMBER_SETUP_COMPLETED": {
         "title": "{user_name} has completed their setup",
-        "body": "{user_name} accepted your invitation and joined as {role_name}. Click here to view them in your team."
+        "body": "{user_name} accepted your invitation and joined as {role_name}. View them in your team."
     },
     "RESOURCE_ASSIGNED_TO_TL": {
         "title": "Resource pending your approval",
@@ -230,43 +234,43 @@ NOTIFICATION_CONTENT = {
     },
     "RESOURCE_REJECTED": {
         "title": "Resource rejected for {company}",
-        "body": "{rejected_by_name} rejected {variant_title} for {job_title} at {company}. Reason: {reject_reason}. Click here to review the opportunity pipeline."
+        "body": "{rejected_by_name} rejected {variant_title} for {job_title} at {company}. Reason: {reject_reason}. Review the opportunity pipeline."
     },
     "RESOURCE_APPROVED": {
         "title": "Resource approved for {company}",
-        "body": "{approved_by_name} approved {resource_name} for {job_title} at {company}. Click here to review the opportunity pipeline."
+        "body": "{approved_by_name} approved {resource_name} for {job_title} at {company}. Review the opportunity pipeline."
     },
     "RESOURCE_PENDING_APPROVAL": {
         "title": "{resource_name} needs your approval",
-        "body": "{selected_by_name} assigned {resource_name} to {job_title} at {company} and it is waiting on your approval. Click here to review the opportunity pipeline."
+        "body": "{selected_by_name} assigned {resource_name} to {job_title} at {company} and it is waiting on your approval. Review the opportunity pipeline."
     },
     "RESOURCE_ASSIGNED": {
         "title": "You are assigned to {company}",
-        "body": "You have been assigned to {job_title} at {company}. Start preparing — click here to view your technical preparation."
+        "body": "You have been assigned to {job_title} at {company}. Start preparing — view your technical preparation."
     },
     # The Team Lead already approved this person, so the generic "resource approved"
     # blast tells them nothing new — what they want is the outcome for their own report.
     "TEAM_MEMBER_ASSIGNED": {
         "title": "Your team member {resource_name} is assigned",
-        "body": "{resource_name} from your team has been assigned to {job_title} at {company}. Click here to review the opportunity pipeline."
+        "body": "{resource_name} from your team has been assigned to {job_title} at {company}. Review the opportunity pipeline."
     },
     # Their approval was skipped, so the wording names who went around them instead of
     # implying they signed off on it.
     "TEAM_MEMBER_ASSIGNED_BYPASSED": {
         "title": "{resource_name} was assigned without your approval",
-        "body": "{approved_by_name} approved {resource_name} for {job_title} at {company} directly. Click here to review the opportunity pipeline."
+        "body": "{approved_by_name} approved {resource_name} for {job_title} at {company} directly. Review the opportunity pipeline."
     },
     # The BD who raised the opportunity tracks it by company, not by resource — leading
     # with their opportunity is what makes this actionable rather than an FYI.
     "BD_RESOURCE_APPROVED": {
         "title": "Your opportunity at {company} has a resource",
-        "body": "{approved_by_name} approved {resource_name} for {job_title} at {company}. Click here to review the opportunity pipeline."
+        "body": "{approved_by_name} approved {resource_name} for {job_title} at {company}. Review the opportunity pipeline."
     },
     # The owner has to find a replacement, so this one carries the reason up into the
     # message the rest of the org's rejection notice does not need to emphasise.
     "BD_RESOURCE_REJECTED": {
         "title": "Resource rejected on your opportunity at {company}",
-        "body": "{rejected_by_name} rejected {resource_name} for {job_title} at {company}. Reason: {reject_reason}. Click here to review the opportunity pipeline."
+        "body": "{rejected_by_name} rejected {resource_name} for {job_title} at {company}. Reason: {reject_reason}. Review the opportunity pipeline."
     },
     "EMPTY": {
         "title": "",
@@ -346,16 +350,6 @@ class NotificationEvent(str, Enum):
     RESOURCE_SELF_APPROVED = "RESOURCE_SELF_APPROVED"
     RESOURCE_REJECTED = "RESOURCE_REJECTED"
 
-
-# One event, several audiences — and the list order is precedence, not decoration. The
-# dispatcher walks it top to bottom and lets the first audience claim a person; later
-# audiences skip anyone already claimed, so each person hears about the event exactly
-# once. The lists are ordered most-specific-first for that reason: a Manager who is also
-# the resource's Team Lead should get "your team member is assigned", not the generic
-# announcement, because the personal message is the one that tells them something they
-# could not infer. The actor is claimed before the walk begins, so nobody is ever
-# notified about their own action — which is also why the Team Lead approving their own
-# report needs no special case, they are pre-claimed and their row resolves to nobody.
 NOTIFICATION_EVENTS: dict[NotificationEvent, list[tuple[Audience, NotificationType]]] = {
     NotificationEvent.RESOURCE_SELECTED: [
         (Audience.SUBJECT_REPORTING_TO, NotificationType.RESOURCE_PENDING_APPROVAL),
@@ -402,16 +396,12 @@ class EditChangeType(str, Enum):
     REMOVED = "REMOVED"
 
 
-# Rendered by the edit-history service; {old}/{new} are already display-formatted strings and
-# {at} is `edited_at` run through EDIT_HISTORY_DATETIME_FORMAT.
 EDIT_HISTORY_SENTENCES: dict[EditChangeType, str] = {
     EditChangeType.ADDED: '{editor} added {label} as "{new}" on {at}',
     EditChangeType.UPDATED: '{editor} changed {label} from "{old}" to "{new}" on {at}',
     EditChangeType.REMOVED: '{editor} removed {label} (was "{old}") on {at}',
 }
 
-# Used when a value has no readable inline form — JSON blobs, unresolvable ids — so a sentence
-# never dumps a serialised object at the reader.
 EDIT_HISTORY_OPAQUE_SENTENCE = "{editor} updated {label} on {at}"
 
 # "in {page}" rather than "on {page}" so the page and the timestamp do not both read as "on".

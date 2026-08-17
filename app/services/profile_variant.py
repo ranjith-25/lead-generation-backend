@@ -255,7 +255,8 @@ async def handle_create_profile_variant(
         # identifier can be used to construct the S3 object key without relying
         # on a database-generated ID.
         profile_variant_id = uuid.uuid4()
-        stored_path = f"profile-variants/{profile_variant_create.user_id}/{profile_variant_id}.pdf"
+        file_stem = Path(filename).stem
+        stored_path = f"profile-variants/{profile_variant_create.user_id}/{profile_variant_id}_{file_stem}.pdf"
 
         # Stream the file directly to S3.
         # This avoids creating a temporary local copy and prevents unnecessary
@@ -376,7 +377,8 @@ async def handle_update_profile_variant(
                 except Exception:
                     pass
 
-            stored_path = f"profile-variants/{profile_variant_update.user_id}/{profile_variant_id}.pdf"
+            file_stem = Path(upload_profile.filename or "profile").stem
+            stored_path = f"profile-variants/{profile_variant_update.user_id}/{profile_variant_id}_{file_stem}.pdf"
             await upload_profile.seek(0)
             await upload_fileobj(
                 upload_profile.file,
@@ -536,6 +538,7 @@ async def handle_download_profile_variant(
 
         file_name = object_key.split("/")[-1]
         file_stream = stream_file(object_key)
+        print(file_name)
 
         return FileDownloadResponse(
             file_stream=file_stream,

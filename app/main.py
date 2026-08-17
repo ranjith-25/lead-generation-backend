@@ -48,6 +48,8 @@ from app.api.pipeline_opportunity_techincal_preperation import pipeline_opportun
 from app.api.settings import router as settings_router
 from app.api.user_project import router as user_project_router
 from app.api.firebase_token import firebase_token_router
+from app.api.ai_usages import router as ai_usages_router
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application Started")
@@ -181,3 +183,4 @@ app.include_router(sales_enablement_router)
 # =========================
 
 app.include_router(techstack_router)
+app.include_router(ai_usages_router)

@@ -1,4 +1,3 @@
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -33,7 +32,7 @@ class OpportunityEditHistoryRead(BaseModel):
     page_name: PageName
     edited_by: UUID | None = None
     edited_by_name: str
-    edited_at: datetime
+    edited_at: str
     sentence: str = Field(..., description="One sentence covering the whole edit")
     changes: list[OpportunityEditChangeRead] = Field(
         default_factory=list, description="Per-field sentences, ordered as stored"

@@ -172,9 +172,6 @@ async def create_project_service(
     domain = await _resolve_domain(db, project_data.projectDomainID)
     techstacks = await _resolve_techstacks(db, project_data.techstack_ids)
 
-    # Generate the UUID before creating the database record so the same
-    # identifier can be used to construct the S3 object key without relying
-    # on a database-generated ID.
     project_id = uuid.uuid4()
     stored_path = None
 
@@ -184,7 +181,7 @@ async def create_project_service(
         if extension not in ALLOWED_CASE_STUDY_EXTENSIONS:
             raise CaseStudyUnsupportedTypeException(sorted(ALLOWED_CASE_STUDY_EXTENSIONS))
 
-        stored_path = f"case-studies/{project_id}{extension}"
+        stored_path = f"case_studies/{project_id}{extension}"
         max_bytes = settings.MAX_CASE_STUDY_SIZE_MB * 1024 * 1024
         
         await case_study.seek(0)
@@ -310,7 +307,7 @@ async def update_project_service(
         if extension not in ALLOWED_CASE_STUDY_EXTENSIONS:
             raise CaseStudyUnsupportedTypeException(sorted(ALLOWED_CASE_STUDY_EXTENSIONS))
 
-        new_path = f"case-studies/{project_id}{extension}"
+        new_path = f"case_studies/{project_id}{extension}"
         max_bytes = settings.MAX_CASE_STUDY_SIZE_MB * 1024 * 1024
         
         await case_study.seek(0)

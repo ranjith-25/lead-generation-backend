@@ -51,7 +51,13 @@ from app.config import (
 
 
 class _SafeContext(dict):
-    """Keeps template rendering forgiving — an unsupplied placeholder becomes an empty string."""
+    """Keeps template rendering forgiving — missing or None placeholders become empty strings."""
+
+    def __getitem__(self, key):
+        value = super().__getitem__(key)
+        if value is None:
+            return ""
+        return value
 
     def __missing__(self, key):
         logging.warning(f"Missing notification template placeholder: {key}")

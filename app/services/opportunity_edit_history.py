@@ -176,8 +176,16 @@ def _change_type(old_value, new_value) -> EditChangeType:
 
 
 def _format_at(value: datetime | None) -> str:
-    """`edited_at` as it reads inside a sentence. Empty string keeps a null out of the text."""
-    return value.strftime(EDIT_HISTORY_DATETIME_FORMAT) if value else ""
+    """`edited_at` as it reads inside a sentence. Empty string keeps a null out of the text.
+
+    Converts the stored UTC timestamp to IST (Asia/Kolkata) before formatting.
+    """
+    if not value:
+        return ""
+    from zoneinfo import ZoneInfo
+    utc = value.replace(tzinfo=ZoneInfo("UTC"))
+    ist = utc.astimezone(ZoneInfo("Asia/Kolkata"))
+    return ist.strftime(EDIT_HISTORY_DATETIME_FORMAT)
 
 
 def _finish(sentence: str, at: str) -> str:
@@ -288,7 +296,7 @@ def build_edit_history_read(
         page_name=row.page_name,
         edited_by=row.edited_by,
         edited_by_name=editor,
-        edited_at=row.edited_at,
+        edited_at=at,
         sentence=sentence,
         changes=details,
     )
