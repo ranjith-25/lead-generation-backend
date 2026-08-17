@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, File, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from app.services.s3_crud import generate_presigned_url
 from app.core.connections.postgres import get_db
 from app.core.security import require_permission
 from app.models.user import User
+from app.responses.project import FileDownloadResponse
 from app.responses.profile_variant import (
     CreateProfileVariantResponse,
     DeleteProfileVariantResponse,
@@ -100,15 +100,17 @@ async def download_profile_variant_pdf(
     request_data: DownloadProfileRequest,
     current_user: User = Depends(require_permission("profile_variants", "read")),
     db: AsyncSession = Depends(get_db),
-) -> FileResponse:
-    # Get the S3 object key
-    object_key = await handle_download_profile_variant(
+):
+    response: FileDownloadResponse = await handle_download_profile_variant(
         db, request_data.user_id, request_data.profile_variant_id
     )
-    
-    # Generate the presigned S3 download URL
-    presigned_url = generate_presigned_url(object_key)
-    
-    # Redirect the client directly to S3 to download the PDF,
-    # keeping the binary file download behavior without loading the file into backend RAM.
-    return RedirectResponse(url=presigned_url)
+
+    return StreamingResponse(
+        response.file_stream,
+        media_type=response.content_type,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{response.file_name}"'
+            )
+        },
+    )

@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from app.core.storage import has_upload, SizeLimitingReader
 from app.core.settings import settings
-from app.services.s3_crud import upload_fileobj, download_bytes, delete_file, file_exists
+from app.services.s3_crud import upload_fileobj, download_bytes, delete_file, file_exists, stream_file, upload_bytes
+from app.responses.project import FileDownloadResponse
 import uuid
 from app.exceptions.custom import NotFoundException
 from app.exceptions.ai_exception import handle_ai_exception
@@ -203,16 +204,16 @@ async def ingest_profile_variant_to_ai(db: AsyncSession, profile_variant: Profil
         raise handle_ai_exception(exc) from exc
 
 
-def _restore_profile_variant_s3(stored_path: str | None, backup_bytes: bytes | None) -> None:
+async def _restore_profile_variant_s3(stored_path: str | None, backup_bytes: bytes | None) -> None:
     """Restore the original S3 object if the update process failed."""
     if stored_path:
         try:
-            delete_file(stored_path)
+            await delete_file(stored_path)
         except Exception:
             pass
     if backup_bytes is not None and stored_path:
         try:
-            upload_bytes(backup_bytes, stored_path, content_type="application/pdf")
+            await upload_bytes(backup_bytes, stored_path, content_type="application/pdf")
         except Exception:
             pass
 
@@ -260,7 +261,7 @@ async def handle_create_profile_variant(
         # This avoids creating a temporary local copy and prevents unnecessary
         # disk usage on the application server.
         await upload_profile.seek(0)
-        upload_fileobj(
+        await upload_fileobj(
             upload_profile.file,
             stored_path,
             content_type=upload_profile.content_type or "application/pdf",
@@ -291,7 +292,7 @@ async def handle_create_profile_variant(
         # If database creation or AI ingestion fails, delete the S3 object to prevent orphans
         if stored_path:
             try:
-                delete_file(stored_path)
+                await delete_file(stored_path)
             except Exception:
                 pass
         if created_profile_variant:
@@ -370,14 +371,14 @@ async def handle_update_profile_variant(
         if has_upload(upload_profile):
             if previous_upload_profile:
                 try:
-                    if file_exists(previous_upload_profile):
-                        backup_bytes = download_bytes(previous_upload_profile)
+                    if await file_exists(previous_upload_profile):
+                        backup_bytes = await download_bytes(previous_upload_profile)
                 except Exception:
                     pass
 
             stored_path = f"profile-variants/{profile_variant_update.user_id}/{profile_variant_id}.pdf"
             await upload_profile.seek(0)
-            upload_fileobj(
+            await upload_fileobj(
                 upload_profile.file,
                 stored_path,
                 content_type=upload_profile.content_type or "application/pdf",
@@ -399,11 +400,11 @@ async def handle_update_profile_variant(
             message="Profile Variant updated successfully",
         )
     except NotFoundException as e:
-        _restore_profile_variant_s3(stored_path, backup_bytes)
+        await _restore_profile_variant_s3(stored_path, backup_bytes)
         logging.exception("Could not find Profile Variant")
         raise e
     except Exception as e:
-        _restore_profile_variant_s3(stored_path, backup_bytes)
+        await _restore_profile_variant_s3(stored_path, backup_bytes)
         if previous_data is not None:
             try:
                 await update_profile_variant(db, previous_data, previous_projects, profile_variant_id)
@@ -424,7 +425,7 @@ async def handle_delete_profile_variant(
         # Clean up corresponding S3 file if it exists
         if deleted_profile_variant.upload_profile:
             try:
-                delete_file(deleted_profile_variant.upload_profile)
+                await delete_file(deleted_profile_variant.upload_profile)
             except Exception:
                 logging.warning("Could not delete S3 object: %s", deleted_profile_variant.upload_profile)
 
@@ -521,7 +522,7 @@ async def handle_get_projects_and_domains(
 
 async def handle_download_profile_variant(
     db: AsyncSession, user_id: UUID, profile_variant_id: UUID
-) -> str:
+) -> FileDownloadResponse:
     try:
         profile_variant = await get_profile_variant_by_id(db, profile_variant_id)
         if not profile_variant:
@@ -530,10 +531,17 @@ async def handle_download_profile_variant(
             raise NotFoundException()
 
         object_key = profile_variant.upload_profile
-        if not object_key or not file_exists(object_key):
+        if not object_key or not await file_exists(object_key):
             raise NotFoundException()
 
-        return object_key
+        file_name = object_key.split("/")[-1]
+        file_stream = stream_file(object_key)
+
+        return FileDownloadResponse(
+            file_stream=file_stream,
+            file_name=file_name,
+            content_type="application/pdf",
+        )
     except NotFoundException as e:
         raise e
     except Exception as e:

@@ -29,6 +29,7 @@ from app.services.s3_crud import (
     download_bytes,
     delete_file,
     file_exists,
+    stream_file,
 )
 from app.exceptions.project import (
     CaseStudyNotFoundException,
@@ -41,9 +42,11 @@ from app.exceptions.project import (
     CaseStudyEmptyException,
     CaseStudyUnsupportedTypeException,
 )
+
+from app.exceptions.s3_exceptions import S3UploadException, S3DeleteException
 from app.models.projects import Projects
 from app.responses.base import BaseResponse
-from app.responses.project import CreateProjectResponse, ProjectListResponse
+from app.responses.project import CreateProjectResponse, ProjectListResponse, FileDownloadResponse
 from app.schemas.common import get_time_filter_options
 from app.schemas.project import (
     ProjectCreate,
@@ -71,6 +74,7 @@ from app.services.db.techstack import (
 )
 from app.schemas.techstack import TechstackFilters
 from app.schemas.project_domains import ProjectDomainFilters 
+from app.exceptions.custom import AppException
 
 async def _resolve_domain(db: AsyncSession, project_domain_id: UUID):
     domain = await get_project_domain_by_id(db, project_domain_id)
@@ -94,7 +98,7 @@ async def ingest_project_to_ai(project) -> dict | None:
 
     # Download the file bytes from S3 directly to memory to avoid local disk usage
     try:
-        file_bytes = download_bytes(project.case_study)
+        file_bytes = await download_bytes(project.case_study)
     except Exception as exc:
         logging.warning("Could not download case study from S3 for AI ingestion: %s", project.case_study)
         return None
@@ -128,7 +132,7 @@ async def ingest_project_to_ai(project) -> dict | None:
                 )
             },
         )
-        print("vanakkam da mapla\n\n", response)
+        print( response)
         response.raise_for_status()
         return response.json()
     except Exception as exc:
@@ -195,19 +199,27 @@ async def create_project_service(
             # Upload the file directly to S3 using the existing file object.
             # This avoids creating a temporary local copy and prevents unnecessary
             # disk usage on the application server.
-            upload_fileobj(
+            await upload_fileobj(
                 reader,
                 stored_path,
                 content_type=case_study.content_type or ProjectHelpers.content_type_for(filename),
             )
             if reader.bytes_read == 0:
                 raise CaseStudyEmptyException()
+
+        except S3UploadException as exc:
+            raise exc
+        
         except Exception as exc:
             # Delete S3 object if upload fails/is empty/too large to avoid orphaned files
             try:
-                delete_file(stored_path)
-            except Exception:
-                pass
+                await delete_file(stored_path)
+
+            except S3DeleteException as exc:
+                raise exc
+
+            except Exception as exc:
+                raise exc
             raise exc
 
     new_project = Projects(
@@ -228,9 +240,13 @@ async def create_project_service(
         # S3 object to prevent orphaned files.
         if stored_path:
             try:
-                delete_file(stored_path)
-            except Exception:
-                pass
+                await  delete_file(stored_path)
+
+            except S3DeleteException as exc:
+                raise exc
+
+            except Exception as exc:
+                raise exc
         raise exc
 
     try:
@@ -309,7 +325,7 @@ async def update_project_service(
             # Upload the file directly to S3 using the existing file object.
             # This avoids creating a temporary local copy and prevents unnecessary
             # disk usage on the application server.
-            upload_fileobj(
+            await upload_fileobj(
                 reader,
                 new_path,
                 content_type=case_study.content_type or ProjectHelpers.content_type_for(filename),
@@ -319,7 +335,7 @@ async def update_project_service(
         except Exception as exc:
             # Delete S3 object if upload fails/is empty/too large to avoid orphaned files
             try:
-                delete_file(new_path)
+                await delete_file(new_path)
             except Exception:
                 pass
             raise exc
@@ -332,7 +348,7 @@ async def update_project_service(
     except Exception as exc:
         if new_path:
             try:
-                delete_file(new_path)
+                await delete_file(new_path)
             except Exception:
                 pass
         raise exc
@@ -340,7 +356,7 @@ async def update_project_service(
     # the old document is only removed once the row has stopped pointing at it
     if "case_study" in update_data and previous_path != update_data["case_study"] and previous_path:
         try:
-            delete_file(previous_path)
+            await delete_file(previous_path)
         except Exception:
             logging.warning("Could not delete old S3 case study: %s", previous_path)
 
@@ -359,7 +375,7 @@ async def delete_project_service(db: AsyncSession, project_id: UUID) -> BaseResp
     if stored_path:
         # Delete the case study object from S3 after deleting the project record
         try:
-            delete_file(stored_path)
+            await delete_file(stored_path)
         except Exception:
             logging.warning("Could not delete S3 case study on project deletion: %s", stored_path)
 
@@ -377,7 +393,7 @@ async def get_project_case_study_service(db: AsyncSession, project_id: UUID) -> 
         raise ProjectNotFoundException()
 
     object_key = project.case_study
-    if not object_key or not file_exists(object_key):
+    if not object_key or not await file_exists(object_key):
         raise CaseStudyNotFoundException()
 
     return object_key
@@ -400,3 +416,37 @@ async def get_project_filters(db: AsyncSession):
         return response
     except:
         raise CantFetchFilterException()
+
+async def download_case_study_service(
+    db: AsyncSession,
+    project_id: UUID,
+) -> FileDownloadResponse:
+    """
+    Prepare the case study file for download.
+
+    Steps:
+    1. Retrieve the S3 object key for the project case study.
+    2. Create an asynchronous S3 file stream.
+    3. Prepare the file metadata required by the API layer.
+
+    The complete file is NOT loaded into backend memory.
+    The file is streamed from S3 in chunks.
+    """
+
+    # Get the S3 object key stored for this project.
+    object_key = await get_project_case_study_service(
+        db,
+        project_id,
+    )
+
+    # Extract the original filename from the S3 object key.
+    file_name = object_key.split("/")[-1]
+
+    # Create the asynchronous S3 stream.
+    file_stream = stream_file(object_key)
+
+    return FileDownloadResponse(
+        file_stream=file_stream,
+        file_name=file_name,
+        content_type="application/octet-stream",
+    )
