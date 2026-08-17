@@ -16,6 +16,7 @@ from app.core.connections.notification_listener import (
 )
 
 from app.core.connections.s3 import connect_s3,disconnect_s3
+from app.core.connections.firebase import connect_firebase,disconnect_firebase
 
 from app.api.auth import router as auth_router
 from app.api.opportunity import router as opportunity_router
@@ -46,18 +47,20 @@ from app.api.pipeline_opportunity_resource import pipeline_opportunity_resource_
 from app.api.pipeline_opportunity_techincal_preperation import pipeline_opportunity_technical_preperation_router
 from app.api.settings import router as settings_router
 from app.api.user_project import router as user_project_router
-
+from app.api.firebase_token import firebase_token_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application Started")
     await connect_ai()
     await connect_notification_listener()
     await connect_s3()
+    connect_firebase()
 
     yield
     await disconnect_notification_listener()
     await disconnect_ai()
     await disconnect_s3()
+    disconnect_firebase()
 
     await engine.dispose()
     logger.info("Application Stopped")
@@ -84,33 +87,97 @@ app.add_middleware(
 async def health():
     return JSONResponse(status_code=status.HTTP_200_OK, content="Ok")
 
+# =========================
+# AI & Dashboard
+# =========================
 
 app.include_router(ai_router)
-app.include_router(auth_router)
-app.include_router(branch_router)
 app.include_router(dashboard_router)
-app.include_router(feature_router)
+
+
+# =========================
+# Authentication & Access
+# =========================
+
+app.include_router(auth_router)
+app.include_router(permission_router)
+app.include_router(role_permissions_router)
+app.include_router(role_router)
 app.include_router(job_role_router)
+
+
+# =========================
+# User Management
+# =========================
+
+app.include_router(user_router)
+app.include_router(user_management_router)
+app.include_router(user_personal_info_router)
+app.include_router(user_status_router)
+app.include_router(user_invitation_router)
+
+
+# =========================
+# Organization
+# =========================
+
+app.include_router(branch_router)
+
+
+# =========================
+# Features & Settings
+# =========================
+
+app.include_router(feature_router)
+app.include_router(settings_router)
+app.include_router(platform_router)
+
+
+# =========================
+# Notifications
+# =========================
+
 app.include_router(notification_router)
+app.include_router(firebase_token_router)
+
+
+# =========================
+# Opportunities & Pipeline
+# =========================
+
 app.include_router(opportunity_router)
 app.include_router(opportunity_status_router)
-app.include_router(permission_router)
 app.include_router(pipeline_execution_status_router)
 app.include_router(pipeline_opportunity_project_router)
 app.include_router(pipeline_opportunity_resource_router)
 app.include_router(pipeline_opportunity_technical_preperation_router)
-app.include_router(platform_router)
-app.include_router(profile_variant_router)
+
+
+# =========================
+# Projects
+# =========================
+
+app.include_router(project_router)
 app.include_router(user_project_router)
 app.include_router(project_domain_router)
-app.include_router(project_router)
-app.include_router(role_permissions_router)
-app.include_router(role_router)
+
+
+# =========================
+# Profile Variants
+# =========================
+
+app.include_router(profile_variant_router)
+
+
+# =========================
+# Sales Enablement
+# =========================
+
 app.include_router(sales_enablement_router)
-app.include_router(settings_router)
+
+
+# =========================
+# Technology Stack
+# =========================
+
 app.include_router(techstack_router)
-app.include_router(user_invitation_router)
-app.include_router(user_management_router)
-app.include_router(user_personal_info_router)
-app.include_router(user_router)
-app.include_router(user_status_router)

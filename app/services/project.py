@@ -11,12 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.types import (
     ProjectHelpers
 )
-from app.services.notifications import (
-    notify_users
-)
-from app.schemas.notification import (
-    NotificationType
-)
 from app.exceptions.ai_exception import AIException, handle_ai_exception
 from app.core.settings import settings
 from app.core.storage import (

@@ -21,3 +21,5 @@ case_studies/
 *.iml
 
 Deployment/
+
+serviceaccount.json

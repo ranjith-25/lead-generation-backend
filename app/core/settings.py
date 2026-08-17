@@ -49,6 +49,6 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str
     AWS_REGION: str
     AWS_S3_BUCKET : str
-    
+    FIREBASE_CREDENTIALS_PATH : str
 
 settings = Settings()

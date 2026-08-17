@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>FCM Token Test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 24px;
+            max-width: 600px;
+            margin: auto;
+        }
+
+        button {
+            padding: 10px 18px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        textarea {
+            width: 100%;
+            margin-top: 10px;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>FCM Token Generator</h2>
+    <button id="getTokenBtn">Request Permission & Get Token</button>
+
+    <h3>FCM Token:</h3>
+    <textarea id="tokenDisplay" rows="6" readonly placeholder="Click button above to generate token..."></textarea>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBRU6dtl4WP5Bc7cebN9-QNwT7bzxcKU4o",
+            authDomain: "ai-lead-generation-cbc76.firebaseapp.com",
+            projectId: "ai-lead-generation-cbc76",
+            storageBucket: "ai-lead-generation-cbc76.firebasestorage.app",
+            messagingSenderId: "973282866",
+            appId: "1:973282866:web:c52acaa8851a42aba2262b",
+            measurementId: "G-L6C74HKSEC"
+        };
+
+        const VAPID_KEY = "BI7ZRwkdBKKahb_Gukgc3Qm6oTQtHy3Z-gB9f1S1mbNpX8lsHNBxBdzhFrVSDVL55j2yQta2MDn6ex5iw3R6dVA";
+
+        const app = initializeApp(firebaseConfig);
+        const messaging = getMessaging(app);
+
+        document.getElementById('getTokenBtn').addEventListener('click', async () => {
+            const display = document.getElementById('tokenDisplay');
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    alert('Notification permission was denied.');
+                    return;
+                }
+
+                // Registers the physical file from the same directory
+                const registration = await navigator.serviceWorker.register('./index.js');
+
+                const currentToken = await getToken(messaging, {
+                    vapidKey: VAPID_KEY,
+                    serviceWorkerRegistration: registration
+                });
+
+                if (currentToken) {
+                    display.value = currentToken;
+                    console.log('FCM Token:', currentToken);
+                } else {
+                    display.value = 'Failed to generate token.';
+                }
+            } catch (err) {
+                console.error('Error getting FCM token:', err);
+                display.value = 'Error: ' + err.message;
+            }
+        });
+
+        onMessage(messaging, (payload) => {
+            console.log('Foreground push received:', payload);
+            alert(`${payload.notification?.title}: ${payload.notification?.body}`);
+        });
+    </script>
+
+</body>
+
+</html>
