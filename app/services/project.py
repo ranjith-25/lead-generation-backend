@@ -1,3 +1,5 @@
+import io
+import uuid
 from pathlib import Path
 from uuid import UUID
 import json 
@@ -16,11 +18,17 @@ from app.schemas.notification import (
     NotificationType
 )
 from app.exceptions.ai_exception import AIException, handle_ai_exception
+from app.core.settings import settings
 from app.core.storage import (
-    delete_case_study,
     has_upload,
-    resolve_case_study,
-    save_case_study,
+    ALLOWED_CASE_STUDY_EXTENSIONS,
+    SizeLimitingReader,
+)
+from app.services.s3_crud import (
+    upload_fileobj,
+    download_bytes,
+    delete_file,
+    file_exists,
 )
 from app.exceptions.project import (
     CaseStudyNotFoundException,
@@ -28,7 +36,10 @@ from app.exceptions.project import (
     ProjectDomainNotFoundException,
     ProjectNotFoundException,
     TechStackNotFoundException,
-    CantFetchFilterException
+    CantFetchFilterException,
+    CaseStudyTooLargeException,
+    CaseStudyEmptyException,
+    CaseStudyUnsupportedTypeException,
 )
 from app.models.projects import Projects
 from app.responses.base import BaseResponse
@@ -78,9 +89,16 @@ async def _resolve_techstacks(db: AsyncSession, techstack_ids: list[UUID]):
 async def ingest_project_to_ai(project) -> dict | None:
     AI_PROJECT_INGEST_URL = "/api/v1/projects/ingest"
     
-    document: Path | None = resolve_case_study(project.case_study)
-    if document is None:
+    if not project.case_study:
         return None
+
+    # Download the file bytes from S3 directly to memory to avoid local disk usage
+    try:
+        file_bytes = download_bytes(project.case_study)
+    except Exception as exc:
+        logging.warning("Could not download case study from S3 for AI ingestion: %s", project.case_study)
+        return None
+
     projectData = ProjectRead.model_validate(project).model_dump()
     payload = {
         "project_id": str(projectData["project_id"]),
@@ -93,20 +111,23 @@ async def ingest_project_to_ai(project) -> dict | None:
     
     print(payload["links"], type(payload["links"]))
     
+    # Get the basename after the folder prefix from the S3 key
+    filename = project.case_study.split("/")[-1]
+    
     try:
         client = get_ai_client()
-        with document.open("rb") as handle:
-            response = await client.post(
-                AI_PROJECT_INGEST_URL,
-                data={"payload": json.dumps(payload)},
-                files={
-                    "case_study": (
-                        document.name,
-                        handle,
-                        ProjectHelpers.content_type_for(document),
-                    )
-                },
-            )
+        # Uploading the S3 bytes as a file-like BytesIO stream to the AI service
+        response = await client.post(
+            AI_PROJECT_INGEST_URL,
+            data={"payload": json.dumps(payload)},
+            files={
+                "case_study": (
+                    filename,
+                    io.BytesIO(file_bytes),
+                    ProjectHelpers.content_type_for(filename),
+                )
+            },
+        )
         print("vanakkam da mapla\n\n", response)
         response.raise_for_status()
         return response.json()
@@ -153,9 +174,44 @@ async def create_project_service(
     domain = await _resolve_domain(db, project_data.projectDomainID)
     techstacks = await _resolve_techstacks(db, project_data.techstack_ids)
 
-    stored_path = await save_case_study(case_study) if has_upload(case_study) else None
+    # Generate the UUID before creating the database record so the same
+    # identifier can be used to construct the S3 object key without relying
+    # on a database-generated ID.
+    project_id = uuid.uuid4()
+    stored_path = None
+
+    if has_upload(case_study):
+        filename = case_study.filename or ""
+        extension = Path(filename).suffix.lower()
+        if extension not in ALLOWED_CASE_STUDY_EXTENSIONS:
+            raise CaseStudyUnsupportedTypeException(sorted(ALLOWED_CASE_STUDY_EXTENSIONS))
+
+        stored_path = f"case-studies/{project_id}{extension}"
+        max_bytes = settings.MAX_CASE_STUDY_SIZE_MB * 1024 * 1024
+        
+        await case_study.seek(0)
+        reader = SizeLimitingReader(case_study.file, max_bytes, settings.MAX_CASE_STUDY_SIZE_MB)
+        try:
+            # Upload the file directly to S3 using the existing file object.
+            # This avoids creating a temporary local copy and prevents unnecessary
+            # disk usage on the application server.
+            upload_fileobj(
+                reader,
+                stored_path,
+                content_type=case_study.content_type or ProjectHelpers.content_type_for(filename),
+            )
+            if reader.bytes_read == 0:
+                raise CaseStudyEmptyException()
+        except Exception as exc:
+            # Delete S3 object if upload fails/is empty/too large to avoid orphaned files
+            try:
+                delete_file(stored_path)
+            except Exception:
+                pass
+            raise exc
 
     new_project = Projects(
+        project_id=project_id,
         project_name=project_data.project_name,
         description=project_data.description,
         links=project_data.links,
@@ -167,9 +223,16 @@ async def create_project_service(
 
     try:
         saved_project = await add_project_db(db, new_project)
-    except Exception:
-        delete_case_study(stored_path)
-        raise
+    except Exception as exc:
+        # If database creation fails after the S3 upload succeeds, remove the
+        # S3 object to prevent orphaned files.
+        if stored_path:
+            try:
+                delete_file(stored_path)
+            except Exception:
+                pass
+        raise exc
+
     try:
         await ingest_project_to_ai(saved_project)
     except AIException as exc:
@@ -232,20 +295,54 @@ async def update_project_service(
     new_path = None
 
     if has_upload(case_study):
-        new_path = await save_case_study(case_study)
+        filename = case_study.filename or ""
+        extension = Path(filename).suffix.lower()
+        if extension not in ALLOWED_CASE_STUDY_EXTENSIONS:
+            raise CaseStudyUnsupportedTypeException(sorted(ALLOWED_CASE_STUDY_EXTENSIONS))
+
+        new_path = f"case-studies/{project_id}{extension}"
+        max_bytes = settings.MAX_CASE_STUDY_SIZE_MB * 1024 * 1024
+        
+        await case_study.seek(0)
+        reader = SizeLimitingReader(case_study.file, max_bytes, settings.MAX_CASE_STUDY_SIZE_MB)
+        try:
+            # Upload the file directly to S3 using the existing file object.
+            # This avoids creating a temporary local copy and prevents unnecessary
+            # disk usage on the application server.
+            upload_fileobj(
+                reader,
+                new_path,
+                content_type=case_study.content_type or ProjectHelpers.content_type_for(filename),
+            )
+            if reader.bytes_read == 0:
+                raise CaseStudyEmptyException()
+        except Exception as exc:
+            # Delete S3 object if upload fails/is empty/too large to avoid orphaned files
+            try:
+                delete_file(new_path)
+            except Exception:
+                pass
+            raise exc
         update_data["case_study"] = new_path
     elif remove_case_study:
         update_data["case_study"] = None
 
     try:
         updated_project = await update_project_db(db, project, update_data)
-    except Exception:
-        delete_case_study(new_path)
-        raise
+    except Exception as exc:
+        if new_path:
+            try:
+                delete_file(new_path)
+            except Exception:
+                pass
+        raise exc
 
     # the old document is only removed once the row has stopped pointing at it
-    if "case_study" in update_data and previous_path != update_data["case_study"]:
-        delete_case_study(previous_path)
+    if "case_study" in update_data and previous_path != update_data["case_study"] and previous_path:
+        try:
+            delete_file(previous_path)
+        except Exception:
+            logging.warning("Could not delete old S3 case study: %s", previous_path)
 
     return ProjectRead.model_validate(updated_project)
 
@@ -259,22 +356,31 @@ async def delete_project_service(db: AsyncSession, project_id: UUID) -> BaseResp
     stored_path = project.case_study
 
     await delete_project_db(db, project)
-    delete_case_study(stored_path)
+    if stored_path:
+        # Delete the case study object from S3 after deleting the project record
+        try:
+            delete_file(stored_path)
+        except Exception:
+            logging.warning("Could not delete S3 case study on project deletion: %s", stored_path)
 
     return BaseResponse(message="Project deleted successfully")
 
 
-async def get_project_case_study_service(db: AsyncSession, project_id: UUID) -> Path:
-
+async def get_project_case_study_service(db: AsyncSession, project_id: UUID) -> str:
+    """
+    Get the S3 object key for a project's case study.
+    Raises ProjectNotFoundException if the project doesn't exist,
+    and CaseStudyNotFoundException if the project has no case study or if it doesn't exist on S3.
+    """
     project = await get_project_by_id_db(db, project_id)
     if not project:
         raise ProjectNotFoundException()
 
-    document = resolve_case_study(project.case_study)
-    if document is None:
+    object_key = project.case_study
+    if not object_key or not file_exists(object_key):
         raise CaseStudyNotFoundException()
 
-    return document
+    return object_key
 
 async def get_project_filters(db: AsyncSession):
     try:

@@ -7,7 +7,10 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from app.core.storage import has_upload, save_profile_variant
+from app.core.storage import has_upload, SizeLimitingReader
+from app.core.settings import settings
+from app.services.s3_crud import upload_fileobj, download_bytes, delete_file, file_exists
+import uuid
 from app.exceptions.custom import NotFoundException
 from app.exceptions.ai_exception import handle_ai_exception
 from app.core.connections.ai_connection import get_ai_client
@@ -200,6 +203,20 @@ async def ingest_profile_variant_to_ai(db: AsyncSession, profile_variant: Profil
         raise handle_ai_exception(exc) from exc
 
 
+def _restore_profile_variant_s3(stored_path: str | None, backup_bytes: bytes | None) -> None:
+    """Restore the original S3 object if the update process failed."""
+    if stored_path:
+        try:
+            delete_file(stored_path)
+        except Exception:
+            pass
+    if backup_bytes is not None and stored_path:
+        try:
+            upload_bytes(backup_bytes, stored_path, content_type="application/pdf")
+        except Exception:
+            pass
+
+
 async def handle_create_profile_variant(
     db: AsyncSession, current_user: User, profile_variant_create: ProfileVariantCreate, upload_profile: UploadFile
 ) -> CreateProfileVariantResponse:
@@ -233,34 +250,37 @@ async def handle_create_profile_variant(
     created_profile_variant = None
     stored_path = None
     try:
-        # Set dummy upload_profile string to satisfy NOT NULL db constraint
-        profile_variant_create.upload_profile = "placeholder"
+        # Generate the UUID before creating the database record so the same
+        # identifier can be used to construct the S3 object key without relying
+        # on a database-generated ID.
+        profile_variant_id = uuid.uuid4()
+        stored_path = f"profile-variants/{profile_variant_create.user_id}/{profile_variant_id}.pdf"
 
+        # Stream the file directly to S3.
+        # This avoids creating a temporary local copy and prevents unnecessary
+        # disk usage on the application server.
+        await upload_profile.seek(0)
+        upload_fileobj(
+            upload_profile.file,
+            stored_path,
+            content_type=upload_profile.content_type or "application/pdf",
+        )
+
+        profile_variant_create.upload_profile = stored_path
         create_data = profile_variant_create.model_dump(exclude={"projects"})
         new_profile_variant = ProfileVariant(
+            profile_variant_id=profile_variant_id,
             **create_data,
             created_by=current_user.user_id,
             updated_by=current_user.user_id,
         )
 
-        # 1. Insert record into database first to let db generate profile_variant_id
+        # Insert record into database using the pre-generated UUID and S3 key
         created_profile_variant = await create_profile_variant(
             db, new_profile_variant, profile_variant_create.projects or []
         )
 
-        # 2. Save file to disk using the db-generated profile_variant_id
-        stored_path = await save_profile_variant(
-            upload_profile, 
-            created_profile_variant.user_id, 
-            created_profile_variant.profile_variant_id
-        )
-
-        # 3. Update database record with the actual stored path
-        created_profile_variant.upload_profile = stored_path
-        await db.commit()
-        await db.refresh(created_profile_variant)
-
-        # 4. Ingest profile variant to AI
+        # Ingest profile variant to AI
         await ingest_profile_variant_to_ai(db, created_profile_variant)
 
         return CreateProfileVariantResponse(
@@ -268,9 +288,12 @@ async def handle_create_profile_variant(
             message="Profile Variant created successfully",
         )
     except Exception as e:
+        # If database creation or AI ingestion fails, delete the S3 object to prevent orphans
         if stored_path:
-            project_root = Path(__file__).resolve().parents[2]
-            (project_root / stored_path).unlink(missing_ok=True)
+            try:
+                delete_file(stored_path)
+            except Exception:
+                pass
         if created_profile_variant:
             try:
                 await delete_profile_variant(db, created_profile_variant.profile_variant_id)
@@ -280,18 +303,6 @@ async def handle_create_profile_variant(
         raise e
 
 
-_PDF_BACKUP_SUFFIX = ".bak"
-
-
-def _restore_profile_variant_pdf(project_root: Path, stored_path: str | None, backup_path: Path | None) -> None:
-    """Undo a PDF replacement: drop the newly written file and put the previous one back."""
-
-    if stored_path:
-        (project_root / stored_path).unlink(missing_ok=True)
-    if backup_path and backup_path.is_file():
-        backup_path.replace(backup_path.with_name(backup_path.name[: -len(_PDF_BACKUP_SUFFIX)]))
-
-
 async def handle_update_profile_variant(
     db: AsyncSession,
     current_user: User,
@@ -299,7 +310,7 @@ async def handle_update_profile_variant(
     profile_variant_id: UUID,
     upload_profile: UploadFile | None = None,
 ) -> UpdateProfileVariantResponse:
-    # Validate PDF extension before touching the database or disk
+    # Validate PDF extension before touching the database or S3
     if has_upload(upload_profile):
         filename = upload_profile.filename or ""
         extension = Path(filename).suffix.lower()
@@ -315,10 +326,9 @@ async def handle_update_profile_variant(
                 ]
             )
 
-    project_root = Path(__file__).resolve().parents[2]
     previous_data = None
     previous_projects = None
-    backup_path = None
+    backup_bytes = None
     stored_path = None
     try:
         existing_profile_variant = await get_profile_variant_by_id(db, profile_variant_id)
@@ -356,17 +366,21 @@ async def handle_update_profile_variant(
         update_data = profile_variant_update.model_dump(exclude={"projects", "upload_profile"})
         update_data["updated_by"] = current_user.user_id
 
-        # 1. Replace the PDF on disk, keeping the old one aside until ingestion succeeds
+        # 1. Replace the PDF in S3, keeping the old bytes aside until ingestion succeeds
         if has_upload(upload_profile):
-            old_file = project_root / previous_upload_profile if previous_upload_profile else None
-            if old_file and old_file.is_file():
-                backup_path = old_file.with_name(old_file.name + _PDF_BACKUP_SUFFIX)
-                old_file.replace(backup_path)
+            if previous_upload_profile:
+                try:
+                    if file_exists(previous_upload_profile):
+                        backup_bytes = download_bytes(previous_upload_profile)
+                except Exception:
+                    pass
 
-            stored_path = await save_profile_variant(
-                upload_profile,
-                profile_variant_update.user_id,
-                profile_variant_id,
+            stored_path = f"profile-variants/{profile_variant_update.user_id}/{profile_variant_id}.pdf"
+            await upload_profile.seek(0)
+            upload_fileobj(
+                upload_profile.file,
+                stored_path,
+                content_type=upload_profile.content_type or "application/pdf",
             )
             update_data["upload_profile"] = stored_path
 
@@ -380,20 +394,16 @@ async def handle_update_profile_variant(
         # 3. Ingest profile variant to AI
         await ingest_profile_variant_to_ai(db, updated_profile_variant)
 
-        # 4. Ingestion succeeded — the replaced PDF is no longer needed
-        if backup_path:
-            backup_path.unlink(missing_ok=True)
-
         return UpdateProfileVariantResponse(
             updatedProfileVariant=ProfileVariantDTO.model_validate(updated_profile_variant),
             message="Profile Variant updated successfully",
         )
     except NotFoundException as e:
-        _restore_profile_variant_pdf(project_root, stored_path, backup_path)
+        _restore_profile_variant_s3(stored_path, backup_bytes)
         logging.exception("Could not find Profile Variant")
         raise e
     except Exception as e:
-        _restore_profile_variant_pdf(project_root, stored_path, backup_path)
+        _restore_profile_variant_s3(stored_path, backup_bytes)
         if previous_data is not None:
             try:
                 await update_profile_variant(db, previous_data, previous_projects, profile_variant_id)
@@ -410,6 +420,13 @@ async def handle_delete_profile_variant(
         deleted_profile_variant = await delete_profile_variant(db, profile_variant_id)
         if deleted_profile_variant is None:
             raise NotFoundException()
+
+        # Clean up corresponding S3 file if it exists
+        if deleted_profile_variant.upload_profile:
+            try:
+                delete_file(deleted_profile_variant.upload_profile)
+            except Exception:
+                logging.warning("Could not delete S3 object: %s", deleted_profile_variant.upload_profile)
 
         return DeleteProfileVariantResponse(
             message="Profile Variant deleted successfully",
@@ -504,7 +521,7 @@ async def handle_get_projects_and_domains(
 
 async def handle_download_profile_variant(
     db: AsyncSession, user_id: UUID, profile_variant_id: UUID
-) -> Path:
+) -> str:
     try:
         profile_variant = await get_profile_variant_by_id(db, profile_variant_id)
         if not profile_variant:
@@ -512,12 +529,11 @@ async def handle_download_profile_variant(
         if profile_variant.user_id != user_id:
             raise NotFoundException()
 
-        project_root = Path(__file__).resolve().parents[2]
-        file_path = project_root / profile_variant.upload_profile
-        if not file_path.exists() or not file_path.is_file():
+        object_key = profile_variant.upload_profile
+        if not object_key or not file_exists(object_key):
             raise NotFoundException()
 
-        return file_path
+        return object_key
     except NotFoundException as e:
         raise e
     except Exception as e:

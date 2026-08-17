@@ -15,6 +15,7 @@ from app.core.connections.notification_listener import (
     disconnect_notification_listener,
 )
 
+from app.core.connections.s3 import connect_s3,disconnect_s3
 
 from app.api.auth import router as auth_router
 from app.api.opportunity import router as opportunity_router
@@ -51,10 +52,12 @@ async def lifespan(app: FastAPI):
     logger.info("Application Started")
     await connect_ai()
     await connect_notification_listener()
+    await connect_s3()
 
     yield
     await disconnect_notification_listener()
     await disconnect_ai()
+    await disconnect_s3()
 
     await engine.dispose()
     logger.info("Application Stopped")
