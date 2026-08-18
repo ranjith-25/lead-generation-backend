@@ -24,6 +24,9 @@ from app.services.firebase_token import (
     handle_update_firebase_token,
     handle_get_firebase_token_by_user_id,
 )
+from app.responses.firebase_notification import SimplePushResponse
+from app.schemas.firebase_messaging import SimplePushRequest
+from app.services.firebase_messaging import handle_send_simple_push
 
 firebase_token_router = APIRouter(prefix="/firebase-token", tags=["Firebase Token"])
 
@@ -104,5 +107,18 @@ async def delete_firebase_token(
     response: DeleteFirebaseTokenResponse = await handle_delete_firebase_token(db, current_user, id)
     return JSONResponse(
         content=response.model_dump(mode="json", exclude_none=True),
+        status_code=200,
+    )
+
+
+@firebase_token_router.post("/push", response_model=SimplePushResponse)
+async def send_push(
+    request: SimplePushRequest,
+    current_user: User = Depends(require_permission("firebase_token", "create")),
+):
+    """Send a push notification to a single FCM device token."""
+    response = handle_send_simple_push(request)
+    return JSONResponse(
+        content=response,
         status_code=200,
     )

@@ -1,29 +1,29 @@
-from typing import Optional
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from app.responses.base import BaseResponse
-from app.schemas.firebase_notification import FirebaseNotificationDTO
 
 
-class GetFirebaseNotificationResponse(BaseResponse):
-    firebaseNotification: Optional[FirebaseNotificationDTO] = Field(None, description="Firebase Notification")
-    firebaseNotificationList: Optional[list[FirebaseNotificationDTO]] = Field(None, description="Firebase Notification List")
-    total: int = Field(0)
-    page: int = Field(1)
-    limit: int = Field(10)
-    total_pages: int = Field(1)
-    status_code: int = Field(200)
+class FirebasePushSendResult(BaseModel):
+    """Result of sending push notifications to one user's tokens."""
+    success_count: int = Field(0)
+    failure_count: int = Field(0)
+    tokens_cleaned: int = Field(0, description="Invalid tokens deactivated after send")
 
 
-class CreateFirebaseNotificationResponse(BaseResponse):
-    newFirebaseNotification: FirebaseNotificationDTO = Field(..., description="New Firebase Notification Created")
-    status_code: int = Field(200)
+class FirebasePushBatchResult(BaseModel):
+    """Aggregate result of sending pushes to multiple users."""
+    total_users: int
+    total_success: int
+    total_failures: int
+    total_tokens_cleaned: int
 
 
-class UpdateFirebaseNotificationResponse(BaseResponse):
-    updatedFirebaseNotification: FirebaseNotificationDTO = Field(..., description="Firebase Notification Updated")
-    status_code: int = Field(200)
+class SimplePushResponse(BaseResponse):
+    """Response for the simple push notification endpoint."""
+    success: bool
+    message_id: str | None = None
 
 
-class DeleteFirebaseNotificationResponse(BaseResponse):
-    status_code: int = Field(200)
+class FirebasePushResponse(BaseResponse):
+    """Response wrapping a batch push result."""
+    result: FirebasePushBatchResult

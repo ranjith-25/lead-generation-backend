@@ -5,6 +5,8 @@ from app.schemas.opportunity import OpportunityRead, OpportunityListRead, Opport
 from app.services.db.opportunity import Opportunity, get_opportunity_by_id, get_all_opportunities, addOpportunity, update_opportunity_db, delete_opportunity_db, get_opportunity_filter_values, get_all_opportunity_statuses_db
 from app.services.db.user import get_user_by_id
 from app.services.opportunity_edit_history import record_opportunity_edit
+from app.config import LogAction
+from app.services.system_log import log_activity
 from app.responses.base import BaseResponse
 from app.responses.opportunity import CreateOpportunityResponse
 from app.schemas.ai import AIManualJDRequest
@@ -87,6 +89,17 @@ async def update_opportunity_service(db: AsyncSession, opportunityID: UUID | str
     # Staged before the update lands so the diff still sees the old values; the commit
     # inside update_opportunity_db covers both rows.
     await record_opportunity_edit(db, opportunity, update_dict, user_id)
+    await log_activity(
+        db,
+        LogAction.OPPORTUNITY_STATUS_CHANGED
+        if update_dict.get("status_id") not in (None, opportunity.status_id)
+        else LogAction.OPPORTUNITY_UPDATED,
+        user_id,
+        entity_type="opportunity",
+        entity_id=opportunity.opportunityID,
+        entity_name=opportunity.title,
+        details={"fields": sorted(k for k in update_dict if k != "updatedBy")},
+    )
     updated_opp = await update_opportunity_db(db, opportunity, update_dict)
     return OpportunityRead.model_validate(updated_opp)
 
@@ -101,6 +114,16 @@ async def delete_opportunity_service(db: AsyncSession, opportunityID: UUID | str
     if not opportunity:
         raise HTTPException(status_code=404, detail="Opportunity not found or unauthorized")
         
+    # Captured before the delete so the log keeps the identifiers the row is about to lose.
+    await log_activity(
+        db,
+        LogAction.OPPORTUNITY_DELETED,
+        user_id,
+        entity_type="opportunity",
+        entity_id=opportunity.opportunityID,
+        entity_name=opportunity.title,
+        details={"company": opportunity.company, "role": opportunity.role},
+    )
     await delete_opportunity_db(db, opportunity)
     return BaseResponse(success=True, message="Opportunity deleted successfully")
 
@@ -129,6 +152,15 @@ async def update_opportunity_status_service(db: AsyncSession, opportunityID: UUI
 
     update_dict = {"status_id": status_id, "updatedBy": user_id}
     await record_opportunity_edit(db, opportunity, update_dict, user_id)
+    await log_activity(
+        db,
+        LogAction.OPPORTUNITY_STATUS_CHANGED,
+        user_id,
+        entity_type="opportunity",
+        entity_id=opportunity.opportunityID,
+        entity_name=opportunity.title,
+        details={"from_status_id": opportunity.status_id, "to_status_id": status_id},
+    )
     updated_opp = await update_opportunity_db(db, opportunity, update_dict)
     return OpportunityRead.model_validate(updated_opp)
 
@@ -164,5 +196,16 @@ async def patch_opportunity_service(db: AsyncSession, opportunityID: UUID | str,
 
     update_dict['updatedBy'] = user_id
     await record_opportunity_edit(db, opportunity, update_dict, user_id)
+    await log_activity(
+        db,
+        LogAction.OPPORTUNITY_STATUS_CHANGED
+        if update_dict.get("status_id") not in (None, opportunity.status_id)
+        else LogAction.OPPORTUNITY_UPDATED,
+        user_id,
+        entity_type="opportunity",
+        entity_id=opportunity.opportunityID,
+        entity_name=opportunity.title,
+        details={"fields": sorted(k for k in update_dict if k != "updatedBy")},
+    )
     updated_opp = await update_opportunity_db(db, opportunity, update_dict)
     return OpportunityRead.model_validate(updated_opp)

@@ -39,4 +39,6 @@ async def update_role_permission_matrix(
     current_user: User = Depends(require_permission("role_permissions", "update")),
     db: AsyncSession = Depends(get_db),
 ) -> UpdateRolePermissionMatrixResponse:
-    return await update_role_permission_matrix_service(db, role_id, payload)
+    return await update_role_permission_matrix_service(
+        db, role_id, payload, current_user.user_id
+    )

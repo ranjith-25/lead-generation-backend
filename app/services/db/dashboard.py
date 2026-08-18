@@ -165,9 +165,19 @@ async def get_dashboard_metrics(db: AsyncSession, time_range: TimeRange | None =
         pipeline_statuses = [{"status_name": row[0], "count": row[1]} for row in status_result]
 
         # 6. Bench Allocation
+        # The soft delete keeps a user's personal_info row on purpose, so deleted staff have
+        # to be excluded here or they keep inflating the bench. The exclusion belongs in the
+        # ON clause, not a WHERE - in a WHERE it would collapse the outer join and drop every
+        # status that currently has nobody in it.
         bench_query = (
             select(UserStatus.displayName, func.count(UserPersonalInfo.user_id))
-            .outerjoin(UserPersonalInfo, UserPersonalInfo.working_status_id == UserStatus.id)
+            .outerjoin(
+                UserPersonalInfo,
+                (UserPersonalInfo.working_status_id == UserStatus.id)
+                & UserPersonalInfo.user_id.in_(
+                    select(User.user_id).where(User.is_deleted.is_(False))
+                ),
+            )
             .group_by(UserStatus.displayName)
         )
         bench_result = await db.execute(bench_query)

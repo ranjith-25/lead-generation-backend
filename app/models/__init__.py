@@ -29,6 +29,7 @@ from app.models.user_project import UserProject
 from app.models.notifications import Notifications
 from app.models.opportunity_edit_history import OpportunityEditHistory
 from app.models.firebase_token import FirebaseTokens
+from app.models.system_log import SystemLog
 
-__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain","UserInvitation", "UserStatus", "JobRole", "ProfileVariant", "ProfileVariantProject", "Branch", "PipelineExecutionStatusModel","PipelineOpportunityProjectModel","PipelineOpportunityResourceModel","PipelineOpportunityTechnicalPreperationModel","PasswordResetToken", "UserProject","Notifications","OpportunityEditHistory","FirebaseTokens"]
+__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain","UserInvitation", "UserStatus", "JobRole", "ProfileVariant", "ProfileVariantProject", "Branch", "PipelineExecutionStatusModel","PipelineOpportunityProjectModel","PipelineOpportunityResourceModel","PipelineOpportunityTechnicalPreperationModel","PasswordResetToken", "UserProject","Notifications","OpportunityEditHistory","FirebaseTokens","SystemLog"]
 

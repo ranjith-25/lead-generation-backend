@@ -2,6 +2,7 @@ import logging
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
+from app.config import LogAction
 from app.exceptions.custom import NotFoundException
 from app.models.pipeline_opportunity_techincal_preperation import PipelineOpportunityTechnicalPreperationModel
 from app.models.user import User
@@ -24,6 +25,7 @@ from app.services.db.pipeline_opportunity_techincal_preperation import (
     update_pipeline_opportunity_technical_preperation,
     get_pipeline_opportunity_technical_preperation_by_opportunity_id
 )
+from app.services.system_log import log_activity
 
 
 async def handle_get_all_pipeline_opportunity_technical_preperations(
@@ -102,6 +104,18 @@ async def handle_create_pipeline_opportunity_technical_preperation(
             createdBy=current_user.user_id,
             updatedBy=current_user.user_id,
         )
+        await log_activity(
+            db,
+            LogAction.PIPELINE_TECH_PREP_CREATED,
+            current_user,
+            entity_type="pipeline_technical_preperation",
+            entity_name=new_pipeline_opportunity_technical_preperation.candidate_name
+            or new_pipeline_opportunity_technical_preperation.variant_title,
+            details={
+                "opportunity_id": create_data.get("opportunity_id"),
+                "variant_title": create_data.get("variant_title"),
+            },
+        )
         created_pipeline_opportunity_technical_preperation = await create_pipeline_opportunity_technical_preperation(db, new_pipeline_opportunity_technical_preperation)
         return CreatePipelineOpportunityTechnicalPreperationResponse(
             newPipelineOpportunityTechnicalPreperation=PipelineOpportunityTechnicalPreperationDTO.model_validate(created_pipeline_opportunity_technical_preperation),
@@ -123,6 +137,15 @@ async def handle_update_pipeline_opportunity_technical_preperation(
         update_data = pipeline_opportunity_technical_preperation_update.model_dump(exclude_unset=True, exclude_none=True)
         update_data.pop("is_active", None)
         update_data["updatedBy"] = current_user.user_id
+        await log_activity(
+            db,
+            LogAction.PIPELINE_TECH_PREP_UPDATED,
+            current_user,
+            entity_type="pipeline_technical_preperation",
+            entity_id=pipeline_opportunity_technical_preperation_id,
+            entity_name=update_data.get("candidate_name") or update_data.get("variant_title"),
+            details={"updated_fields": [key for key in update_data if key != "updatedBy"]},
+        )
         updated_pipeline_opportunity_technical_preperation = await update_pipeline_opportunity_technical_preperation(
             db, update_data, pipeline_opportunity_technical_preperation_id
         )
@@ -146,6 +169,25 @@ async def handle_delete_pipeline_opportunity_technical_preperation(
     db: AsyncSession, current_user: User, pipeline_opportunity_technical_preperation_id: UUID
 ) -> DeletePipelineOpportunityTechnicalPreperationResponse:
     try:
+        # Read while the row still exists so the log keeps its name/context after the delete.
+        pipeline_opportunity_technical_preperation = await get_pipeline_opportunity_technical_preperation_by_id(
+            db, pipeline_opportunity_technical_preperation_id
+        )
+        if pipeline_opportunity_technical_preperation is not None:
+            await log_activity(
+                db,
+                LogAction.PIPELINE_TECH_PREP_DELETED,
+                current_user,
+                entity_type="pipeline_technical_preperation",
+                entity_id=pipeline_opportunity_technical_preperation.id,
+                entity_name=pipeline_opportunity_technical_preperation.candidate_name
+                or pipeline_opportunity_technical_preperation.variant_title,
+                details={
+                    "opportunity_id": pipeline_opportunity_technical_preperation.opportunity_id,
+                    "variant_title": pipeline_opportunity_technical_preperation.variant_title,
+                },
+            )
+
         deleted_pipeline_opportunity_technical_preperation = await delete_pipeline_opportunity_technical_preperation(db, pipeline_opportunity_technical_preperation_id)
         if deleted_pipeline_opportunity_technical_preperation is None:
             raise NotFoundException()
@@ -169,6 +211,14 @@ async def handle_update_pipeline_opportunity_technical_preperation_comments(
 ) -> UpdatePipelineOpportunityTechnicalPreperationResponse:
     try:
         update_data = {"comments" : pipeline_opportunity_technical_preperation_comments, "updatedBy" : current_user.user_id}
+        await log_activity(
+            db,
+            LogAction.PIPELINE_TECH_PREP_COMMENTED,
+            current_user,
+            entity_type="pipeline_technical_preperation",
+            entity_id=pipeline_opportunity_technical_preperation_id,
+            details={"comments": pipeline_opportunity_technical_preperation_comments},
+        )
         updated_pipeline_opportunity_technical_preperation = await update_pipeline_opportunity_technical_preperation(
             db, update_data, pipeline_opportunity_technical_preperation_id
         )

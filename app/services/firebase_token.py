@@ -26,8 +26,6 @@ from app.services.db.firebase_token import (
     
 )
 
-from app.config import NotificationType
-from app.schemas.firebase_token import FirebaseNotificationPayload
 
 async def handle_get_all_firebase_tokens(
     db: AsyncSession, current_user: User, page: int = 1, limit: int = 10
@@ -107,14 +105,19 @@ async def handle_create_firebase_token(
         )
         created_firebase_token : FirebaseTokenDTO = await create_firebase_token(db, new_firebase_token)
 
-        firebaseNotificationPayload = FirebaseNotificationPayload(
-            notification_type = NotificationType.EMPTY,
-            title = "Notification socket implemented",
-            body = "Your Session is connected with firebase for notifications",
-            data = {}
+        from app.services.firebase_messaging import send_push_notification
+        from app.schemas.firebase_messaging import FirebaseNotificationPayload
+
+        firebase_notification_payload = FirebaseNotificationPayload(
+            notification_type="EMPTY",
+            title="Notification socket implemented",
+            body="Your Session is connected with firebase for notifications",
+            data={},
         )
-        send_push_notification(firebase_notification=firebaseNotificationPayload,
-        tokens=[new_firebase_token.fcm_token])
+        send_push_notification(
+            firebase_notification=firebase_notification_payload,
+            tokens=[new_firebase_token.fcm_token],
+        )
         return CreateFirebaseTokenResponse(
             newFirebaseToken=FirebaseTokenDTO.model_validate(created_firebase_token),
             message="Firebase Token created successfully",
@@ -172,21 +175,3 @@ async def handle_delete_firebase_token(
     except Exception as e:
         logging.exception("Some error occurred while deleting Firebase Token")
         raise e
-
-def send_push_notification(firebase_notification:FirebaseNotificationPayload,tokens: list[str]):
-    """
-    Send a push notification to multiple FCM tokens.
-    """
-
-    message = messaging.MulticastMessage(
-        notification=messaging.Notification(
-            title=firebase_notification.title,
-            body=firebase_notification.body,
-        ),
-        data=firebase_notification.data or {},
-        tokens=tokens,
-    )
-
-    response = messaging.send_each_for_multicast(message)
-
-    return response

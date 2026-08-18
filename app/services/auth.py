@@ -3,6 +3,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from app.config import (
     OTP_MAX_ATTEMPTS,
+    LogAction,
     NotificationType
 )
 from fastapi.security import OAuth2PasswordRequestForm
@@ -14,7 +15,7 @@ from app.schemas.user_invitation import UserInvitationDTO,UserInvitationUpdate,I
 from app.models.user_personal_info import UserPersonalInfo
 from app.core.security import create_access_token, verify_password
 from app.services.db.user import get_user_by_email, get_user_by_id
-from app.services.db.session import create_session, revoke_session
+from app.services.db.session import create_session, get_session_by_token, revoke_session
 from app.services.db.role_permissions import get_feature_names_by_role_id
 from app.exceptions.auth import InvalidCredentialsException, InvalidResetTokenException, InvalidOtpException
 from app.exceptions.custom import AppException, ConfirmPasswordMismatchException
@@ -35,7 +36,8 @@ from app.services.db.user_invitation import update_user_invitation,get_user_invi
 from app.services.db.user_personal_info import create_user_personal_info,get_user_personal_info_by_user_id
 from app.services.db.role import get_role_by_id
 from app.services.db.user import create_user,register_user_from_invitation
-from app.services.notifications import notify_users
+from app.services.notification_dispatcher import notify_users
+from app.services.system_log import log_activity
 import uuid
 from app.exceptions.custom import NotFoundException
 import logging
@@ -56,6 +58,15 @@ async def authenticate_user(db: AsyncSession, form_data: OAuth2PasswordRequestFo
         raise InvalidCredentialsException()
 
     access_token, expire = create_access_token(subject=str(user.user_id))
+    # print(user.role.role_permissions)
+    await log_activity(
+        db,
+        LogAction.USER_LOGIN,
+        user,
+        entity_type="user",
+        entity_id=user.user_id,
+        details={"email": user.email},
+    )
     # Store session in DB
     await create_session(db=db, user_id=user.user_id, token=access_token, expires_at=expire)
 
@@ -75,6 +86,16 @@ async def authenticate_user(db: AsyncSession, form_data: OAuth2PasswordRequestFo
 
 
 async def logout_user(db: AsyncSession, token: str) -> BaseResponse:
+    session = await get_session_by_token(db, token)
+    if session:
+        await log_activity(
+            db,
+            LogAction.USER_LOGOUT,
+            session.user_id,
+            entity_type="user",
+            entity_id=session.user_id,
+        )
+
     success = await revoke_session(db, token)
     if not success:
         return BaseResponse(success=False, message="Session not found or already logged out")
@@ -168,6 +189,13 @@ async def handle_reset_password(db: AsyncSession, payload: ResetPasswordRequest)
         validate_password_strength(payload.new_password)
 
         user_id = payload.user_id
+        await log_activity(
+            db,
+            LogAction.PASSWORD_RESET,
+            user_id,
+            entity_type="user",
+            entity_id=user_id,
+        )
         updated_user = await reset_password_by_user_id(
             db, user_id, get_password_hash(payload.new_password)
         )
@@ -273,6 +301,22 @@ async def handle_signup_invitation(db : AsyncSession , invitation_id : uuid.UUID
             invitation_id,
             updateInvitationData.model_dump(exclude_none=True, exclude_unset=True),
         )
+        
+        
+        await log_activity(
+            db,
+            LogAction.USER_SIGNUP,
+            user,
+            entity_type="user",
+            description=f"{_display_name(new_personal_info.first_name, new_personal_info.last_name) or invitationDetails.work_email} signed up",
+            details={
+                "email": invitationDetails.work_email,
+                "invitation_id": invitation_id,
+                "role_id": invitationDetails.roleID,
+            },
+        )
+
+        registered_user = await register_user_from_invitation(db,user,new_personal_info,invitation_id,updateInvitationData.model_dump(exclude_none=True,exclude_unset=True))
 
         await _notify_setup_completed(db, registered_user, invitationDetails, new_personal_info)
 

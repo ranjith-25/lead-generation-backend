@@ -2,6 +2,7 @@ import logging
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import LogAction
 from app.exceptions.custom import NotFoundException
 from app.models.pipeline_opportunity_project import PipelineOpportunityProjectModel
 from app.models.user import User
@@ -24,6 +25,7 @@ from app.services.db.pipeline_opportunity_project import (
     update_pipeline_opportunity_project,
     get_pipeline_opportunity_project_by_opportunity_id
 )
+from app.services.system_log import log_activity
 
 
 async def handle_get_all_pipeline_opportunity_projects(
@@ -102,6 +104,18 @@ async def handle_create_pipeline_opportunity_project(
             createdBy=current_user.user_id,
             updatedBy=current_user.user_id,
         )
+        await log_activity(
+            db,
+            LogAction.PIPELINE_PROJECT_CREATED,
+            current_user,
+            entity_type="pipeline_project",
+            entity_name=new_pipeline_opportunity_project.project_name,
+            details={
+                "opportunity_id": create_data.get("opportunity_id"),
+                "project_id": create_data.get("project_id"),
+                "match_score": create_data.get("match_score"),
+            },
+        )
         created_pipeline_opportunity_project = await create_pipeline_opportunity_project(db, new_pipeline_opportunity_project)
         return CreatePipelineOpportunityProjectResponse(
             newPipelineOpportunityProject=PipelineOpportunityProjectDTO.model_validate(created_pipeline_opportunity_project),
@@ -123,6 +137,15 @@ async def handle_update_pipeline_opportunity_project(
         update_data = pipeline_opportunity_project_update.model_dump(exclude_unset=True, exclude_none=True)
         update_data.pop("is_active", None)
         update_data["updatedBy"] = current_user.user_id
+        await log_activity(
+            db,
+            LogAction.PIPELINE_PROJECT_UPDATED,
+            current_user,
+            entity_type="pipeline_project",
+            entity_id=pipeline_opportunity_project_id,
+            entity_name=update_data.get("project_name"),
+            details={"updated_fields": [key for key in update_data if key != "updatedBy"]},
+        )
         updated_pipeline_opportunity_project = await update_pipeline_opportunity_project(
             db, update_data, pipeline_opportunity_project_id
         )
@@ -146,6 +169,22 @@ async def handle_delete_pipeline_opportunity_project(
     db: AsyncSession, current_user: User, pipeline_opportunity_project_id: UUID
 ) -> DeletePipelineOpportunityProjectResponse:
     try:
+        # Read while the row still exists so the log keeps its name/context after the delete.
+        pipeline_opportunity_project = await get_pipeline_opportunity_project_by_id(db, pipeline_opportunity_project_id)
+        if pipeline_opportunity_project is not None:
+            await log_activity(
+                db,
+                LogAction.PIPELINE_PROJECT_DELETED,
+                current_user,
+                entity_type="pipeline_project",
+                entity_id=pipeline_opportunity_project.id,
+                entity_name=pipeline_opportunity_project.project_name,
+                details={
+                    "opportunity_id": pipeline_opportunity_project.opportunity_id,
+                    "project_id": pipeline_opportunity_project.project_id,
+                },
+            )
+
         deleted_pipeline_opportunity_project = await delete_pipeline_opportunity_project(db, pipeline_opportunity_project_id)
         if deleted_pipeline_opportunity_project is None:
             raise NotFoundException()

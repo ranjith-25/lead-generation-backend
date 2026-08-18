@@ -111,7 +111,10 @@ async def update_user_personal_info_status(
 @router.delete("/{user_id}")
 async def delete_user_personal_info(
     user_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("user_personal_info", "delete")),
     db: AsyncSession = Depends(get_db),
 ) -> DeleteUserPersonalInfoResponse:
+    """Soft-deletes the user account: flags `users.is_deleted`, revokes their sessions,
+    reparents their reports and frees their opportunity assignments. The personal_info row
+    itself is kept so historical names keep resolving."""
     return await handle_delete_user_personal_info(db, current_user, user_id)

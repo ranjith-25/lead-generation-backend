@@ -25,6 +25,9 @@ async def get_role_permission_matrix_db(db: AsyncSession, role_id: UUID) -> list
             RolePermission.role_permission_id.is_not(None).label("assigned"),
         )
         .select_from(Feature)
+        # cross join, deliberately unfiltered: every permission row is a column on the grid.
+        # Narrowing it to create/read/update/delete hid the permissions that are enforced but
+        # are not CRUD (approve, select_resource, ...), leaving them ungrantable from the screen
         .join(Permission, sa.true())
         .outerjoin(
             RolePermission,
@@ -37,12 +40,14 @@ async def get_role_permission_matrix_db(db: AsyncSession, role_id: UUID) -> list
                 RolePermission.isDeleted.is_(False),
             ),
         )
-        .where(
-            Permission.permission_key.in_(
-                ["create", "read", "update", "delete"]
-            )
+        .order_by(
+            Feature.display_name,
+            Feature.feature_id,
+            # alphabetical; permission_id only breaks ties, so the column order stays stable
+            # if two permissions ever share a display name
+            Permission.display_name,
+            Permission.permission_id,
         )
-        .order_by(Feature.display_name, Feature.feature_id, Permission.permission_id)
     )
 
     try:

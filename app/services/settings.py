@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy.engine import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import LogAction
 from app.exceptions.custom import NotFoundException
 from app.exceptions.settings import (
     ConflictingPermissionToggleException,
@@ -26,13 +27,16 @@ from app.services.db.settings import (
     get_role_permission_matrix_db,
     set_role_permissions_db,
 )
+from app.services.system_log import log_activity
 
 
 def _group_matrix_rows(rows: list[Row]) -> list[FeaturePermissionsRead]:
     """Collapse the flat feature x permission grid into one entry per feature.
 
-    The query orders by feature display name then permission, and dicts keep insertion order,
-    so both orderings survive the grouping without a second sort.
+    The query orders by feature display name then permission display name, and dicts keep
+    insertion order, so both orderings survive the grouping without a second sort. Permission
+    order is alphabetical rather than CRUD-first — the grid carries every permission row, not
+    just create/read/update/delete, so there is no fixed set to order by hand.
     """
 
     features: dict[UUID, FeaturePermissionsRead] = {}
@@ -127,7 +131,10 @@ async def get_role_permission_matrix_service(
 
 
 async def update_role_permission_matrix_service(
-    db: AsyncSession, role_id: UUID, payload: RolePermissionMatrixUpdate
+    db: AsyncSession,
+    role_id: UUID,
+    payload: RolePermissionMatrixUpdate,
+    user_id: UUID | None = None,
 ) -> UpdateRolePermissionMatrixResponse:
     try:
         role = await get_role_by_id(db, role_id)
@@ -136,6 +143,25 @@ async def update_role_permission_matrix_service(
 
         toggles = _collect_toggles(payload)
         await _validate_toggle_targets(db, toggles)
+
+        requested_grants = sum(1 for assigned in toggles.values() if assigned)
+
+        # staged before the write, so the commit inside set_role_permissions_db flushes it in
+        # the same transaction and a failed update leaves no log row behind. That ordering is
+        # also why the counts describe what was asked for rather than what changed — the
+        # applied deltas are only known afterwards, and go to the app log below.
+        await log_activity(
+            db,
+            LogAction.ROLE_PERMISSION_UPDATED,
+            user_id,
+            entity_type="role",
+            entity_id=role_id,
+            entity_name=role.roleName,
+            details={
+                "requested_grants": requested_grants,
+                "requested_revokes": len(toggles) - requested_grants,
+            },
+        )
 
         granted, revoked = await set_role_permissions_db(db, role_id, toggles)
         logging.info(

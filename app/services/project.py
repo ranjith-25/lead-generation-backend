@@ -62,7 +62,10 @@ from app.services.db.techstack import (
     get_all_techstacks_db
 )
 from app.schemas.techstack import TechstackFilters
-from app.schemas.project_domains import ProjectDomainFilters
+from app.schemas.project_domains import ProjectDomainFilters 
+from app.exceptions.custom import AppException
+from app.config import LogAction
+from app.services.system_log import log_activity
 
 async def _resolve_domain(db: AsyncSession, project_domain_id: UUID):
     domain = await get_project_domain_by_id(db, project_domain_id)
@@ -215,6 +218,21 @@ async def create_project_service(
         is_draft=project_data.is_draft
     )
 
+    await log_activity(
+        db,
+        LogAction.PROJECT_CREATED,
+        user_id,
+        entity_type="project",
+        entity_id=project_id,
+        entity_name=project_data.project_name,
+        details={
+            "projectDomainID": domain.id,
+            "techstack_ids": project_data.techstack_ids,
+            "case_study": stored_path,
+            "is_draft": project_data.is_draft,
+        },
+    )
+
     try:
         saved_project = await add_project_db(db, new_project)
     except Exception as exc:
@@ -257,6 +275,7 @@ async def update_project_service(
     project_data: ProjectUpdate,
     case_study: UploadFile | None = None,
     remove_case_study: bool = False,
+    user_id: UUID | None = None,
 ) -> ProjectRead:
 
     project = await get_project_by_id_db(db, project_id)
@@ -325,6 +344,16 @@ async def update_project_service(
     elif remove_case_study:
         update_data["case_study"] = None
 
+    await log_activity(
+        db,
+        LogAction.PROJECT_UPDATED,
+        user_id,
+        entity_type="project",
+        entity_id=project_id,
+        entity_name=project.project_name,
+        details={"updated_fields": sorted(update_data.keys())},
+    )
+
     try:
         updated_project = await update_project_db(db, project, update_data)
     except Exception as exc:
@@ -345,13 +374,26 @@ async def update_project_service(
     return ProjectRead.model_validate(updated_project)
 
 
-async def delete_project_service(db: AsyncSession, project_id: UUID) -> BaseResponse:
+async def delete_project_service(
+    db: AsyncSession, project_id: UUID, user_id: UUID | None = None
+) -> BaseResponse:
 
     project = await get_project_by_id_db(db, project_id)
     if not project:
         raise ProjectNotFoundException()
 
     stored_path = project.case_study
+
+    # entity details are read off the row before it is deleted
+    await log_activity(
+        db,
+        LogAction.PROJECT_DELETED,
+        user_id,
+        entity_type="project",
+        entity_id=project_id,
+        entity_name=project.project_name,
+        details={"case_study": stored_path},
+    )
 
     await delete_project_db(db, project)
     if stored_path:
@@ -403,6 +445,7 @@ async def get_project_filters(db: AsyncSession):
 async def download_case_study_service(
     db: AsyncSession,
     project_id: UUID,
+    user_id: UUID | None = None,
 ) -> FileDownloadResponse:
     """
     Prepare the case study file for download.
@@ -427,6 +470,18 @@ async def download_case_study_service(
 
     # Create the asynchronous S3 stream.
     file_stream = stream_file(object_key)
+
+    # read-only request: no business write to ride along on, so the row commits itself
+    await log_activity(
+        db,
+        LogAction.CASE_STUDY_DOWNLOADED,
+        user_id,
+        entity_type="project",
+        entity_id=project_id,
+        entity_name=file_name,
+        details={"file_name": file_name, "object_key": object_key},
+        commit=True,
+    )
 
     return FileDownloadResponse(
         file_stream=file_stream,

@@ -32,4 +32,4 @@ async def update_user_role(
     current_user: User = Depends(require_permission("user_management", "update")),
     db: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
-    return await handle_update_user_role(db, user_id, update_data)
+    return await handle_update_user_role(db, user_id, update_data, current_user.user_id)
