@@ -6,7 +6,7 @@ I will provide exactly ONE new SQLAlchemy model file.
 
 Example:
 
-app/models/<new_model_file_name>.py
+app/models/firebase_notification.py
 
 This SQLAlchemy model is the TARGET MODEL for which the CRUD module
 must be generated.

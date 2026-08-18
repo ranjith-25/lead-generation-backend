@@ -1,7 +1,7 @@
 import json
 import re
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, BinaryIO
 from uuid import UUID
 
 from fastapi import Form, Request
@@ -10,6 +10,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, TypeAdapter, Validat
 from pydantic_core import core_schema
 
 from app.config import SortOrder, TimeRange
+from dataclasses import dataclass
 
 MAX_LINK_KEY_LENGTH = 50
 MAX_LINK_VALUE_LENGTH = 255

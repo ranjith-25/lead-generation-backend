@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
@@ -9,16 +9,16 @@ from app.core.connections.postgres import get_db
 from app.core.security import require_permission
 from app.models.user import User
 from app.responses.base import BaseResponse
-from app.responses.project import ProjectListResponse, ProjectFilterResponse, CreateProjectResponse
+from app.responses.project import ProjectListResponse, ProjectFilterResponse, CreateProjectResponse, FileDownloadResponse
 from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate, ProjectFilters
 from app.services.project import (
     create_project_service,
     delete_project_service,
     get_all_projects_service,
-    get_project_case_study_service,
     get_project_service,
     update_project_service,
-    get_project_filters
+    get_project_filters,
+    download_case_study_service,
 )
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -96,9 +96,21 @@ async def download_case_study(
     project_id: UUID,
     current_user: User = Depends(require_permission("projects", "read")),
     db: AsyncSession = Depends(get_db),
-) -> FileResponse:
-    document = await get_project_case_study_service(db, project_id)
-    return FileResponse(document, filename=document.name)
+):
+    response: FileDownloadResponse = await download_case_study_service(
+        db,
+        project_id,
+    )
+
+    return StreamingResponse(
+        response.file_stream,
+        media_type=response.content_type,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{response.file_name}"'
+            )
+        },
+    )
 
 @router.delete("/{project_id}", response_model=BaseResponse)
 async def delete_project(

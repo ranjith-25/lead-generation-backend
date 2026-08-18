@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, File, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from app.core.connections.postgres import get_db
 from app.core.security import require_permission
 from app.models.user import User
+from app.responses.project import FileDownloadResponse
 from app.responses.profile_variant import (
     CreateProfileVariantResponse,
     DeleteProfileVariantResponse,
@@ -99,11 +100,17 @@ async def download_profile_variant_pdf(
     request_data: DownloadProfileRequest,
     current_user: User = Depends(require_permission("profile_variants", "read")),
     db: AsyncSession = Depends(get_db),
-) -> FileResponse:
-    file_path = await handle_download_profile_variant(
+):
+    response: FileDownloadResponse = await handle_download_profile_variant(
         db, request_data.user_id, request_data.profile_variant_id
     )
-    # Extract original filename by stripping the `<uuid>_` prefix
-    parts = file_path.name.split("_", 1)
-    original_filename = parts[1] if len(parts) > 1 else file_path.name
-    return FileResponse(file_path, media_type="application/pdf", filename=original_filename)
+
+    return StreamingResponse(
+        response.file_stream,
+        media_type=response.content_type,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{response.file_name}"'
+            )   
+        },
+    )

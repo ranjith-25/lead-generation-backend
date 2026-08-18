@@ -43,9 +43,11 @@ from app.services.db.pipeline_execution_status import (
 from app.services.db.pipeline_opportunity_project import (
     create_multiple_pipeline_opportunity_project,
 )
+from app.services.db.job_role import create_job_role
 from app.services.db.pipeline_opportunity_resource import (
     create_multiple_pipeline_opportunity_resource,
 )
+from app.models.job_role import JobRole
 from app.services.db.project import get_project_by_ids_list_db
 from app.services.db.sales_enablement import add_sales_enablement_db
 from app.services.notifications import notify_users
@@ -491,6 +493,12 @@ async def handleGetScrapedData(
             perf_counter() - start_time,
         )
 
+        if opportunity.role not in all_job_roles:
+            await create_job_role(db, JobRole(
+                roleName= opportunity.role,
+                createdBy= user_id,
+                updatedBy= user_id
+            ))
         await notify_users(
             db,
             user_ids=[user_id],
