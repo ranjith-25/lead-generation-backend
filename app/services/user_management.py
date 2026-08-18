@@ -11,6 +11,9 @@ from app.services.db.user_management import (
     get_all_user_management_info,
     update_user_role_and_reporting_to
 )
+from app.services.db.user import get_user_by_id
+from app.config import LogAction
+from app.services.system_log import log_activity
 from app.schemas.user_management import UpdateUserRoleRequest
 from app.responses.base import BaseResponse
 from uuid import UUID
@@ -34,10 +37,29 @@ async def handle_get_all_user_management(
         raise e
 
 async def handle_update_user_role(
-    db: AsyncSession, target_user_id: str, update_data: UpdateUserRoleRequest
+    db: AsyncSession,
+    target_user_id: str,
+    update_data: UpdateUserRoleRequest,
+    user_id: UUID | None = None,
 ) -> BaseResponse:
     try:
         user_uuid = UUID(target_user_id)
+
+        target_user = await get_user_by_id(db, user_uuid)
+        if target_user and target_user.role_id != update_data.role_id:
+            await log_activity(
+                db,
+                LogAction.USER_ROLE_CHANGED,
+                user_id,
+                entity_type="user",
+                entity_id=user_uuid,
+                entity_name=target_user.fullName,
+                details={
+                    "previousRoleID": target_user.role_id,
+                    "newRoleID": update_data.role_id,
+                },
+            )
+
         await update_user_role_and_reporting_to(
             db, user_uuid, update_data.role_id, update_data.reporting_to
         )

@@ -7,7 +7,7 @@ from app.responses.ai_usage import AIUsageMetricsResponse, AIUsageLogsResponse
 
 async def get_cost_token_calls_service() -> AIUsageMetricsResponse:
     try:
-        client = await get_ai_client()
+        client = get_ai_client()
         response = await client.get("/api/v1/dashboard/metrics")
         response.raise_for_status()
         body = response.json()
@@ -21,7 +21,7 @@ async def get_cost_token_calls_service() -> AIUsageMetricsResponse:
 
 async def get_logs_service() -> AIUsageLogsResponse:
     try:
-        client = await get_ai_client()
+        client = get_ai_client()
         response = await client.get("/api/v1/dashboard/logs")
         response.raise_for_status()
         body = response.json()

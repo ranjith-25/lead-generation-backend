@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import NotificationEvent
+from app.config import LogAction, NotificationEvent
 from app.exceptions.custom import AppException, NotFoundException
 from app.exceptions.error_codes import ErrorCode
 from app.models.pipeline_opportunity_resource import PipelineOpportunityResourceModel
@@ -37,15 +37,16 @@ from app.services.db.pipeline_opportunity_resource import (
 )
 from app.schemas.ai import AITechnicalPreperationRequest
 from app.services.db.opportunity import get_opportunity_details_by_id
-from app.services.notifications import (
+from app.services.notification_dispatcher import (
     NotificationEventContext,
     dispatch_notification_event,
+    notify_users,
 )
+from app.services.system_log import log_activity
 from app.models.opportunity import Opportunity
 import json
 from app.schemas.opportunity import OpportunityRead
 from app.services.ai import handleTechnicalPreperation
-from app.services.notifications import notify_users
 from app.schemas.notification import NotificationType
 from fastapi import BackgroundTasks
 from sqlalchemy.exc import IntegrityError
@@ -192,6 +193,26 @@ async def _approve_pipeline_opportunity_resource(
             status_code=409,
             error_code=ErrorCode.DUPLICATE_RECORD,
         )
+
+    # One call site for both approvals — the action distinguishes the reporting-user
+    # approval from the auto approval, mirroring the two notification events below.
+    await log_activity(
+        db,
+        LogAction.PIPELINE_RESOURCE_AUTO_APPROVED
+        if is_auto_approved
+        else LogAction.PIPELINE_RESOURCE_APPROVED,
+        current_user,
+        entity_type="pipeline_resource",
+        entity_id=pipeline_opportunity_resource.id,
+        entity_name=_resource_display_name(pipeline_opportunity_resource),
+        details={
+            "opportunity_id": pipeline_opportunity_resource.opportunity_id,
+            "user_id": pipeline_opportunity_resource.user_id,
+            "previous_status": pipeline_opportunity_resource.status,
+            "new_status": ApprovalStatus.APPROVED,
+            "is_auto_approved": is_auto_approved,
+        },
+    )
 
     try:
         result: UpdatePipelineOpportunityResourceResponse = await _apply_pipeline_opportunity_resource_status(
@@ -340,6 +361,19 @@ async def handle_create_pipeline_opportunity_resource(
             createdBy=current_user.user_id,
             updatedBy=current_user.user_id,
         )
+        await log_activity(
+            db,
+            LogAction.PIPELINE_RESOURCE_CREATED,
+            current_user,
+            entity_type="pipeline_resource",
+            entity_name=new_pipeline_opportunity_resource.candidate_name
+            or new_pipeline_opportunity_resource.variant_title,
+            details={
+                "opportunity_id": create_data.get("opportunity_id"),
+                "user_id": create_data.get("user_id"),
+                "variant_title": create_data.get("variant_title"),
+            },
+        )
         created_pipeline_opportunity_resource = await create_pipeline_opportunity_resource(db, new_pipeline_opportunity_resource)
         return CreatePipelineOpportunityResourceResponse(
             newPipelineOpportunityResource=PipelineOpportunityResourceDTO.model_validate(created_pipeline_opportunity_resource),
@@ -361,6 +395,15 @@ async def handle_update_pipeline_opportunity_resource(
         update_data = pipeline_opportunity_resource_update.model_dump(exclude_unset=True, exclude_none=True)
         update_data.pop("is_active", None)
         update_data["updatedBy"] = current_user.user_id
+        await log_activity(
+            db,
+            LogAction.PIPELINE_RESOURCE_UPDATED,
+            current_user,
+            entity_type="pipeline_resource",
+            entity_id=pipeline_opportunity_resource_id,
+            entity_name=update_data.get("candidate_name") or update_data.get("variant_title"),
+            details={"updated_fields": [key for key in update_data if key != "updatedBy"]},
+        )
         updated_pipeline_opportunity_resource = await update_pipeline_opportunity_resource(
             db, update_data, pipeline_opportunity_resource_id
         )
@@ -384,6 +427,25 @@ async def handle_delete_pipeline_opportunity_resource(
     db: AsyncSession, current_user: User, pipeline_opportunity_resource_id: UUID
 ) -> DeletePipelineOpportunityResourceResponse:
     try:
+        # Read while the row still exists so the log keeps its name/context after the delete.
+        pipeline_opportunity_resource = await get_pipeline_opportunity_resource_by_id(
+            db, pipeline_opportunity_resource_id
+        )
+        if pipeline_opportunity_resource is not None:
+            await log_activity(
+                db,
+                LogAction.PIPELINE_RESOURCE_DELETED,
+                current_user,
+                entity_type="pipeline_resource",
+                entity_id=pipeline_opportunity_resource.id,
+                entity_name=_resource_display_name(pipeline_opportunity_resource),
+                details={
+                    "opportunity_id": pipeline_opportunity_resource.opportunity_id,
+                    "user_id": pipeline_opportunity_resource.user_id,
+                    "status": pipeline_opportunity_resource.status,
+                },
+            )
+
         deleted_pipeline_opportunity_resource = await delete_pipeline_opportunity_resource(db, pipeline_opportunity_resource_id)
         if deleted_pipeline_opportunity_resource is None:
             raise NotFoundException()
@@ -421,6 +483,21 @@ async def handle_select_pipeline_opportunity_resource(
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
+
+        await log_activity(
+            db,
+            LogAction.PIPELINE_RESOURCE_SELECTED,
+            current_user,
+            entity_type="pipeline_resource",
+            entity_id=pipeline_opportunity_resource.id,
+            entity_name=_resource_display_name(pipeline_opportunity_resource),
+            details={
+                "opportunity_id": pipeline_opportunity_resource.opportunity_id,
+                "user_id": pipeline_opportunity_resource.user_id,
+                "previous_status": pipeline_opportunity_resource.status,
+                "new_status": ApprovalStatus.SELECTED,
+            },
+        )
 
         response = await _apply_pipeline_opportunity_resource_status(
             db=db,
@@ -500,6 +577,22 @@ async def handle_assign_pipeline_opportunity_resource_to_tl(
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
+
+        await log_activity(
+            db,
+            LogAction.PIPELINE_RESOURCE_ASSIGNED_TO_TL,
+            current_user,
+            entity_type="pipeline_resource",
+            entity_id=pipeline_opportunity_resource.id,
+            entity_name=_resource_display_name(pipeline_opportunity_resource),
+            details={
+                "opportunity_id": pipeline_opportunity_resource.opportunity_id,
+                "user_id": pipeline_opportunity_resource.user_id,
+                "assigned_to_tl_user_id": tl_user_id,
+                "previous_status": pipeline_opportunity_resource.status,
+                "new_status": ApprovalStatus.ASSIGNED_TO_TL,
+            },
+        )
 
         result: UpdatePipelineOpportunityResourceResponse = await _apply_pipeline_opportunity_resource_status(
             db=db,
@@ -664,6 +757,22 @@ async def handle_reject_pipeline_opportunity_resource(
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
+
+        await log_activity(
+            db,
+            LogAction.PIPELINE_RESOURCE_REJECTED,
+            current_user,
+            entity_type="pipeline_resource",
+            entity_id=pipeline_opportunity_resource.id,
+            entity_name=_resource_display_name(pipeline_opportunity_resource),
+            details={
+                "opportunity_id": pipeline_opportunity_resource.opportunity_id,
+                "user_id": pipeline_opportunity_resource.user_id,
+                "previous_status": pipeline_opportunity_resource.status,
+                "new_status": ApprovalStatus.REJECTED,
+                "reject_reason": request.reject_reason,
+            },
+        )
 
         response = await _apply_pipeline_opportunity_resource_status(
             db=db,

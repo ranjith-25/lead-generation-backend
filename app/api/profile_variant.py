@@ -102,7 +102,7 @@ async def download_profile_variant_pdf(
     db: AsyncSession = Depends(get_db),
 ):
     response: FileDownloadResponse = await handle_download_profile_variant(
-        db, request_data.user_id, request_data.profile_variant_id
+        db, request_data.user_id, request_data.profile_variant_id, current_user.user_id
     )
 
     return StreamingResponse(

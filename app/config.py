@@ -283,10 +283,11 @@ NOTIFICATION_NAVIGATION = {
     "MY_PROFILE": "https://macaw-otter-linoleum.ngrok-free.dev/profile",
     "USER_HIERARCHY": "https://macaw-otter-linoleum.ngrok-free.dev/user-hierarchy?user_id={user_id}",
     "TECHNICAL_PREPARATION": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline/technical-preparation?opportunity_id={opportunity_id}",
+    "AI_OVERVIEW": "https://macaw-otter-linoleum.ngrok-free.dev/ai-overview?opportunityID={opportunity_id}",
 }
 
 NOTIFICATION_TYPE_NAVIGATION = {
-    "ANALYSIS_COMPLETE" : "OPPURTUNITY_PIPELINE",
+    "ANALYSIS_COMPLETE" : "AI_OVERVIEW",
     "SETUP_COMPLETED" : "MY_PROFILE",
     "TEAM_MEMBER_SETUP_COMPLETED" : "USER_HIERARCHY",
     "RESOURCE_REJECTED" : "OPPURTUNITY_PIPELINE",
@@ -533,4 +534,239 @@ TIME_RANGE_DELAYS = {
         "start" : _start_of_previous_year,
         "end" : _end_of_previous_year
     }
+}
+
+class LogModule(str, Enum):
+    """Which part of the product a system-log row belongs to."""
+
+    AUTH = "AUTH"
+    OPPORTUNITY = "OPPORTUNITY"
+    PIPELINE = "PIPELINE"
+    PROFILE_VARIANT = "PROFILE_VARIANT"
+    PROJECT = "PROJECT"
+    SALES_ENABLEMENT = "SALES_ENABLEMENT"
+    USER_MANAGEMENT = "USER_MANAGEMENT"
+    SETTINGS = "SETTINGS"
+    EXPORT = "EXPORT"
+
+
+LOG_MODULE_LABELS: dict[LogModule, str] = {
+    LogModule.AUTH: "Authentication",
+    LogModule.OPPORTUNITY: "Opportunity",
+    LogModule.PIPELINE: "Pipeline",
+    LogModule.PROFILE_VARIANT: "Profile Variant",
+    LogModule.PROJECT: "Project",
+    LogModule.SALES_ENABLEMENT: "Sales Enablement",
+    LogModule.USER_MANAGEMENT: "User Management",
+    LogModule.SETTINGS: "Settings",
+    LogModule.EXPORT: "Export",
+}
+
+
+class LogAction(str, Enum):
+    """The curated business events the system log records. One member per named action."""
+
+    # AUTH
+    USER_LOGIN = "USER_LOGIN"
+    USER_LOGOUT = "USER_LOGOUT"
+    USER_SIGNUP = "USER_SIGNUP"
+    PASSWORD_RESET = "PASSWORD_RESET"
+
+    # OPPORTUNITY
+    OPPORTUNITY_CREATED = "OPPORTUNITY_CREATED"
+    OPPORTUNITY_UPDATED = "OPPORTUNITY_UPDATED"
+    OPPORTUNITY_STATUS_CHANGED = "OPPORTUNITY_STATUS_CHANGED"
+    OPPORTUNITY_DELETED = "OPPORTUNITY_DELETED"
+    OPPORTUNITY_AI_INGESTED = "OPPORTUNITY_AI_INGESTED"
+
+    # PIPELINE
+    PIPELINE_PROJECT_CREATED = "PIPELINE_PROJECT_CREATED"
+    PIPELINE_PROJECT_UPDATED = "PIPELINE_PROJECT_UPDATED"
+    PIPELINE_PROJECT_DELETED = "PIPELINE_PROJECT_DELETED"
+    PIPELINE_RESOURCE_CREATED = "PIPELINE_RESOURCE_CREATED"
+    PIPELINE_RESOURCE_UPDATED = "PIPELINE_RESOURCE_UPDATED"
+    PIPELINE_RESOURCE_DELETED = "PIPELINE_RESOURCE_DELETED"
+    PIPELINE_RESOURCE_SELECTED = "PIPELINE_RESOURCE_SELECTED"
+    PIPELINE_RESOURCE_ASSIGNED_TO_TL = "PIPELINE_RESOURCE_ASSIGNED_TO_TL"
+    PIPELINE_RESOURCE_APPROVED = "PIPELINE_RESOURCE_APPROVED"
+    PIPELINE_RESOURCE_AUTO_APPROVED = "PIPELINE_RESOURCE_AUTO_APPROVED"
+    PIPELINE_RESOURCE_REJECTED = "PIPELINE_RESOURCE_REJECTED"
+    PIPELINE_TECH_PREP_CREATED = "PIPELINE_TECH_PREP_CREATED"
+    PIPELINE_TECH_PREP_UPDATED = "PIPELINE_TECH_PREP_UPDATED"
+    PIPELINE_TECH_PREP_DELETED = "PIPELINE_TECH_PREP_DELETED"
+    PIPELINE_TECH_PREP_COMMENTED = "PIPELINE_TECH_PREP_COMMENTED"
+
+    # PROFILE_VARIANT
+    PROFILE_VARIANT_CREATED = "PROFILE_VARIANT_CREATED"
+    PROFILE_VARIANT_UPDATED = "PROFILE_VARIANT_UPDATED"
+    PROFILE_VARIANT_DELETED = "PROFILE_VARIANT_DELETED"
+    PROFILE_DOWNLOADED = "PROFILE_DOWNLOADED"
+
+    # PROJECT
+    PROJECT_CREATED = "PROJECT_CREATED"
+    PROJECT_UPDATED = "PROJECT_UPDATED"
+    PROJECT_DELETED = "PROJECT_DELETED"
+    CASE_STUDY_DOWNLOADED = "CASE_STUDY_DOWNLOADED"
+
+    # SALES_ENABLEMENT
+    SALES_ENABLEMENT_CREATED = "SALES_ENABLEMENT_CREATED"
+    SALES_ENABLEMENT_UPDATED = "SALES_ENABLEMENT_UPDATED"
+    SALES_ENABLEMENT_DELETED = "SALES_ENABLEMENT_DELETED"
+
+    # USER_MANAGEMENT
+    USER_INVITED = "USER_INVITED"
+    USER_ROLE_CHANGED = "USER_ROLE_CHANGED"
+    USER_STATUS_CHANGED = "USER_STATUS_CHANGED"
+
+    # SETTINGS
+    ROLE_PERMISSION_CREATED = "ROLE_PERMISSION_CREATED"
+    ROLE_PERMISSION_UPDATED = "ROLE_PERMISSION_UPDATED"
+    ROLE_PERMISSION_DELETED = "ROLE_PERMISSION_DELETED"
+
+    # EXPORT - reserved: no CSV export feature exists yet, so this has no call site.
+    CSV_EXPORTED = "CSV_EXPORTED"
+
+
+LOG_ACTION_LABELS: dict[LogAction, str] = {
+    LogAction.USER_LOGIN: "User Login",
+    LogAction.USER_LOGOUT: "User Logout",
+    LogAction.USER_SIGNUP: "User Signup",
+    LogAction.PASSWORD_RESET: "Password Reset",
+    LogAction.OPPORTUNITY_CREATED: "Opportunity Created",
+    LogAction.OPPORTUNITY_UPDATED: "Opportunity Updated",
+    LogAction.OPPORTUNITY_STATUS_CHANGED: "Opportunity Status Changed",
+    LogAction.OPPORTUNITY_DELETED: "Opportunity Deleted",
+    LogAction.OPPORTUNITY_AI_INGESTED: "Opportunity Ingested by AI",
+    LogAction.PIPELINE_PROJECT_CREATED: "Pipeline Project Created",
+    LogAction.PIPELINE_PROJECT_UPDATED: "Pipeline Project Updated",
+    LogAction.PIPELINE_PROJECT_DELETED: "Pipeline Project Deleted",
+    LogAction.PIPELINE_RESOURCE_CREATED: "Pipeline Resource Created",
+    LogAction.PIPELINE_RESOURCE_UPDATED: "Pipeline Resource Updated",
+    LogAction.PIPELINE_RESOURCE_DELETED: "Pipeline Resource Deleted",
+    LogAction.PIPELINE_RESOURCE_SELECTED: "Pipeline Resource Selected",
+    LogAction.PIPELINE_RESOURCE_ASSIGNED_TO_TL: "Pipeline Resource Assigned to Team Lead",
+    LogAction.PIPELINE_RESOURCE_APPROVED: "Pipeline Resource Approved",
+    LogAction.PIPELINE_RESOURCE_AUTO_APPROVED: "Pipeline Resource Auto Approved",
+    LogAction.PIPELINE_RESOURCE_REJECTED: "Pipeline Resource Rejected",
+    LogAction.PIPELINE_TECH_PREP_CREATED: "Technical Preparation Created",
+    LogAction.PIPELINE_TECH_PREP_UPDATED: "Technical Preparation Updated",
+    LogAction.PIPELINE_TECH_PREP_DELETED: "Technical Preparation Deleted",
+    LogAction.PIPELINE_TECH_PREP_COMMENTED: "Technical Preparation Commented",
+    LogAction.PROFILE_VARIANT_CREATED: "Profile Variant Created",
+    LogAction.PROFILE_VARIANT_UPDATED: "Profile Variant Updated",
+    LogAction.PROFILE_VARIANT_DELETED: "Profile Variant Deleted",
+    LogAction.PROFILE_DOWNLOADED: "Profile Downloaded",
+    LogAction.PROJECT_CREATED: "Project Created",
+    LogAction.PROJECT_UPDATED: "Project Updated",
+    LogAction.PROJECT_DELETED: "Project Deleted",
+    LogAction.CASE_STUDY_DOWNLOADED: "Case Study Downloaded",
+    LogAction.SALES_ENABLEMENT_CREATED: "Sales Enablement Created",
+    LogAction.SALES_ENABLEMENT_UPDATED: "Sales Enablement Updated",
+    LogAction.SALES_ENABLEMENT_DELETED: "Sales Enablement Deleted",
+    LogAction.USER_INVITED: "User Invited",
+    LogAction.USER_ROLE_CHANGED: "User Role Changed",
+    LogAction.USER_STATUS_CHANGED: "User Status Changed",
+    LogAction.ROLE_PERMISSION_CREATED: "Role Permission Created",
+    LogAction.ROLE_PERMISSION_UPDATED: "Role Permission Updated",
+    LogAction.ROLE_PERMISSION_DELETED: "Role Permission Deleted",
+    LogAction.CSV_EXPORTED: "CSV Exported",
+}
+
+# Which module each action belongs to, so `log_activity` derives it instead of every call
+# site passing a module that could drift out of step with the action.
+LOG_ACTION_MODULES: dict[LogAction, LogModule] = {
+    LogAction.USER_LOGIN: LogModule.AUTH,
+    LogAction.USER_LOGOUT: LogModule.AUTH,
+    LogAction.USER_SIGNUP: LogModule.AUTH,
+    LogAction.PASSWORD_RESET: LogModule.AUTH,
+    LogAction.OPPORTUNITY_CREATED: LogModule.OPPORTUNITY,
+    LogAction.OPPORTUNITY_UPDATED: LogModule.OPPORTUNITY,
+    LogAction.OPPORTUNITY_STATUS_CHANGED: LogModule.OPPORTUNITY,
+    LogAction.OPPORTUNITY_DELETED: LogModule.OPPORTUNITY,
+    LogAction.OPPORTUNITY_AI_INGESTED: LogModule.OPPORTUNITY,
+    LogAction.PIPELINE_PROJECT_CREATED: LogModule.PIPELINE,
+    LogAction.PIPELINE_PROJECT_UPDATED: LogModule.PIPELINE,
+    LogAction.PIPELINE_PROJECT_DELETED: LogModule.PIPELINE,
+    LogAction.PIPELINE_RESOURCE_CREATED: LogModule.PIPELINE,
+    LogAction.PIPELINE_RESOURCE_UPDATED: LogModule.PIPELINE,
+    LogAction.PIPELINE_RESOURCE_DELETED: LogModule.PIPELINE,
+    LogAction.PIPELINE_RESOURCE_SELECTED: LogModule.PIPELINE,
+    LogAction.PIPELINE_RESOURCE_ASSIGNED_TO_TL: LogModule.PIPELINE,
+    LogAction.PIPELINE_RESOURCE_APPROVED: LogModule.PIPELINE,
+    LogAction.PIPELINE_RESOURCE_AUTO_APPROVED: LogModule.PIPELINE,
+    LogAction.PIPELINE_RESOURCE_REJECTED: LogModule.PIPELINE,
+    LogAction.PIPELINE_TECH_PREP_CREATED: LogModule.PIPELINE,
+    LogAction.PIPELINE_TECH_PREP_UPDATED: LogModule.PIPELINE,
+    LogAction.PIPELINE_TECH_PREP_DELETED: LogModule.PIPELINE,
+    LogAction.PIPELINE_TECH_PREP_COMMENTED: LogModule.PIPELINE,
+    LogAction.PROFILE_VARIANT_CREATED: LogModule.PROFILE_VARIANT,
+    LogAction.PROFILE_VARIANT_UPDATED: LogModule.PROFILE_VARIANT,
+    LogAction.PROFILE_VARIANT_DELETED: LogModule.PROFILE_VARIANT,
+    LogAction.PROFILE_DOWNLOADED: LogModule.PROFILE_VARIANT,
+    LogAction.PROJECT_CREATED: LogModule.PROJECT,
+    LogAction.PROJECT_UPDATED: LogModule.PROJECT,
+    LogAction.PROJECT_DELETED: LogModule.PROJECT,
+    LogAction.CASE_STUDY_DOWNLOADED: LogModule.PROJECT,
+    LogAction.SALES_ENABLEMENT_CREATED: LogModule.SALES_ENABLEMENT,
+    LogAction.SALES_ENABLEMENT_UPDATED: LogModule.SALES_ENABLEMENT,
+    LogAction.SALES_ENABLEMENT_DELETED: LogModule.SALES_ENABLEMENT,
+    LogAction.USER_INVITED: LogModule.USER_MANAGEMENT,
+    LogAction.USER_ROLE_CHANGED: LogModule.USER_MANAGEMENT,
+    LogAction.USER_STATUS_CHANGED: LogModule.USER_MANAGEMENT,
+    LogAction.ROLE_PERMISSION_CREATED: LogModule.SETTINGS,
+    LogAction.ROLE_PERMISSION_UPDATED: LogModule.SETTINGS,
+    LogAction.ROLE_PERMISSION_DELETED: LogModule.SETTINGS,
+    LogAction.CSV_EXPORTED: LogModule.EXPORT,
+}
+
+# The system-log list reads "{user} {verb}", composed at write time so the sentence still
+# reads correctly after the entity it names is renamed or deleted.
+SYSTEM_LOG_DESCRIPTION = "{user} {verb}"
+SYSTEM_LOG_DESCRIPTION_WITH_ENTITY = '{user} {verb} "{entity}"'
+SYSTEM_LOG_MAX_DESCRIPTION_LENGTH = 500
+
+# Past-tense phrase used to build a description when a call site does not supply one.
+LOG_ACTION_VERBS: dict[LogAction, str] = {
+    LogAction.USER_LOGIN: "logged in",
+    LogAction.USER_LOGOUT: "logged out",
+    LogAction.USER_SIGNUP: "signed up",
+    LogAction.PASSWORD_RESET: "reset their password",
+    LogAction.OPPORTUNITY_CREATED: "created opportunity",
+    LogAction.OPPORTUNITY_UPDATED: "updated opportunity",
+    LogAction.OPPORTUNITY_STATUS_CHANGED: "changed the status of opportunity",
+    LogAction.OPPORTUNITY_DELETED: "deleted opportunity",
+    LogAction.OPPORTUNITY_AI_INGESTED: "ingested opportunity via AI",
+    LogAction.PIPELINE_PROJECT_CREATED: "created pipeline project",
+    LogAction.PIPELINE_PROJECT_UPDATED: "updated pipeline project",
+    LogAction.PIPELINE_PROJECT_DELETED: "deleted pipeline project",
+    LogAction.PIPELINE_RESOURCE_CREATED: "added pipeline resource",
+    LogAction.PIPELINE_RESOURCE_UPDATED: "updated pipeline resource",
+    LogAction.PIPELINE_RESOURCE_DELETED: "removed pipeline resource",
+    LogAction.PIPELINE_RESOURCE_SELECTED: "selected pipeline resource",
+    LogAction.PIPELINE_RESOURCE_ASSIGNED_TO_TL: "assigned to a team lead pipeline resource",
+    LogAction.PIPELINE_RESOURCE_APPROVED: "approved pipeline resource",
+    LogAction.PIPELINE_RESOURCE_AUTO_APPROVED: "auto approved pipeline resource",
+    LogAction.PIPELINE_RESOURCE_REJECTED: "rejected pipeline resource",
+    LogAction.PIPELINE_TECH_PREP_CREATED: "created technical preparation",
+    LogAction.PIPELINE_TECH_PREP_UPDATED: "updated technical preparation",
+    LogAction.PIPELINE_TECH_PREP_DELETED: "deleted technical preparation",
+    LogAction.PIPELINE_TECH_PREP_COMMENTED: "commented on technical preparation",
+    LogAction.PROFILE_VARIANT_CREATED: "created profile variant",
+    LogAction.PROFILE_VARIANT_UPDATED: "updated profile variant",
+    LogAction.PROFILE_VARIANT_DELETED: "deleted profile variant",
+    LogAction.PROFILE_DOWNLOADED: "downloaded profile",
+    LogAction.PROJECT_CREATED: "created project",
+    LogAction.PROJECT_UPDATED: "updated project",
+    LogAction.PROJECT_DELETED: "deleted project",
+    LogAction.CASE_STUDY_DOWNLOADED: "downloaded case study",
+    LogAction.SALES_ENABLEMENT_CREATED: "created sales enablement entry",
+    LogAction.SALES_ENABLEMENT_UPDATED: "updated sales enablement entry",
+    LogAction.SALES_ENABLEMENT_DELETED: "deleted sales enablement entry",
+    LogAction.USER_INVITED: "invited user",
+    LogAction.USER_ROLE_CHANGED: "changed the role of user",
+    LogAction.USER_STATUS_CHANGED: "changed the status of user",
+    LogAction.ROLE_PERMISSION_CREATED: "created role permissions for",
+    LogAction.ROLE_PERMISSION_UPDATED: "updated role permissions for",
+    LogAction.ROLE_PERMISSION_DELETED: "deleted role permissions for",
+    LogAction.CSV_EXPORTED: "exported CSV",
 }

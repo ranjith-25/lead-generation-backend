@@ -7,6 +7,8 @@ from app.responses.base import BaseResponse
 from app.models.sales_enablement import SalesEnablement
 from app.services.db.opportunity import get_opportunity_by_id
 from app.services.db.sales_enablement import get_sales_enablement_by_id_db, get_sales_enablement_by_opp_db, add_sales_enablement_db, update_sales_enablement_db, delete_sales_enablement_db
+from app.config import LogAction
+from app.services.system_log import log_activity
 
 async def check_opportunity_access(db: AsyncSession, opportunity_id: UUID, user_id: UUID) -> None:
 
@@ -56,6 +58,15 @@ async def create_sales_enablement_service(db: AsyncSession, se_data: SalesEnable
     se_dict['createdBy'] = user_id
     se_dict['updatedBy'] = user_id
     new_se = SalesEnablement(**se_dict)
+
+    await log_activity(
+        db,
+        LogAction.SALES_ENABLEMENT_CREATED,
+        user_id,
+        entity_type="sales_enablement",
+        details={"opportunityID": se_data.opportunityID},
+    )
+
     saved_se = await add_sales_enablement_db(db, new_se)
     return SalesEnablementRead.model_validate(saved_se)
 
@@ -76,6 +87,18 @@ async def update_sales_enablement_service(db: AsyncSession, se_id: UUID | str, s
     update_dict = se_data.model_dump(exclude={'opportunityID'}, exclude_unset=True)
     update_dict['updatedBy'] = user_id
     
+    await log_activity(
+        db,
+        LogAction.SALES_ENABLEMENT_UPDATED,
+        user_id,
+        entity_type="sales_enablement",
+        entity_id=se.id,
+        details={
+            "opportunityID": se.opportunityID,
+            "updatedFields": sorted(update_dict.keys()),
+        },
+    )
+
     updated_se = await update_sales_enablement_db(db, se, update_dict)
     return SalesEnablementRead.model_validate(updated_se)
 
@@ -92,5 +115,14 @@ async def delete_sales_enablement_service(db: AsyncSession, se_id: UUID | str, u
 
     await check_opportunity_access(db, se.opportunityID, user_id)
         
+    await log_activity(
+        db,
+        LogAction.SALES_ENABLEMENT_DELETED,
+        user_id,
+        entity_type="sales_enablement",
+        entity_id=se.id,
+        details={"opportunityID": se.opportunityID},
+    )
+
     await delete_sales_enablement_db(db, se)
     return BaseResponse(success=True, message="Sales Enablement deleted successfully")

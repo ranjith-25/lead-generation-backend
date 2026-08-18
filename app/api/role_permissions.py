@@ -56,7 +56,7 @@ async def create_role_permission(
     current_user: User = Depends(require_permission("role_permissions", "create")),
     db: AsyncSession = Depends(get_db)
 ) -> JSONResponse:
-    response = await create_role_permission_service(db, rp_data)
+    response = await create_role_permission_service(db, rp_data, current_user.user_id)
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content=response.model_dump(mode="json")
@@ -70,7 +70,7 @@ async def update_role_permission(
     current_user: User = Depends(require_permission("role_permissions", "update")),
     db: AsyncSession = Depends(get_db)
 ) -> JSONResponse:
-    response = await update_role_permission_service(db, id, rp_data)
+    response = await update_role_permission_service(db, id, rp_data, current_user.user_id)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=response.model_dump(mode="json")
@@ -83,7 +83,7 @@ async def delete_role_permission(
     current_user: User = Depends(require_permission("role_permissions", "delete")),
     db: AsyncSession = Depends(get_db)
 ) -> JSONResponse:
-    response = await delete_role_permission_service(db, id)
+    response = await delete_role_permission_service(db, id, current_user.user_id)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=response.model_dump(mode="json")

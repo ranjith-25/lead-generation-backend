@@ -49,6 +49,8 @@ from app.services.db.user_personal_info import get_user_personal_info_by_user_id
 from app.services.db.branch import get_branch_by_id
 from app.services.db.project_domains import get_project_domain_by_id
 from app.services.db.user_status import get_user_status_by_id
+from app.config import LogAction
+from app.services.system_log import log_activity
 
 
 async def handle_get_all_profile_variants(db: AsyncSession, current_user: User) -> GetProfileVariantResponse:
@@ -277,6 +279,21 @@ async def handle_create_profile_variant(
             updated_by=current_user.user_id,
         )
 
+        await log_activity(
+            db,
+            LogAction.PROFILE_VARIANT_CREATED,
+            current_user,
+            entity_type="profile_variant",
+            entity_id=profile_variant_id,
+            entity_name=profile_variant_create.name,
+            details={
+                "user_id": profile_variant_create.user_id,
+                "role": profile_variant_create.role,
+                "experience": profile_variant_create.experience,
+                "is_draft": profile_variant_create.is_draft,
+            },
+        )
+
         # Insert record into database using the pre-generated UUID and S3 key
         created_profile_variant = await create_profile_variant(
             db, new_profile_variant, profile_variant_create.projects or []
@@ -387,6 +404,22 @@ async def handle_update_profile_variant(
             )
             update_data["upload_profile"] = stored_path
 
+        await log_activity(
+            db,
+            LogAction.PROFILE_VARIANT_UPDATED,
+            current_user,
+            entity_type="profile_variant",
+            entity_id=profile_variant_id,
+            entity_name=profile_variant_update.name,
+            details={
+                "user_id": profile_variant_update.user_id,
+                "role": profile_variant_update.role,
+                "experience": profile_variant_update.experience,
+                "is_draft": profile_variant_update.is_draft,
+                "file_replaced": bool(stored_path),
+            },
+        )
+
         # 2. Update database record
         updated_profile_variant = await update_profile_variant(
             db, update_data, profile_variant_update.projects, profile_variant_id
@@ -420,6 +453,16 @@ async def handle_delete_profile_variant(
     db: AsyncSession, current_user: User, profile_variant_id: UUID
 ) -> DeleteProfileVariantResponse:
     try:
+        # staged before the delete commits — the row is only flushed if the delete succeeds
+        await log_activity(
+            db,
+            LogAction.PROFILE_VARIANT_DELETED,
+            current_user,
+            entity_type="profile_variant",
+            entity_id=profile_variant_id,
+            details={"profile_variant_id": profile_variant_id},
+        )
+
         deleted_profile_variant = await delete_profile_variant(db, profile_variant_id)
         if deleted_profile_variant is None:
             raise NotFoundException()
@@ -523,7 +566,7 @@ async def handle_get_projects_and_domains(
 
 
 async def handle_download_profile_variant(
-    db: AsyncSession, user_id: UUID, profile_variant_id: UUID
+    db: AsyncSession, user_id: UUID, profile_variant_id: UUID, actor_id: UUID | None = None
 ) -> FileDownloadResponse:
     try:
         profile_variant = await get_profile_variant_by_id(db, profile_variant_id)
@@ -539,6 +582,19 @@ async def handle_download_profile_variant(
         file_name = object_key.split("/")[-1]
         file_stream = stream_file(object_key)
         print(file_name)
+
+        # read-only request: no business write to ride along on, so the row commits itself
+        await log_activity(
+            db,
+            LogAction.PROFILE_DOWNLOADED,
+            # the downloader, which need not be the profile's owner
+            actor_id or user_id,
+            entity_type="profile_variant",
+            entity_id=profile_variant_id,
+            entity_name=profile_variant.name,
+            details={"file_name": file_name, "object_key": object_key},
+            commit=True,
+        )
 
         return FileDownloadResponse(
             file_stream=file_stream,
