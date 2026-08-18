@@ -5,7 +5,11 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.exceptions.notification import NotificationNotFoundException
+from app.core.settings import settings
+from app.exceptions.notification import (
+    NotificationNotFoundException,
+    NotificationTypeNotConfiguredException,
+)
 from app.responses.notification import (
     MarkAllNotificationsReadResponse,
     MarkNotificationReadResponse,
@@ -30,8 +34,168 @@ from app.services.db.notifications import (
     update_notification_db,
 )
 from app.services.notification_stream import publish_notifications
-from app.services.notification_content import build_notification_content
-from app.services.firebase_messaging import send_firebase_push_for_notifications
+from app.services.db.firebase_token import get_firebase_token_by_user_id
+from app.services.firebase_token import send_push_notification
+from app.schemas.firebase_token import FirebaseNotificationPayload
+from app.config import (
+    AUDIENCE_ROLES,
+    Audience,
+    NOTIFICATION_CONTENT,
+    NOTIFICATION_EVENTS,
+    NOTIFICATION_NAVIGATION,
+    NOTIFICATION_TYPE_NAVIGATION,
+    NotificationEvent,
+)
+
+
+class _SafeContext(dict):
+    """Keeps template rendering forgiving — missing or None placeholders become empty strings."""
+
+    def __getitem__(self, key):
+        value = super().__getitem__(key)
+        if value is None:
+            return ""
+        return value
+
+    def __missing__(self, key):
+        logging.warning(f"Missing notification template placeholder: {key}")
+        return ""
+
+
+def _render(template: str | None, context: dict[str, Any]) -> str | None:
+    if not template:
+        return template
+    try:
+        return template.format_map(_SafeContext(context))
+    except (IndexError, ValueError):
+        # Braces that are not placeholders (json snippets, css, …) — keep the raw template.
+        logging.warning("Could not render notification template, using it as-is")
+        return template
+
+
+def _resolve_navigation_url(notification_type: NotificationType, context: dict[str, Any]) -> str | None:
+    """notification type -> page key (NOTIFICATION_TYPE_NAVIGATION) -> link (NOTIFICATION_NAVIGATION)."""
+    page_key = NOTIFICATION_TYPE_NAVIGATION.get(notification_type.value)
+
+    if not page_key:
+        # Deliberately unnavigable notification type — not a misconfiguration.
+        return None
+
+    link = NOTIFICATION_NAVIGATION.get(page_key)
+
+    if not link:
+        logging.warning(
+            f"Notifications type {notification_type.value} points at unknown navigation page: {page_key}"
+        )
+        return None
+
+    if link.startswith("/"):
+        link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}{link}"
+
+    return _render(link, context)
+
+
+def build_notification_content(content: NotificationContentBase) -> dict:
+    notification_type = content.notification_type
+    configured = NOTIFICATION_CONTENT.get(notification_type.value)
+
+    if configured is None:
+        raise NotificationTypeNotConfiguredException(notification_type.value)
+
+    title = content.title or _render(configured.get("title", ""), content.context)
+    body = content.body or _render(configured.get("body", ""), content.context)
+    url = content.url or _resolve_navigation_url(notification_type, content.context)
+
+    return {
+        "notification_type": notification_type,
+        "title": title or "",
+        "body": body or "",
+        "url": url,
+        "created_by": content.created_by,
+        "updated_by": content.created_by,
+    }
+
+
+async def send_firebase_push_for_notifications(
+    db: AsyncSession,
+    user_ids: list[UUID],
+    notification_type: NotificationType,
+    title: str,
+    body: str,
+    url: str | None = None,
+    context: dict[str, Any] | None = None,
+) -> None:
+    """Delivers Firebase push notifications to all active FCM tokens belonging to target users.
+
+    Isolated with try-except to ensure Firebase failures never break in-app notification flows.
+    """
+    if not user_ids:
+        return
+
+    try:
+        data: dict[str, str] = {}
+        if url:
+            data["url"] = str(url)
+        if context:
+            for k, v in context.items():
+                if v is not None:
+                    data[str(k)] = str(v)
+
+        payload = FirebaseNotificationPayload(
+            notification_type=notification_type,
+            title=title or "",
+            body=body or "",
+            data=data or None,
+        )
+
+        for user_id in user_ids:
+            try:
+                tokens = await get_firebase_token_by_user_id(db, user_id)
+                active_tokens = [
+                    t.fcm_token
+                    for t in tokens
+                    if getattr(t, "is_active", True) and getattr(t, "fcm_token", None)
+                ]
+
+                if not active_tokens:
+                    logging.info(
+                        "No active FCM tokens found for user_id=%s (notification_type=%s)",
+                        user_id,
+                        notification_type.value if hasattr(notification_type, "value") else notification_type,
+                    )
+                    continue
+
+                logging.info(
+                    "Sending Firebase push notification to %d token(s) for user_id=%s (notification_type=%s)",
+                    len(active_tokens),
+                    user_id,
+                    notification_type.value if hasattr(notification_type, "value") else notification_type,
+                )
+
+                response = send_push_notification(
+                    firebase_notification=payload,
+                    tokens=active_tokens,
+                )
+
+                success_count = getattr(response, "success_count", 0)
+                failure_count = getattr(response, "failure_count", 0)
+                logging.info(
+                    "Firebase push result for user_id=%s: %d succeeded, %d failed",
+                    user_id,
+                    success_count,
+                    failure_count,
+                )
+            except Exception:
+                logging.exception(
+                    "Error sending Firebase push notification for user_id=%s (notification_type=%s)",
+                    user_id,
+                    notification_type.value if hasattr(notification_type, "value") else notification_type,
+                )
+    except Exception:
+        logging.exception(
+            "Unexpected error in send_firebase_push_for_notifications for notification_type=%s",
+            notification_type.value if hasattr(notification_type, "value") else notification_type,
+        )
 
 
 async def create_notification(
