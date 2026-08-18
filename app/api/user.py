@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from typing import Optional
-
 from uuid import UUID
-from app.core.security import require_permission
+
 from app.models.user import User
 from app.schemas.user import UserRoleRead
 from app.services.db.user import get_all_user_by_role

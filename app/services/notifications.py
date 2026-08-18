@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.settings import settings
 from app.exceptions.notification import (
     NotificationNotFoundException,
     NotificationTypeNotConfiguredException,
@@ -90,6 +91,9 @@ def _resolve_navigation_url(notification_type: NotificationType, context: dict[s
             f"Notifications type {notification_type.value} points at unknown navigation page: {page_key}"
         )
         return None
+
+    if link.startswith("/"):
+        link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}{link}"
 
     return _render(link, context)
 

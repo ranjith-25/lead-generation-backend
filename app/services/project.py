@@ -1,6 +1,4 @@
 import io
-import uuid
-from pathlib import Path
 from uuid import UUID
 import json 
 import logging
@@ -12,7 +10,6 @@ from app.services.types import (
     ProjectHelpers
 )
 from app.exceptions.ai_exception import AIException, handle_ai_exception
-from app.core.settings import settings
 from app.core.storage import (
     has_upload,
     ALLOWED_CASE_STUDY_EXTENSIONS,
@@ -38,8 +35,6 @@ from app.exceptions.project import (
 )
 
 from app.exceptions.s3_exceptions import S3UploadException, S3DeleteException
-from app.models.projects import Projects
-from app.responses.base import BaseResponse
 from app.responses.project import CreateProjectResponse, ProjectListResponse, FileDownloadResponse
 from app.schemas.common import get_time_filter_options
 from app.schemas.project import (
@@ -67,8 +62,7 @@ from app.services.db.techstack import (
     get_all_techstacks_db
 )
 from app.schemas.techstack import TechstackFilters
-from app.schemas.project_domains import ProjectDomainFilters 
-from app.exceptions.custom import AppException
+from app.schemas.project_domains import ProjectDomainFilters
 
 async def _resolve_domain(db: AsyncSession, project_domain_id: UUID):
     domain = await get_project_domain_by_id(db, project_domain_id)
@@ -107,8 +101,6 @@ async def ingest_project_to_ai(project) -> dict | None:
         "links": projectData["links"]
     }
     
-    print(payload["links"], type(payload["links"]))
-    
     # Get the basename after the folder prefix from the S3 key
     filename = project.case_study.split("/")[-1]
     
@@ -126,7 +118,6 @@ async def ingest_project_to_ai(project) -> dict | None:
                 )
             },
         )
-        print( response)
         response.raise_for_status()
         return response.json()
     except Exception as exc:
@@ -405,8 +396,9 @@ async def get_project_filters(db: AsyncSession):
         for techstack in all_techstack:
             response["Techstack"].append(techstack.techstack_name)
         return response
-    except:
-        raise CantFetchFilterException()
+    except Exception as exc:
+        logging.exception("Could not fetch project filter options")
+        raise CantFetchFilterException() from exc
 
 async def download_case_study_service(
     db: AsyncSession,

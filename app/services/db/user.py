@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -9,12 +10,11 @@ from app.models.user import User
 from app.models.role import Role
 from app.models.user_personal_info import UserPersonalInfo
 from app.models.user_invitation import UserInvitation
-import logging
-from uuid import UUID
 
-async def get_all_user_by_role(db: AsyncSession, roles : list[UUID]) -> list[dict]:
-    if roles is None or len(roles) == 0:
-        roles = [UUID("67b38adf-f216-4208-ad2f-25db2e1f4248"), UUID("4395535d-d6f8-4069-aa42-54474ead361e")]
+
+async def get_all_user_by_role(db: AsyncSession, roles: list[UUID] | None = None) -> list[dict]:
+    if not roles:
+        return []
     try:
         query = select(
             User.user_id,

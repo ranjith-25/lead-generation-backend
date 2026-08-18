@@ -6,17 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.connections.postgres import engine
-from app.models.base import Base
-from app.core.security import get_password_hash
 from app.exceptions.handlers import register_exception_handlers
-from app.core.connections.ai_connection import connect_ai,disconnect_ai
+from app.core.connections.ai_connection import connect_ai, disconnect_ai
 from app.core.connections.notification_listener import (
     connect_notification_listener,
     disconnect_notification_listener,
 )
 
-from app.core.connections.s3 import connect_s3,disconnect_s3
-from app.core.connections.firebase import connect_firebase,disconnect_firebase
+from app.core.connections.s3 import connect_s3, disconnect_s3
+from app.core.connections.firebase import connect_firebase, disconnect_firebase
 
 from app.api.auth import router as auth_router
 from app.api.opportunity import router as opportunity_router
@@ -50,6 +48,10 @@ from app.api.user_project import router as user_project_router
 from app.api.firebase_token import firebase_token_router
 from app.api.ai_usages import router as ai_usages_router
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application Started")
@@ -66,9 +68,6 @@ async def lifespan(app: FastAPI):
 
     await engine.dispose()
     logger.info("Application Stopped")
-    
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 
 app = FastAPI(title="Lead Generation API", lifespan=lifespan)

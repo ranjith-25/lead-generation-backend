@@ -279,10 +279,10 @@ NOTIFICATION_CONTENT = {
 }
 
 NOTIFICATION_NAVIGATION = {
-    "OPPURTUNITY_PIPELINE": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline",
-    "MY_PROFILE": "https://macaw-otter-linoleum.ngrok-free.dev/profile",
-    "USER_HIERARCHY": "https://macaw-otter-linoleum.ngrok-free.dev/user-hierarchy?user_id={user_id}",
-    "TECHNICAL_PREPARATION": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline/technical-preparation?opportunity_id={opportunity_id}",
+    "OPPURTUNITY_PIPELINE": "/opportunity-pipeline",
+    "MY_PROFILE": "/profile",
+    "USER_HIERARCHY": "/user-hierarchy?user_id={user_id}",
+    "TECHNICAL_PREPARATION": "/opportunity-pipeline/technical-preparation?opportunity_id={opportunity_id}",
 }
 
 NOTIFICATION_TYPE_NAVIGATION = {
