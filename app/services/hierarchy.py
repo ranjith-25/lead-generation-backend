@@ -21,7 +21,7 @@ async def handleGetHierarchy(db) -> HierarchyListResponse:
             )
 
         root = []
-
+        
         # Build tree
         for user in users:
             parent_id = user.reporting_to

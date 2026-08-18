@@ -49,6 +49,7 @@ from app.api.settings import router as settings_router
 from app.api.user_project import router as user_project_router
 from app.api.firebase_token import firebase_token_router
 from app.api.ai_usages import router as ai_usages_router
+from app.api.system_log import router as system_log_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -184,3 +185,10 @@ app.include_router(sales_enablement_router)
 
 app.include_router(techstack_router)
 app.include_router(ai_usages_router)
+
+
+# =========================
+# System Activity Logs
+# =========================
+
+app.include_router(system_log_router)

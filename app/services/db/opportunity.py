@@ -94,7 +94,7 @@ async def get_all_opportunities(
                     PipelineOpportunityResourceModel.rejected_by.in_(target_user_ids),
                 ),
             )
-        )
+        ).order_by(PipelineOpportunityResourceModel.updatedAt)
     )
 
     # ---------------------------------------------------------

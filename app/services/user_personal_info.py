@@ -2,11 +2,13 @@ import logging
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import LogAction
 from app.exceptions.custom import (
     AppException,
     NotFoundException,
     IncorrectPasswordException,
-    ConfirmPasswordMismatchException
+    ConfirmPasswordMismatchException,
+    UserAlreadyDeletedException,
 )
 from app.responses.base import BaseResponse
 from app.models.user import User
@@ -29,10 +31,9 @@ from app.schemas.user_personal_info import (
     UserProfileFiltersResponse,
     UserPasswordUpdate
 )
-from app.services.db.user import update_user_password
+from app.services.db.user import get_user_by_id, soft_delete_user, update_user_password
 from app.services.db.user_personal_info import (
     create_user_personal_info,
-    delete_user_personal_info,
     get_all_user_personal_info,
     get_user_personal_info_by_user_id,
     update_user_personal_info,
@@ -44,6 +45,7 @@ from app.core.security import (
 )
 
 from app.services.hierarchy import handleGetHierarchyByUser
+from app.services.system_log import log_activity
 
 
 async def handle_get_user_personal_info(
@@ -172,21 +174,53 @@ async def handle_update_user_personal_info_status(
 async def handle_delete_user_personal_info(
     db: AsyncSession, current_user: User, user_id: UUID
 ) -> DeleteUserPersonalInfoResponse:
+    """Soft-deletes the *user account*, despite the route sitting under /user-personal-info.
+
+    The `user_personal_info` row is deliberately left in place: it is what `User.fullName`
+    reads, so dropping it would degrade every historical `createdByName` and every system-log
+    actor name to "Unknown User". See app/.docs/plans/user-soft-delete.md.
+    """
     try:
-        deleted_personal_info = await delete_user_personal_info(db, user_id)
-        if deleted_personal_info is None:
+        user = await get_user_by_id(db, user_id)
+        if user is None:
             raise NotFoundException()
+        if user.is_deleted:
+            raise UserAlreadyDeletedException()
+
+        # Staged before the write so that soft_delete_user's commit flushes the log row too,
+        # and while `fullName` / `email` still read off a row nobody has touched yet.
+        await log_activity(
+            db,
+            LogAction.USER_DELETED,
+            current_user,
+            entity_type="user",
+            entity_id=user.user_id,
+            entity_name=user.fullName,
+            details={"email": user.email},
+        )
+
+        counts = await soft_delete_user(db, user)
+        # Counts land here rather than in the log row's `details`: staging happens before the
+        # write, so the row is composed before these numbers exist.
+        logging.info(
+            "Soft deleted user %s - reparented %s subordinate(s), orphaned %s, "
+            "cleared %s opportunity assignment(s), revoked %s session(s)",
+            user_id,
+            counts["subordinates_reparented"],
+            counts["subordinates_orphaned"],
+            counts["opportunities_unassigned"],
+            counts["sessions_revoked"],
+        )
 
         return DeleteUserPersonalInfoResponse(
-            message="User Personal Info deleted successfully",
+            message="User deleted successfully",
             status_code=200,
         )
-    except NotFoundException as e:
-        logging.exception("Could not find User Personal Info")
-        raise e
-    except Exception as e:
-        logging.exception("Some error occurred while deleting User Personal Info")
-        raise e
+    except AppException:
+        raise
+    except Exception:
+        logging.exception("Some error occurred while deleting the user")
+        raise
 
 async def handle_update_password(
     db: AsyncSession, payload: UserPasswordUpdate, current_user: User

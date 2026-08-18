@@ -50,13 +50,16 @@ from app.services.db.pipeline_opportunity_resource import (
 from app.models.job_role import JobRole
 from app.services.db.project import get_project_by_ids_list_db
 from app.services.db.sales_enablement import add_sales_enablement_db
-from app.services.notifications import notify_users
+from app.services.notification_dispatcher import notify_users
 from app.services.opportunity_status import get_new_opportunity_status_id
+from app.config import LogAction
+from app.services.system_log import log_activity
 
 from app.services.db.pipeline_opportunity_techincal_preperation import create_multiple_pipeline_opportunity_technical_preperation
 from app.models.pipeline_opportunity_techincal_preperation import PipelineOpportunityTechnicalPreperationModel
 from app.services.db.job_role import get_all_job_roles
 from app.schemas.job_role import JobRoleFilters
+from app.config import JOBKEY_QUERY_URL
 
 logger = logging.getLogger(__name__)
 
@@ -410,7 +413,10 @@ async def process_opportunity_pipeline_background(
         execution_status_id=execution_status_id,
         client=client,
     )
-
+    
+    if project_res is None:
+        raise 
+    
     top_project_ids = [row.project_id for row in project_res.matches]
 
     resource_request = AIGetRelaventProfilesRequest(
@@ -441,6 +447,14 @@ async def handleGetScrapedData(
 ) -> CreateOpportunityResponse:
     """Initial entry point: Scrapes URL, saves Opportunity, and queues background pipeline."""
     try:
+        can_continue = True
+        for jobkey_url in JOBKEY_QUERY_URL:
+            if jobkey_url in url:
+                can_continue: False
+                
+        if can_continue:
+            url = url.split('?')[0]
+            
         existing_opportunity = await get_opportunity_by_url(db, url)
         if existing_opportunity:
             raise OpportunityAlreadyExistsException(existing_opportunity.opportunityID)
@@ -470,6 +484,21 @@ async def handleGetScrapedData(
         opportunity = await addOpportunity(
             Opportunity(**opportunity_base.model_dump()),
             db,
+        )
+
+        # Staged before the next commit (create_pipeline_execution_status) flushes it.
+        await log_activity(
+            db,
+            LogAction.OPPORTUNITY_AI_INGESTED,
+            user_id,
+            entity_type="opportunity",
+            entity_id=opportunity.opportunityID,
+            entity_name=opportunity.title,
+            details={
+                "job_posting_url": url,
+                "platform": opportunity.platform,
+                "company": opportunity.company,
+            },
         )
 
         execution_status = await create_pipeline_execution_status(
@@ -553,6 +582,22 @@ async def handleGetManualScrapedData(
         opportunity = await addOpportunity(
             Opportunity(**opportunity_base.model_dump()),
             db,
+        )
+
+        # Manual create path (create_opportunity_service); staged before the next commit
+        # (create_pipeline_execution_status) flushes it.
+        await log_activity(
+            db,
+            LogAction.OPPORTUNITY_CREATED,
+            user_id,
+            entity_type="opportunity",
+            entity_id=opportunity.opportunityID,
+            entity_name=opportunity.title,
+            details={
+                "company": opportunity.company,
+                "role": opportunity.role,
+                "source": "manual",
+            },
         )
 
         execution_status = await create_pipeline_execution_status(

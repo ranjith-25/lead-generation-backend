@@ -22,8 +22,10 @@ from app.services.db.user_invitation import (
 )
 from app.core.settings import settings
 from app.config import ( 
-    EMAIL_MESSAGE_CONTENT
+    EMAIL_MESSAGE_CONTENT,
+    LogAction
 )
+from app.services.system_log import log_activity
 from app.services.db.role import get_role_by_id
 from email.message import EmailMessage
 from app.services.db.user_personal_info import get_user_personal_info_by_user_id
@@ -78,6 +80,19 @@ async def handle_create_user_invitation(
             invitedBy=current_user.user_id,
             updatedBy=current_user.user_id,
         )
+        await log_activity(
+            db,
+            LogAction.USER_INVITED,
+            current_user,
+            entity_type="user",
+            entity_name=user_invitation_create.work_email,
+            details={
+                "work_email": user_invitation_create.work_email,
+                "roleID": new_user_invitation.roleID,
+                "reporting_to": new_user_invitation.reporting_to,
+            },
+        )
+
         created_user_invitation = await create_user_invitation(db, new_user_invitation)
         
         role_name = (await get_role_by_id(db, created_user_invitation.roleID)).roleName

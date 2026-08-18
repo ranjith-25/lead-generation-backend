@@ -6,7 +6,7 @@ from app.models.user import User
 from app.responses.ai_usage import AIUsageMetricsResponse, AIUsageLogsResponse
 from app.services.ai_usage import get_cost_token_calls_service, get_logs_service
 
-router = APIRouter(prefix="/asi-usage", tags=["AI usage"])
+router = APIRouter(prefix="/ai-usage", tags=["AI usage"])
 
 
 @router.get("/metrics", response_model=AIUsageMetricsResponse)
@@ -20,4 +20,4 @@ async def get_cost_token_calls(
 async def get_logs(
     current_user: User = Depends(get_current_user),
 ) -> AIUsageLogsResponse:
-    return await get_logs_service()
+    return await get_logs_service() 

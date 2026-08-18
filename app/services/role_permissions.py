@@ -22,6 +22,9 @@ from app.services.db.role_permissions import (
 )
 from app.services.db.user import get_user_by_id
 from app.services.db.feature import get_feature_by_id_db
+from app.services.db.role import get_role_by_id
+from app.config import LogAction
+from app.services.system_log import log_activity
 
 async def get_all_role_permissions_service(db: AsyncSession) -> GetRolePermissionsResponse:
     role_permissions = await get_all_role_permissions_db(db)
@@ -51,7 +54,7 @@ async def get_role_permission_service(
     )
 
 async def create_role_permission_service(
-    db: AsyncSession, rp_data: RolePermissionCreate
+    db: AsyncSession, rp_data: RolePermissionCreate, user_id: UUID | None = None
 ) -> CreateRolePermissionResponse:
 
     # Check if a mapping already exists (even if soft-deleted)
@@ -65,6 +68,21 @@ async def create_role_permission_service(
             )
         else:
             # Reactivate soft-deleted mapping
+            role = await get_role_by_id(db, existing.role_id)
+            await log_activity(
+                db,
+                LogAction.ROLE_PERMISSION_CREATED,
+                user_id,
+                entity_type="role",
+                entity_id=existing.role_id,
+                entity_name=role.roleName if role else None,
+                details={
+                    "role_permission_id": existing.role_permission_id,
+                    "feature_id": existing.feature_id,
+                    "permission_id": existing.permission_id,
+                    "reactivated": True,
+                },
+            )
             updated = await update_role_permission_db(db, existing, {"isDeleted": False})
             return CreateRolePermissionResponse(
                 message="Role permission mapping created successfully",
@@ -73,6 +91,21 @@ async def create_role_permission_service(
 
     rp_dict = rp_data.model_dump()
     new_rp = RolePermission(**rp_dict)
+
+    role = await get_role_by_id(db, rp_data.role_id)
+    await log_activity(
+        db,
+        LogAction.ROLE_PERMISSION_CREATED,
+        user_id,
+        entity_type="role",
+        entity_id=rp_data.role_id,
+        entity_name=role.roleName if role else None,
+        details={
+            "feature_id": rp_data.feature_id,
+            "permission_id": rp_data.permission_id,
+        },
+    )
+
     saved_rp = await add_role_permission_db(db, new_rp)
     return CreateRolePermissionResponse(
         message="Role permission mapping created successfully",
@@ -80,7 +113,10 @@ async def create_role_permission_service(
     )
 
 async def update_role_permission_service(
-    db: AsyncSession, rp_id: UUID | str, rp_data: RolePermissionCreate
+    db: AsyncSession,
+    rp_id: UUID | str,
+    rp_data: RolePermissionCreate,
+    user_id: UUID | None = None,
 ) -> UpdateRolePermissionResponse:
     try:
         parsed_id = UUID(str(rp_id))
@@ -108,6 +144,21 @@ async def update_role_permission_service(
             )
 
     update_dict = rp_data.model_dump(exclude_unset=True)
+    role = await get_role_by_id(db, rp_data.role_id)
+    await log_activity(
+        db,
+        LogAction.ROLE_PERMISSION_UPDATED,
+        user_id,
+        entity_type="role",
+        entity_id=rp_data.role_id,
+        entity_name=role.roleName if role else None,
+        details={
+            "role_permission_id": parsed_id,
+            "feature_id": rp_data.feature_id,
+            "permission_id": rp_data.permission_id,
+        },
+    )
+
     updated_rp = await update_role_permission_db(db, rp, update_dict)
     return UpdateRolePermissionResponse(
         message="Role permission mapping updated successfully",
@@ -115,7 +166,7 @@ async def update_role_permission_service(
     )
 
 async def delete_role_permission_service(
-    db: AsyncSession, rp_id: UUID | str
+    db: AsyncSession, rp_id: UUID | str, user_id: UUID | None = None
 ) -> BaseResponse:
     try:
         parsed_id = UUID(str(rp_id))
@@ -125,6 +176,21 @@ async def delete_role_permission_service(
     rp = await get_role_permission_by_id_db(db, parsed_id)
     if not rp:
         raise HTTPException(status_code=404, detail="Role permission mapping not found")
+
+    role = await get_role_by_id(db, rp.role_id)
+    await log_activity(
+        db,
+        LogAction.ROLE_PERMISSION_DELETED,
+        user_id,
+        entity_type="role",
+        entity_id=rp.role_id,
+        entity_name=role.roleName if role else None,
+        details={
+            "role_permission_id": rp.role_permission_id,
+            "feature_id": rp.feature_id,
+            "permission_id": rp.permission_id,
+        },
+    )
 
     await delete_role_permission_db(db, rp)
     return BaseResponse(message="Role permission mapping deleted successfully")

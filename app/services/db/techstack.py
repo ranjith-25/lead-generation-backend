@@ -21,7 +21,7 @@ async def get_all_techstacks_db(db: AsyncSession, filters: TechstackFilters) -> 
     offset = 0
     if filters.limit is not None:
         offset = (filters.page - 1) * filters.limit
-    statement = select(TechStacks).order_by(TechStacks.techstack_id).offset(offset).limit(filters.limit)
+    statement = select(TechStacks).order_by(TechStacks.techstack_id).offset(offset).limit(filters.limit).order_by(TechStacks.techstack_name)
     result = await db.execute(statement)
     return list(result.scalars().all())
 

@@ -88,7 +88,9 @@ async def update_project(
     current_user: User = Depends(require_permission("projects", "update")),
     db: AsyncSession = Depends(get_db),
 ) -> ProjectRead:
-    return await update_project_service(db, project_id, project, case_study, remove_case_study)
+    return await update_project_service(
+        db, project_id, project, case_study, remove_case_study, current_user.user_id
+    )
 
 
 @router.get("/{project_id}/case-study")
@@ -100,6 +102,7 @@ async def download_case_study(
     response: FileDownloadResponse = await download_case_study_service(
         db,
         project_id,
+        current_user.user_id,
     )
 
     return StreamingResponse(
@@ -118,4 +121,4 @@ async def delete_project(
     current_user: User = Depends(require_permission("projects", "delete")),
     db: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
-    return await delete_project_service(db, project_id)
+    return await delete_project_service(db, project_id, current_user.user_id)

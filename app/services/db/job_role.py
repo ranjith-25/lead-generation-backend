@@ -12,7 +12,7 @@ async def get_all_job_roles(db: AsyncSession, filters : JobRoleFilters) -> list[
         offset = 0
         if filters.limit:
             offset = (filters.page - 1) * filters.limit
-        result = await db.execute(select(JobRole).where(JobRole.is_active == True).offset(offset).limit(filters.limit))
+        result = await db.execute(select(JobRole).where(JobRole.is_active == True).offset(offset).limit(filters.limit).order_by(JobRole.roleName))
         return result.scalars().all()
     except SQLAlchemyError as e:
         await db.rollback()
