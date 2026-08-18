@@ -20,6 +20,8 @@ async def get_all_user_statuses(db: AsyncSession, search: str | None = None, pag
             UserStatus.is_active == True
         ).group_by(
             UserStatus.id, UserStatus.displayName
+        ).order_by(
+            UserStatus.displayName
         )
 
         if search:

@@ -59,6 +59,7 @@ from app.services.db.pipeline_opportunity_techincal_preperation import create_mu
 from app.models.pipeline_opportunity_techincal_preperation import PipelineOpportunityTechnicalPreperationModel
 from app.services.db.job_role import get_all_job_roles
 from app.schemas.job_role import JobRoleFilters
+from app.config import JOBKEY_QUERY_URL
 
 logger = logging.getLogger(__name__)
 
@@ -446,6 +447,14 @@ async def handleGetScrapedData(
 ) -> CreateOpportunityResponse:
     """Initial entry point: Scrapes URL, saves Opportunity, and queues background pipeline."""
     try:
+        can_continue = True
+        for jobkey_url in JOBKEY_QUERY_URL:
+            if jobkey_url in url:
+                can_continue: False
+                
+        if can_continue:
+            url = url.split('?')[0]
+            
         existing_opportunity = await get_opportunity_by_url(db, url)
         if existing_opportunity:
             raise OpportunityAlreadyExistsException(existing_opportunity.opportunityID)

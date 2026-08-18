@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.responses.base import BaseResponse
+from app.schemas.ai_usage import AIUsageLogEntry
 
 
 class ModelMetrics(BaseModel):
@@ -25,5 +26,7 @@ class AIUsageMetricsResponse(BaseResponse):
 
 
 class AIUsageLogsResponse(BaseResponse):
-    returned_lines: int = 0
-    logs: list[str] = []
+    returned_lines: int = Field(0, description="How many lines the AI service read off the log")
+    logs: list[AIUsageLogEntry] = Field(
+        [], description="Validated log entries, newest first as the AI service ordered them"
+    )

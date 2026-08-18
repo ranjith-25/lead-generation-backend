@@ -16,7 +16,7 @@ async def getReportingUsers(db, userID):
             LEFT JOIN user_personal_info upi ON u.user_id = upi.user_id
             LEFT JOIN roles r
                 ON u.role_id = r.role_id
-            WHERE u.user_id = :user_id
+            WHERE u.user_id = :user_id AND u.is_deleted = false
 
             UNION ALL
 
@@ -33,6 +33,7 @@ async def getReportingUsers(db, userID):
                 ON u.role_id = r.role_id
             JOIN reporting_tree rt
                 ON u.reporting_to = rt.user_id
+            WHERE u.is_deleted = false
         )
 
         SELECT

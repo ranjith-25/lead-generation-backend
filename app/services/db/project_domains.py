@@ -12,10 +12,11 @@ async def get_all_project_domain_db(db: AsyncSession, filters: ProjectDomainFilt
         offset = 0
         if filters.limit:
             offset = (filters.page - 1) * filters.limit
-        projectDomainsList = await db.execute(select(ProjectDomain).offset(offset).limit(filters.limit))
+        projectDomainsList = await db.execute(select(ProjectDomain).offset(offset).limit(filters.limit).order_by(ProjectDomain.domain))
         projectDomainsList = projectDomainsList.scalars().all()
         return projectDomainsList
     except SQLAlchemyError as e:
+        print(e)
         await db.rollback()
         logging.exception("Could not find Project Domains")
         raise e

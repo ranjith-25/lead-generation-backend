@@ -104,6 +104,11 @@ async def get_all_user_personal_info(
                 .outerjoin(reporting_user, User.reporting_to == reporting_user.user_id) \
                 .outerjoin(reporting_info, reporting_user.user_id == reporting_info.user_id)
 
+        # Soft-deleted users drop out of the profile list. The join to `users` above is an
+        # outer join, but user_personal_info.user_id is NOT NULL, so this never hides a row
+        # that has no user.
+        query = query.where(User.is_deleted.is_(False))
+
         query = apply_time_range(query, UserPersonalInfo.createdAt, filters.time_filter)
 
         if filters.search:
@@ -198,22 +203,6 @@ async def update_user_personal_info(db: AsyncSession, update_data: dict, user_id
         logging.exception(f"Could not update User Personal Info for user_id: {user_id}")
         raise e
 
-
-async def delete_user_personal_info(db: AsyncSession, user_id: UUID) -> UserPersonalInfo | None:
-    try:
-        result = await db.execute(select(UserPersonalInfo).where(UserPersonalInfo.user_id == user_id))
-        db_personal_info = result.scalars().first()
-        
-        if not db_personal_info:
-            return None
-            
-        await db.delete(db_personal_info)
-        await db.commit()
-        return db_personal_info
-    except SQLAlchemyError as e:
-        await db.rollback()
-        logging.exception(f"Could not delete User Personal Info for user_id: {user_id}")
-        raise e
 
 async def get_user_profile_filters(db: AsyncSession) -> dict:
     try:

@@ -34,6 +34,9 @@ async def get_all_user_management_info(
         ).outerjoin(User, UserPersonalInfo.user_id == User.user_id) \
          .outerjoin(Role, User.role_id == Role.role_id)
 
+        # Soft-deleted users are not manageable, so they leave this grid too.
+        query = query.where(User.is_deleted.is_(False))
+
         query = apply_time_range(query, UserPersonalInfo.createdAt, filters.time_filter)
 
         if filters.search:
@@ -90,7 +93,11 @@ async def update_user_role_and_reporting_to(
 ) -> None:
     try:
         from uuid import UUID
-        result = await db.execute(select(User).where(User.user_id == user_id))
+        # Filtered: a soft-deleted user is not manageable, and re-pointing their reporting_to
+        # would put them back into the hierarchy tree.
+        result = await db.execute(
+            select(User).where(User.user_id == user_id, User.is_deleted.is_(False))
+        )
         user = result.scalars().first()
         if not user:
             raise ValueError(f"User with id {user_id} not found")

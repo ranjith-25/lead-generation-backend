@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,11 +15,22 @@ if TYPE_CHECKING:
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        # Partial unique index instead of a plain UNIQUE on `email`: soft-deleted users keep
+        # their row, and a plain constraint would burn that address forever — the same person
+        # could never be re-invited, and a typo'd account would block its own correction.
+        Index(
+            "uq_users_email_active",
+            "email",
+            unique=True,
+            postgresql_where=text("is_deleted = false"),
+        ),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(100), nullable=False)
     hashedPassword: Mapped[str | None] = mapped_column(String(150), nullable=True)
     refUID: Mapped[str | None] = mapped_column(String(50), nullable=True)
     passwordResetAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -29,6 +40,14 @@ class User(Base):
     reporting_to: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True
     )
+
+    # Users are never hard-deleted — ~25 tables carry a createdBy/updatedBy FK to this one,
+    # most of them ON DELETE CASCADE, so a real DELETE would take the user's opportunities,
+    # pipeline rows and seeded lookup data with it. See app/.docs/plans/user-soft-delete.md.
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     createdAt: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False

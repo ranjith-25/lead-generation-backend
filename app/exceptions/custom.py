@@ -54,6 +54,18 @@ class ConfirmPasswordMismatchException(AppException):
             error_code=ErrorCode.CONFIRM_PASSWORD_MISMATCH,
         )
 
+class UserAlreadyDeletedException(AppException):
+    """Deleting an already soft-deleted user is a no-op, not a 404 - the row is still there,
+    so answering "Data not found" would send the caller looking for the wrong problem."""
+
+    def __init__(self):
+        super().__init__(
+            message="This user has already been deleted",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code=ErrorCode.USER_ALREADY_DELETED,
+        )
+
+
 class LegacyRoleDeleteException(AppException):
     def __init__(self):
         super().__init__(

@@ -24,6 +24,18 @@ class SessionExpiredException(AppException):
         )
 
 
+class UserDeletedException(AppException):
+    """A JWT minted before the account was soft-deleted is still cryptographically valid and
+    its session row may still be live, so neither of those checks catches it - this does."""
+
+    def __init__(self):
+        super().__init__(
+            message="This account has been deleted",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            error_code=ErrorCode.USER_DELETED,
+        )
+
+
 class TokenExpiredException(AppException):
 
     def __init__(self):

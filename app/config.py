@@ -300,6 +300,10 @@ NOTIFICATION_TYPE_NAVIGATION = {
     "BD_RESOURCE_REJECTED" : "OPPURTUNITY_PIPELINE",
 }
 
+JOBKEY_QUERY_URL = [
+    "in.indeed.com"
+]
+
 class NotificationType(str,Enum):
     ANALYSIS_COMPLETE = "ANALYSIS_COMPLETE"
     PROJECT_ADDED = "PROJECT_ADDED"
@@ -617,6 +621,7 @@ class LogAction(str, Enum):
     USER_INVITED = "USER_INVITED"
     USER_ROLE_CHANGED = "USER_ROLE_CHANGED"
     USER_STATUS_CHANGED = "USER_STATUS_CHANGED"
+    USER_DELETED = "USER_DELETED"
 
     # SETTINGS
     ROLE_PERMISSION_CREATED = "ROLE_PERMISSION_CREATED"
@@ -666,6 +671,7 @@ LOG_ACTION_LABELS: dict[LogAction, str] = {
     LogAction.USER_INVITED: "User Invited",
     LogAction.USER_ROLE_CHANGED: "User Role Changed",
     LogAction.USER_STATUS_CHANGED: "User Status Changed",
+    LogAction.USER_DELETED: "User Deleted",
     LogAction.ROLE_PERMISSION_CREATED: "Role Permission Created",
     LogAction.ROLE_PERMISSION_UPDATED: "Role Permission Updated",
     LogAction.ROLE_PERMISSION_DELETED: "Role Permission Deleted",
@@ -713,6 +719,7 @@ LOG_ACTION_MODULES: dict[LogAction, LogModule] = {
     LogAction.USER_INVITED: LogModule.USER_MANAGEMENT,
     LogAction.USER_ROLE_CHANGED: LogModule.USER_MANAGEMENT,
     LogAction.USER_STATUS_CHANGED: LogModule.USER_MANAGEMENT,
+    LogAction.USER_DELETED: LogModule.USER_MANAGEMENT,
     LogAction.ROLE_PERMISSION_CREATED: LogModule.SETTINGS,
     LogAction.ROLE_PERMISSION_UPDATED: LogModule.SETTINGS,
     LogAction.ROLE_PERMISSION_DELETED: LogModule.SETTINGS,
@@ -765,6 +772,7 @@ LOG_ACTION_VERBS: dict[LogAction, str] = {
     LogAction.USER_INVITED: "invited user",
     LogAction.USER_ROLE_CHANGED: "changed the role of user",
     LogAction.USER_STATUS_CHANGED: "changed the status of user",
+    LogAction.USER_DELETED: "deleted user",
     LogAction.ROLE_PERMISSION_CREATED: "created role permissions for",
     LogAction.ROLE_PERMISSION_UPDATED: "updated role permissions for",
     LogAction.ROLE_PERMISSION_DELETED: "deleted role permissions for",

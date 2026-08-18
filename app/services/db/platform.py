@@ -18,6 +18,8 @@ async def get_all_platforms(db: AsyncSession, search: str | None = None, page: i
             Opportunity, Platform.name == Opportunity.platform
         ).group_by(
             Platform.id, Platform.name, Platform.is_account_linked
+        ).order_by(
+            Platform.name
         )
 
         if search:

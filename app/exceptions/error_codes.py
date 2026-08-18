@@ -19,6 +19,11 @@ class ErrorCode:
     USER_ALREADY_EXISTS = "USER_ALREADY_EXISTS"
     INCORRECT_PASSWORD = "INCORRECT_PASSWORD"
     CONFIRM_PASSWORD_MISMATCH = "CONFIRM_PASSWORD_MISMATCH"
+    # WEAK_PASSWORD backs WeakPasswordException, which referenced a code that was never
+    # defined here - raising it used to blow up with AttributeError instead of a 400.
+    WEAK_PASSWORD = "WEAK_PASSWORD"
+    USER_DELETED = "USER_DELETED"
+    USER_ALREADY_DELETED = "USER_ALREADY_DELETED"
     
     # Project
     PROJECT_NOT_FOUND = "PROJECT_NOT_FOUND"
