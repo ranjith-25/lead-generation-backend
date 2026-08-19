@@ -37,11 +37,8 @@ from app.services.db.notifications import (
 from app.services.notification_stream import publish_notifications
 from app.services.db.firebase_token import get_firebase_token_by_user_id
 from app.services.firebase_messaging import send_push_notification
-<<<<<<< Updated upstream
 from app.schemas.firebase_messaging import FirebaseNotificationPayload
-=======
 from app.schemas.firebase_messaging import FirebaseNotificationPayload 
->>>>>>> Stashed changes
 from app.config import (
     AUDIENCE_ROLES,
     Audience,

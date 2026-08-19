@@ -131,16 +131,22 @@ async def get_all_user_personal_info(
                 )
             )
 
+        # Every entity filter matches an id on user_personal_info itself. The joins above are
+        # there to select and sort display names; nothing here leans on them.
         if filters.primary_role:
-            query = query.where(JobRole.roleName.in_(filters.primary_role))
+            query = query.where(UserPersonalInfo.primary_role_id.in_(filters.primary_role))
         if filters.working_status:
-            query = query.where(UserStatus.displayName.in_(filters.working_status))
+            query = query.where(UserPersonalInfo.working_status_id.in_(filters.working_status))
         if filters.year_of_passout:
             query = query.where(UserPersonalInfo.year_of_passout.in_(filters.year_of_passout))
         if filters.team:
-            query = query.where(User.fullName.in_(filters.team))
+            query = query.where(UserPersonalInfo.user_id.in_(filters.team))
         if filters.branch:
-            query = query.where(Branch.name.in_(filters.branch))
+            query = query.where(UserPersonalInfo.branch_id.in_(filters.branch))
+        # Straight off users.reporting_to rather than the aliased manager row, so the filter
+        # does not depend on is_reporting_to having added those joins.
+        if filters.reporting_to:
+            query = query.where(User.reporting_to.in_(filters.reporting_to))
 
         count_query = select(func.count()).select_from(query.subquery())
         total = await db.scalar(count_query)
@@ -215,27 +221,67 @@ async def update_user_personal_info(db: AsyncSession, update_data: dict, user_id
 
 async def get_user_profile_filters(db: AsyncSession) -> dict:
     try:
-        user_status_result = await db.execute(select(UserStatus.displayName).where(UserStatus.is_active == True))
-        user_statuses = [row[0] for row in user_status_result]
-        
-        job_role_result = await db.execute(select(JobRole.roleName).where(JobRole.is_active == True))
-        primary_roles = [row[0] for row in job_role_result]
-        
+        # Every option carries the id the filter matches on plus the label to render. Names
+        # alone cannot address a row - they repeat, and they move under a rename.
+        user_status_result = await db.execute(
+            select(UserStatus.id, UserStatus.displayName)
+            .where(UserStatus.is_active == True)
+            .order_by(UserStatus.displayName)
+        )
+        user_statuses = [{"id": row.id, "name": row.displayName} for row in user_status_result]
+
+        job_role_result = await db.execute(
+            select(JobRole.id, JobRole.roleName)
+            .where(JobRole.is_active == True)
+            .order_by(JobRole.roleName)
+        )
+        primary_roles = [{"id": row.id, "name": row.roleName} for row in job_role_result]
+
         passout_result = await db.execute(
             select(UserPersonalInfo.year_of_passout)
             .distinct()
             .order_by(UserPersonalInfo.year_of_passout.desc())
         )
         years_of_passout = [row[0] for row in passout_result]
-        
-        branch_result = await db.execute(select(Branch.name).where(Branch.is_active == True))
-        branches = [row[0] for row in branch_result]
-        
+
+        branch_result = await db.execute(
+            select(Branch.id, Branch.name)
+            .where(Branch.is_active == True)
+            .order_by(Branch.name)
+        )
+        branches = [{"id": row.id, "name": row.name} for row in branch_result]
+
+        # Only users somebody actually reports to - listing every user would offer filter
+        # values that can only ever return an empty page.
+        manager_ids = select(User.reporting_to).where(User.reporting_to.isnot(None)).distinct()
+        manager_result = await db.execute(
+            select(
+                User.user_id,
+                UserPersonalInfo.first_name,
+                UserPersonalInfo.last_name,
+            )
+            .outerjoin(UserPersonalInfo, UserPersonalInfo.user_id == User.user_id)
+            .where(User.user_id.in_(manager_ids), User.is_deleted.is_(False))
+            .order_by(UserPersonalInfo.first_name, UserPersonalInfo.last_name)
+        )
+        reporting_to = [
+            {
+                "id": row.user_id,
+                # Built from the same first/last pair the list rows use for reporting_to_name,
+                # so the dropdown label matches the column. `User.fullName` cannot be selected
+                # here - it is a plain Python property, not a column - so its "Unknown User"
+                # fallback is spelled out instead.
+                "name": _join_name(row.first_name, row.last_name) or "Unknown User",
+            }
+            for row in manager_result
+        ]
+
         return {
             "user_status": user_statuses,
             "primary_role": primary_roles,
             "year_of_passout": years_of_passout,
-            "branch": branches
+            "branch": branches,
+            "reporting_to": reporting_to,
         }
     except SQLAlchemyError as e:
         logging.exception("Could not fetch user profile filters")

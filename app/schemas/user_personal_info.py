@@ -81,11 +81,19 @@ class UserPersonalInfoFilterRequest(BaseModel):
     # Off by default so the response shape only widens when the caller asks for it.
     is_reporting_to: bool = False
     search: str | None = None
-    primary_role: list[str] | None = None
-    working_status: list[str] | None = None
+    # Every entity filter takes ids, never display names. Names are not unique (two job roles
+    # differing only in case, two people sharing a full name), they change under a rename, and
+    # `users.fullName` is not even a column. Ids also mean each filter reads a column on
+    # user_personal_info itself rather than depending on a join. `year_of_passout` stays a
+    # plain value - it names no row. Send what GET /user-personal-info/filters returns as `id`.
+    primary_role: list[UUID] | None = None
+    working_status: list[UUID] | None = None
     year_of_passout: list[int] | None = None
-    team: list[str] | None = None
-    branch: list[str] | None = None
+    team: list[UUID] | None = None
+    branch: list[UUID] | None = None
+    # Filters on `users.reporting_to` directly, so it needs none of the joins `is_reporting_to`
+    # adds and works whether or not the reporting columns were asked for.
+    reporting_to: list[UUID] | None = None
     # Free calendar window. Takes precedence over `time_filter` when both are sent.
     from_date: date | None = None
     to_date: date | None = None
@@ -140,12 +148,21 @@ class UserPersonalInfoPaginatedResponse(BaseModel):
     total_pages: int
 
 
+class FilterOption(BaseModel):
+    """One selectable value. `id` is what the filter takes, `name` is what the dropdown shows."""
+
+    id: UUID
+    name: str
+
+
 class UserProfileFiltersResponse(BaseModel):
-    user_status: list[str]
-    primary_role: list[str]
+    user_status: list[FilterOption]
+    primary_role: list[FilterOption]
+    # Not an entity, so it stays a bare value - the filter takes the year itself.
     year_of_passout: list[int]
-    team: list[str]
-    branch: list[str]
+    team: list[FilterOption]
+    branch: list[FilterOption]
+    reporting_to: list[FilterOption]
     time_filter: list[TimeFilterOption]
 
 class UserPasswordUpdate(BaseModel):

@@ -3,15 +3,10 @@ from datetime import datetime, timedelta
 
 OTP_MAX_ATTEMPTS = 5
 
-# Matched against roles.roleName — the Super Admin role is internal and is hidden
-# from the roles / role-permission listings the settings screens consume.
-SUPER_ADMIN_ROLE_NAME = "Super Admin"
-
-# Matched (case-insensitively) against user_status.displayName. The bench status is an
-# admin-created data row, not a schema value, so this constant is a *data* contract: rename
-# the row in user_status and the auto-bench sync stops finding it — it logs a warning and
-# leaves everybody alone rather than failing the write that triggered it.
+# Rows addressed by name rather than id: both are seeded per environment, so the id differs
+# between databases while the name is the stable contract.
 BENCH_STATUS_NAME = "On Bench"
+SUPER_ADMIN_ROLE_NAME = "Super Admin"
 
 EMAIL_MESSAGE_CONTENT = {
     "INVITATION_TEMPLATE": {
@@ -356,7 +351,7 @@ AUDIENCE_ROLES: dict[Audience, str] = {
     Audience.BD_TEAM: "BD-Executive",
     Audience.MANAGERS: "Manager",
     Audience.TEAM_LEADS: "Team Lead",
-    Audience.SUPER_ADMINS: "Super Admin",
+    Audience.SUPER_ADMINS: SUPER_ADMIN_ROLE_NAME,
 }
 
 
