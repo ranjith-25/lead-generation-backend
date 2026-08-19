@@ -1,15 +1,16 @@
-from pydantic import BaseModel, EmailStr, Field
+from typing import Annotated
+from pydantic import BaseModel, EmailStr, Field, StringConstraints
 
 from app.schemas.password import Password
 from uuid import UUID
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: Annotated[EmailStr, StringConstraints(to_lower=True)]
     password: str
 
 
 class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
+    email: Annotated[EmailStr, StringConstraints(to_lower=True)]
 
 
 class VerifyOtpRequest(BaseModel):

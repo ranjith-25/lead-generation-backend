@@ -8,6 +8,7 @@ class SalesEnablementBase(BaseModel):
     suggested_questions: list[str] | None = None
     sales_talking_points: list[str] | None = None
     outreach_template: str | None = None
+    outreach_subject: str | None = None
 
 class SalesEnablementCreate(SalesEnablementBase):
     pass
@@ -23,6 +24,10 @@ class SalesEnablementUpdate(BaseModel):
     suggested_questions: list[str] | None = None
     sales_talking_points: list[str] | None = None
     outreach_template: str | None = None
+    outreach_subject: str | None = None
 
 class OutreachTemplateUpdate(BaseModel):
     outreach_template: str
+    # Optional so the existing template-only payload still validates; the service sends
+    # only the fields the client actually set.
+    outreach_subject: str | None = None
