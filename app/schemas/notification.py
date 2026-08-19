@@ -58,8 +58,6 @@ class NotificationFilterRequest(BaseModel):
     sort_by: str | None = None
     order_by: SortOrder | None = None
     is_read: bool | None = None
-    # notification_type: list[NotificationType] | None = None
-    # Free calendar window. Takes precedence over `time_filter` when both are sent.
     from_date: date | None = None
     to_date: date | None = None
 

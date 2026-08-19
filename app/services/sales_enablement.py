@@ -112,14 +112,14 @@ async def update_sales_enablement_service(db: AsyncSession, se_id: UUID | str, s
 async def update_sales_enablement_by_opportunity_service(
     db: AsyncSession,
     opp_id: UUID | str,
-    se_data: SalesEnablementUpdate,
+    se_data: SalesEnablementUpdate | OutreachTemplateUpdate,
     user_id: UUID,
-    log_details: dict | None = None,
 ) -> SalesEnablementRead:
     """Edit sales enablement addressed by opportunity, so the client needs no prior GET.
 
-    `log_details` lets a narrower caller (the outreach-template endpoint) label its own edit in
-    the activity feed without opening a second write path.
+    Either payload schema is accepted — both are dumped with `exclude_unset=True` and their
+    fields are all columns, so the outreach-template endpoint reuses this one write path
+    instead of opening a second.
     """
 
     try:
@@ -135,8 +135,6 @@ async def update_sales_enablement_by_opportunity_service(
         "opportunityID": parsed_opp_id,
         "updatedFields": sorted(update_dict.keys()),
     }
-    if log_details:
-        details.update(log_details)
 
     se = await get_sales_enablement_by_opp_db(db, parsed_opp_id)
 
@@ -176,19 +174,7 @@ async def update_sales_enablement_by_opportunity_service(
     return SalesEnablementRead.model_validate(updated_se)
 
 async def update_outreach_template_service(db: AsyncSession, opp_id: UUID | str, template_data: OutreachTemplateUpdate, user_id: UUID) -> SalesEnablementRead:
-    """Delegates so the upsert rule and the write itself live in exactly one place."""
-
-    # exclude_unset so a payload without outreach_subject does not blank an existing subject —
-    # SalesEnablementUpdate is dumped the same way downstream.
-    edited_fields = template_data.model_dump(exclude_unset=True)
-
-    return await update_sales_enablement_by_opportunity_service(
-        db,
-        opp_id,
-        SalesEnablementUpdate(**edited_fields),
-        user_id,
-        log_details={"updatedFields": sorted(edited_fields)},
-    )
+    return await update_sales_enablement_by_opportunity_service(db, opp_id, template_data, user_id)
 
 async def delete_sales_enablement_service(db: AsyncSession, se_id: UUID | str, user_id: UUID) -> BaseResponse:
 
