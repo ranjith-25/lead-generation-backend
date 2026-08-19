@@ -1,4 +1,7 @@
 import logging
+import csv
+import io
+import json
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,6 +49,8 @@ from app.core.security import (
 
 from app.services.hierarchy import handleGetHierarchyByUser
 from app.services.system_log import log_activity
+from app.responses.project import FileDownloadResponse
+
 
 
 async def handle_get_user_personal_info(
@@ -81,6 +86,20 @@ async def handle_get_all_user_personal_info(
             page=filters.page,
             limit=filters.limit,
             total_pages=(total + filters.limit - 1) // filters.limit if total > 0 else 1
+        )
+    except Exception as e:
+        logging.exception("Some error occurred while getting all User Personal Info")
+        raise e
+
+
+async def handle_export_user_personal_info(
+    db: AsyncSession, current_user: User, filters: UserPersonalInfoFilterRequest
+) -> FileDownloadResponse:
+    try:
+        items, total = await get_all_user_personal_info(db, filters, applyPagination=False)
+        
+        return generate_user_personal_info_csv(
+            users=[UserPersonalInfoListRead(**item) for item in items]
         )
     except Exception as e:
         logging.exception("Some error occurred while getting all User Personal Info")
@@ -245,3 +264,70 @@ async def handle_update_password(
     except Exception:
         logging.exception("Some error occurred while updating the password")
         raise
+
+
+def generate_user_personal_info_csv(
+    users: list[UserPersonalInfoListRead],
+) -> FileDownloadResponse:
+    """
+    Generate a CSV file containing user personal information
+    and related profile/reporting details.
+    """
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # ---------------------------------------------------------
+    # CSV Header
+    # ---------------------------------------------------------
+    writer.writerow([
+        "User ID",
+        "Email",
+        "First Name",
+        "Last Name",
+        "Primary Role",
+        "Date of Birth",
+        "Highest Qualification",
+        "Year of Passout",
+        "Working Status",
+        "Branch",
+        "Profiles Count",
+        "Reporting To ID",
+        "Reporting To",
+    ])
+
+    # ---------------------------------------------------------
+    # User Details
+    # ---------------------------------------------------------
+    for user in users:
+        writer.writerow([
+            str(user.user_id),
+            user.email,
+            user.first_name,
+            user.last_name or "",
+            user.primary_role_name,
+            user.date_of_birth,
+            user.highest_qualification,
+            user.year_of_passout,
+            user.working_status_name,
+            user.branch_name or "",
+            user.profiles_count,
+            str(user.reporting_to_id)
+            if user.reporting_to_id
+            else "",
+            user.reporting_to_name or "",
+        ])
+
+    # ---------------------------------------------------------
+    # Convert CSV text into a binary stream.
+    # utf-8-sig ensures Excel correctly recognizes UTF-8.
+    # ---------------------------------------------------------
+    file_stream = io.BytesIO(
+        output.getvalue().encode("utf-8-sig")
+    )
+
+    return FileDownloadResponse(
+        file_stream=file_stream,
+        file_name="users.csv",
+        content_type="text/csv",
+    )

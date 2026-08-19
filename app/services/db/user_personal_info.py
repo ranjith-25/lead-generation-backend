@@ -61,7 +61,7 @@ async def get_user_personal_info_by_user_id(db: AsyncSession, user_id: UUID) -> 
 
 
 async def get_all_user_personal_info(
-    db: AsyncSession, filters: UserPersonalInfoFilterRequest
+    db: AsyncSession, filters: UserPersonalInfoFilterRequest,applyPagination = True
 ) -> tuple[list[dict], int]:
     try:
         profiles_count_subquery = select(func.count(ProfileVariant.profile_variant_id)).where(ProfileVariant.created_by == UserPersonalInfo.user_id).scalar_subquery()
@@ -153,7 +153,10 @@ async def get_all_user_personal_info(
             default_column=UserPersonalInfo.createdAt,
         )
 
-        query = query.offset((filters.page - 1) * filters.limit).limit(filters.limit)
+        ##Pagination
+        if applyPagination:
+            query = query.offset((filters.page - 1) * filters.limit).limit(filters.limit)
+            
         result = await db.execute(query)
 
         items = []

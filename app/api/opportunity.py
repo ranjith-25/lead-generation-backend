@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.responses import JSONResponse
 from fastapi import status
+from fastapi.responses import StreamingResponse
 from uuid import UUID
 
 from app.api.deps import get_current_user
@@ -46,10 +47,12 @@ from app.services.opportunity import (
     get_all_opportunities_service, 
     get_opportunity_filter_values_service,
     get_opportunity_statuses_service,
-    update_opportunity_status_service
+    update_opportunity_status_service,
+    handle_export_opportunities_service
 )
 from fastapi import BackgroundTasks
 from app.responses.opportunity import CreateOpportunityResponse
+from app.responses.project import FileDownloadResponse
 
 router = APIRouter(prefix="/opportunities", tags=["Opportunities"])
 
@@ -215,3 +218,21 @@ async def get_all_opportunities_filtered(
     db: AsyncSession = Depends(get_db)
 ) -> OpportunityPaginatedResponse:
     return await get_all_opportunities_service(db, current_user.user_id, filters)
+
+@router.post("/all/export")
+async def export_opportunities_filtered(
+    filters: OpportunityFilterRequest,
+    current_user: User = Depends(get_current_user), 
+    db: AsyncSession = Depends(get_db)
+):
+    response : FileDownloadResponse =  await handle_export_opportunities_service(db, current_user.user_id, filters)
+
+    return StreamingResponse(
+        response.file_stream,
+        media_type=response.content_type,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{response.file_name}"'
+            )
+        },
+    )

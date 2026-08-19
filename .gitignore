@@ -15,6 +15,7 @@ CLAUDE.md
 # uploaded documents — only their path belongs in the repo/DB
 uploads/
 scripts/
+case_studies/
 
 .idea/
 *.iml

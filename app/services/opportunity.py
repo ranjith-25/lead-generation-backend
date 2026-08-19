@@ -13,6 +13,9 @@ from app.schemas.ai import AIManualJDRequest
 from app.services.ai import handleGetManualScrapedData
 import math
 from fastapi import BackgroundTasks
+import csv
+import io
+from app.responses.project import FileDownloadResponse
 
 async def get_all_opportunities_service(db: AsyncSession, user_id: UUID, filters: OpportunityFilterRequest | None = None) -> OpportunityPaginatedResponse:
 
@@ -209,3 +212,81 @@ async def patch_opportunity_service(db: AsyncSession, opportunityID: UUID | str,
     )
     updated_opp = await update_opportunity_db(db, opportunity, update_dict)
     return OpportunityRead.model_validate(updated_opp)
+
+
+
+
+async def handle_export_opportunities_service(db: AsyncSession, user_id: UUID, filters: OpportunityFilterRequest | None = None) -> FileDownloadResponse:
+
+    opportunities, total = await get_all_opportunities(db, user_id, filters,applyPagination=False)
+    data = [OpportunityListRead.model_validate(opp) for opp in opportunities]
+    
+    
+
+    return generate_opportunity_details_csv(data)
+    
+def generate_opportunity_details_csv(
+    opportunities: list[OpportunityListRead],
+) -> FileDownloadResponse:
+    """
+    Generate a CSV file containing opportunity details.
+
+    This function is responsible only for transforming opportunity
+    data into a downloadable CSV file.
+    """
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # ---------------------------------------------------------
+    # CSV Header
+    # ---------------------------------------------------------
+    writer.writerow([
+        "Opportunity ID",
+        "Title",
+        "Company",
+        "Client Information",
+        "Platform",
+        "Created By",
+        "Updated By",
+        "Assigned To",
+        "Created At",
+        "Updated At",
+        "Status",
+    ])
+
+    # ---------------------------------------------------------
+    # Opportunity Details
+    # ---------------------------------------------------------
+    for opportunity in opportunities:
+        writer.writerow([
+            str(opportunity.opportunityID),
+            opportunity.title,
+            opportunity.company or "",
+            opportunity.client_information or "",
+            opportunity.platform or "",
+            opportunity.createdBy,
+            opportunity.updatedBy,
+            opportunity.assignedToName or "",
+            opportunity.createdAt.isoformat(),
+            (
+                opportunity.updatedAt.isoformat()
+                if opportunity.updatedAt
+                else ""
+            ),
+            opportunity.status or "",
+        ])
+
+    # ---------------------------------------------------------
+    # Convert CSV text into a binary stream.
+    # utf-8-sig ensures Excel correctly recognizes UTF-8.
+    # ---------------------------------------------------------
+    file_stream = io.BytesIO(
+        output.getvalue().encode("utf-8-sig")
+    )
+
+    return FileDownloadResponse(
+        file_stream=file_stream,
+        file_name="opportunity_details.csv",
+        content_type="text/csv",
+    )
