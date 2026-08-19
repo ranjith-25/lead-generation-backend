@@ -1,7 +1,7 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from fastapi.responses import StreamingResponse
 from app.api.deps import get_current_user
 from app.core.connections.postgres import get_db
 from app.core.security import require_permission
@@ -30,9 +30,10 @@ from app.services.user_personal_info import (
     handle_update_user_personal_info,
     handle_update_user_personal_info_status,
     handle_get_user_profile_filters,
-    handle_update_password
+    handle_update_password,
+    handle_export_user_personal_info
 )
-
+from app.responses.project import FileDownloadResponse
 router = APIRouter(prefix="/user-personal-info", tags=["User Profile"])
 
 
@@ -53,6 +54,33 @@ async def get_all_user_personal_info_filtered(
     if is_reporting_to is not None:
         filters.is_reporting_to = is_reporting_to
     return await handle_get_all_user_personal_info(db, current_user, filters)
+
+
+@router.post(
+    "/all/export"
+)
+async def export_user_personal_info(
+    filters: UserPersonalInfoFilterRequest,
+    is_reporting_to: bool | None = Query(
+        None, description="Include each user's reporting-to person in the rows"
+    ),
+    current_user: User = Depends(require_permission("user_personal_info", "read")),
+    db: AsyncSession = Depends(get_db),
+) :
+    # The query param wins when sent; otherwise the body value (default False) stands.
+    if is_reporting_to is not None:
+        filters.is_reporting_to = is_reporting_to
+    response : FileDownloadResponse = await handle_export_user_personal_info(db, current_user, filters)
+
+    return StreamingResponse(
+        response.file_stream,
+        media_type=response.content_type,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{response.file_name}"'
+            )
+        },
+    )
 
 
 @router.get("/filters", response_model=UserProfileFiltersResponse)

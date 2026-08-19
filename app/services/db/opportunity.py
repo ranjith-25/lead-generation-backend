@@ -63,6 +63,7 @@ async def get_all_opportunities(
     db: AsyncSession,
     user_id,
     filters: OpportunityFilterRequest | None = None,
+    applyPagination : bool = True
 ) -> tuple[list[Opportunity], int]:
 
     target_user_ids = [user_id]
@@ -198,7 +199,7 @@ async def get_all_opportunities(
     # -------------------------------------------------------
 
     # Apply pagination
-    if filters:
+    if applyPagination and filters:
         query = query.offset(
             (filters.page - 1) * filters.size
         ).limit(filters.size)
