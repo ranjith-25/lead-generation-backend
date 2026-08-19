@@ -12,7 +12,7 @@ from app.models.user_personal_info import UserPersonalInfo
 from app.models.profile_variant import ProfileVariant
 from app.models.branch import Branch
 from app.schemas.user_personal_info import UserPersonalInfoFilterRequest
-from app.services.db.filters import apply_sort, apply_time_range
+from app.services.db.filters import apply_date_filters, apply_sort
 
 # Field names the API accepts for `sort_by`, mapped to the column each one sorts on.
 USER_PERSONAL_INFO_SORTABLE = {
@@ -109,7 +109,13 @@ async def get_all_user_personal_info(
         # that has no user.
         query = query.where(User.is_deleted.is_(False))
 
-        query = apply_time_range(query, UserPersonalInfo.createdAt, filters.time_filter)
+        query = apply_date_filters(
+            query,
+            UserPersonalInfo.createdAt,
+            filters.time_filter,
+            filters.from_date,
+            filters.to_date,
+        )
 
         if filters.search:
             search_term = f"%{filters.search.strip()}%"

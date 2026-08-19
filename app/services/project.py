@@ -56,6 +56,10 @@ from app.services.db.project import (
     get_project_by_name_db,
     update_project_db,
 )
+from app.services.db.user_project import get_user_ids_by_project
+# Module-level import is safe: app/services/user_project.py imports nothing from this module,
+# so there is no cycle to break with a function-local import.
+from app.services.user_project import sync_bench_status
 from app.core.connections.ai_connection import get_ai_client
 from app.services.db.project_domains import (
     get_project_domain_by_id,
@@ -390,20 +394,45 @@ async def delete_project_service(
     if not project:
         raise ProjectNotFoundException()
 
-    stored_path = project.case_study
-
     # entity details are read off the row before it is deleted
+    stored_path = project.case_study
+    project_name = project.project_name
+
+    # user_projects.project_id is ondelete="CASCADE", so these allocations disappear with the
+    # project — collect their users now or they cannot be found afterwards.
+    allocated_user_ids = await get_user_ids_by_project(db, project_id)
+
+    await delete_project_db(db, project)
+
+    # Benching is reported, never blocking: the project is already gone, and an org that never
+    # seeded an "On Bench" status should not see the delete fail because of it.
+    benched_count = 0
+    try:
+        benched_count = await sync_bench_status(db, allocated_user_ids, user_id)
+    except Exception:
+        logging.exception(
+            "Could not sync bench status for the %s user(s) freed by deleting project %s",
+            len(allocated_user_ids),
+            project_id,
+        )
+
+    # Logged after the delete because the benched count only exists once the allocations are
+    # gone; the entity name and case-study path were captured off the row beforehand.
     await log_activity(
         db,
         LogAction.PROJECT_DELETED,
         user_id,
         entity_type="project",
         entity_id=project_id,
-        entity_name=project.project_name,
-        details={"case_study": stored_path},
+        entity_name=project_name,
+        details={
+            "case_study": stored_path,
+            "allocated_users_released": len(allocated_user_ids),
+            "users_moved_to_bench": benched_count,
+        },
+        commit=True,
     )
 
-    await delete_project_db(db, project)
     if stored_path:
         # Delete the case study object from S3 after deleting the project record
         try:
@@ -411,7 +440,13 @@ async def delete_project_service(
         except Exception:
             logging.warning("Could not delete S3 case study on project deletion: %s", stored_path)
 
-    return BaseResponse(message="Project deleted successfully")
+    message = "Project deleted successfully"
+    if benched_count:
+        message = (
+            f"{message}. {benched_count} user(s) moved to bench with no remaining allocations"
+        )
+
+    return BaseResponse(message=message)
 
 
 async def get_project_case_study_service(db: AsyncSession, project_id: UUID) -> str:

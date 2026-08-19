@@ -124,6 +124,9 @@ async def _build_notification_context(
         "job_title": opportunity.title if opportunity else "",
         "company": opportunity.company if opportunity else "",
         "opportunity_id": str(pipeline_opportunity_resource.opportunity_id),
+        # Stringified like opportunity_id: the ids only ever land in url/body templates,
+        # and a UUID object renders the same but is not JSON-serialisable on the push path.
+        "pipeline_resource_id": str(pipeline_opportunity_resource.id),
         **extra,
     }
 

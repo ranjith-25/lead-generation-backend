@@ -12,8 +12,7 @@ from app.schemas.user import UserHierarchy
 from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 import logging
-from app.config import TIME_RANGE_DELAYS
-from app.services.db.filters import apply_sort
+from app.services.db.filters import apply_date_filters, apply_sort
 from app.models.pipeline_opportunity_resource import PipelineOpportunityResourceModel
 
 # Field names the API accepts for `sort_by`, mapped to the column each one sorts on.
@@ -108,16 +107,15 @@ async def get_all_opportunities(
     )
 
     # ---------------------------------------------------------
-    # Time filter
+    # Date filter - preset window or explicit from/to range
     # ---------------------------------------------------------
-    if filters and filters.time_filter:
-        query = query.where(
-            and_(
-                Opportunity.createdAt
-                >= TIME_RANGE_DELAYS[filters.time_filter]["start"](),
-                Opportunity.createdAt
-                <= TIME_RANGE_DELAYS[filters.time_filter]["end"](),
-            )
+    if filters:
+        query = apply_date_filters(
+            query,
+            Opportunity.createdAt,
+            filters.time_filter,
+            filters.from_date,
+            filters.to_date,
         )
 
     # ---------------------------------------------------------

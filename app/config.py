@@ -7,6 +7,12 @@ OTP_MAX_ATTEMPTS = 5
 # from the roles / role-permission listings the settings screens consume.
 SUPER_ADMIN_ROLE_NAME = "Super Admin"
 
+# Matched (case-insensitively) against user_status.displayName. The bench status is an
+# admin-created data row, not a schema value, so this constant is a *data* contract: rename
+# the row in user_status and the auto-bench sync stops finding it — it logs a warning and
+# leaves everybody alone rather than failing the write that triggered it.
+BENCH_STATUS_NAME = "On Bench"
+
 EMAIL_MESSAGE_CONTENT = {
     "INVITATION_TEMPLATE": {
         "subject": "You're invited to join Lead Generation",
@@ -284,6 +290,10 @@ NOTIFICATION_NAVIGATION = {
     "USER_HIERARCHY": "https://macaw-otter-linoleum.ngrok-free.dev/user-hierarchy?user_id={user_id}",
     "TECHNICAL_PREPARATION": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline/technical-preparation?opportunity_id={opportunity_id}",
     "AI_OVERVIEW": "https://macaw-otter-linoleum.ngrok-free.dev/ai-overview?opportunityID={opportunity_id}",
+    # Same page as OPPURTUNITY_PIPELINE, but with the one resource the notification is
+    # about preselected — the recipient has to act on that row, not hunt for it.
+    "RESOURCE_MATCH": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline?opportunity_id={opportunity_id}&resource_id={pipeline_resource_id}",
+    "PROJECTS": "https://macaw-otter-linoleum.ngrok-free.dev/projects",
 }
 
 NOTIFICATION_TYPE_NAVIGATION = {
@@ -293,11 +303,13 @@ NOTIFICATION_TYPE_NAVIGATION = {
     "RESOURCE_REJECTED" : "OPPURTUNITY_PIPELINE",
     "RESOURCE_APPROVED" : "OPPURTUNITY_PIPELINE",
     "RESOURCE_ASSIGNED" : "TECHNICAL_PREPARATION",
-    "RESOURCE_PENDING_APPROVAL" : "OPPURTUNITY_PIPELINE",
+    "RESOURCE_PENDING_APPROVAL" : "RESOURCE_MATCH",
     "TEAM_MEMBER_ASSIGNED" : "OPPURTUNITY_PIPELINE",
     "TEAM_MEMBER_ASSIGNED_BYPASSED" : "OPPURTUNITY_PIPELINE",
     "BD_RESOURCE_APPROVED" : "OPPURTUNITY_PIPELINE",
     "BD_RESOURCE_REJECTED" : "OPPURTUNITY_PIPELINE",
+    "RESOURCE_ASSIGNED_TO_TL" : "RESOURCE_MATCH",
+    "PROJECT_ADDED" : "PROJECTS",
 }
 
 JOBKEY_QUERY_URL = [
@@ -386,10 +398,18 @@ NOTIFICATION_EVENTS: dict[NotificationEvent, list[tuple[Audience, NotificationTy
 class PageName(str, Enum):
 
     OPPORTUNITY_ANALYSIS = "OPPORTUNITY_ANALYSIS"
+    # Backed by the PostgreSQL enum type `page_name`, which `opportunity_edit_history.page_name`
+    # shares with `comments.page_name` - so these two values are valid on both tables. A new
+    # member here is only half the change: the type needs an `ALTER TYPE ... ADD VALUE`
+    # migration too, because SQLAlchemy will not alter an enum type that already exists.
+    RESOURCE_MATCH = "RESOURCE_MATCH"
+    TECHNICAL_PREPARATION = "TECHNICAL_PREPARATION"
 
 
 PAGE_NAME_LABELS: dict[PageName, str] = {
     PageName.OPPORTUNITY_ANALYSIS: "Opportunity Analysis",
+    PageName.RESOURCE_MATCH: "Resource Match",
+    PageName.TECHNICAL_PREPARATION: "Technical Preparation",
 }
 
 
@@ -582,6 +602,13 @@ class LogAction(str, Enum):
     OPPORTUNITY_STATUS_CHANGED = "OPPORTUNITY_STATUS_CHANGED"
     OPPORTUNITY_DELETED = "OPPORTUNITY_DELETED"
     OPPORTUNITY_AI_INGESTED = "OPPORTUNITY_AI_INGESTED"
+    # No OPPORTUNITY_ prefix: one comment system serves the opportunity, resource-match and
+    # technical-preparation pages. Which page a comment was left on goes in the log `details`,
+    # so a fourth commentable page adds no members here.
+    COMMENT_ADDED = "COMMENT_ADDED"
+    COMMENT_REPLIED = "COMMENT_REPLIED"
+    COMMENT_UPDATED = "COMMENT_UPDATED"
+    COMMENT_DELETED = "COMMENT_DELETED"
 
     # PIPELINE
     PIPELINE_PROJECT_CREATED = "PIPELINE_PROJECT_CREATED"
@@ -622,6 +649,8 @@ class LogAction(str, Enum):
     USER_ROLE_CHANGED = "USER_ROLE_CHANGED"
     USER_STATUS_CHANGED = "USER_STATUS_CHANGED"
     USER_DELETED = "USER_DELETED"
+    USER_BENCHED = "USER_BENCHED"
+    USER_HIERARCHY_REPAIRED = "USER_HIERARCHY_REPAIRED"
 
     # SETTINGS
     ROLE_PERMISSION_CREATED = "ROLE_PERMISSION_CREATED"
@@ -642,6 +671,10 @@ LOG_ACTION_LABELS: dict[LogAction, str] = {
     LogAction.OPPORTUNITY_STATUS_CHANGED: "Opportunity Status Changed",
     LogAction.OPPORTUNITY_DELETED: "Opportunity Deleted",
     LogAction.OPPORTUNITY_AI_INGESTED: "Opportunity Ingested by AI",
+    LogAction.COMMENT_ADDED: "Comment Added",
+    LogAction.COMMENT_REPLIED: "Comment Replied",
+    LogAction.COMMENT_UPDATED: "Comment Updated",
+    LogAction.COMMENT_DELETED: "Comment Deleted",
     LogAction.PIPELINE_PROJECT_CREATED: "Pipeline Project Created",
     LogAction.PIPELINE_PROJECT_UPDATED: "Pipeline Project Updated",
     LogAction.PIPELINE_PROJECT_DELETED: "Pipeline Project Deleted",
@@ -672,6 +705,8 @@ LOG_ACTION_LABELS: dict[LogAction, str] = {
     LogAction.USER_ROLE_CHANGED: "User Role Changed",
     LogAction.USER_STATUS_CHANGED: "User Status Changed",
     LogAction.USER_DELETED: "User Deleted",
+    LogAction.USER_BENCHED: "User Moved to Bench",
+    LogAction.USER_HIERARCHY_REPAIRED: "Reporting Hierarchy Repaired",
     LogAction.ROLE_PERMISSION_CREATED: "Role Permission Created",
     LogAction.ROLE_PERMISSION_UPDATED: "Role Permission Updated",
     LogAction.ROLE_PERMISSION_DELETED: "Role Permission Deleted",
@@ -690,6 +725,10 @@ LOG_ACTION_MODULES: dict[LogAction, LogModule] = {
     LogAction.OPPORTUNITY_STATUS_CHANGED: LogModule.OPPORTUNITY,
     LogAction.OPPORTUNITY_DELETED: LogModule.OPPORTUNITY,
     LogAction.OPPORTUNITY_AI_INGESTED: LogModule.OPPORTUNITY,
+    LogAction.COMMENT_ADDED: LogModule.OPPORTUNITY,
+    LogAction.COMMENT_REPLIED: LogModule.OPPORTUNITY,
+    LogAction.COMMENT_UPDATED: LogModule.OPPORTUNITY,
+    LogAction.COMMENT_DELETED: LogModule.OPPORTUNITY,
     LogAction.PIPELINE_PROJECT_CREATED: LogModule.PIPELINE,
     LogAction.PIPELINE_PROJECT_UPDATED: LogModule.PIPELINE,
     LogAction.PIPELINE_PROJECT_DELETED: LogModule.PIPELINE,
@@ -720,6 +759,8 @@ LOG_ACTION_MODULES: dict[LogAction, LogModule] = {
     LogAction.USER_ROLE_CHANGED: LogModule.USER_MANAGEMENT,
     LogAction.USER_STATUS_CHANGED: LogModule.USER_MANAGEMENT,
     LogAction.USER_DELETED: LogModule.USER_MANAGEMENT,
+    LogAction.USER_BENCHED: LogModule.USER_MANAGEMENT,
+    LogAction.USER_HIERARCHY_REPAIRED: LogModule.USER_MANAGEMENT,
     LogAction.ROLE_PERMISSION_CREATED: LogModule.SETTINGS,
     LogAction.ROLE_PERMISSION_UPDATED: LogModule.SETTINGS,
     LogAction.ROLE_PERMISSION_DELETED: LogModule.SETTINGS,
@@ -743,6 +784,12 @@ LOG_ACTION_VERBS: dict[LogAction, str] = {
     LogAction.OPPORTUNITY_STATUS_CHANGED: "changed the status of opportunity",
     LogAction.OPPORTUNITY_DELETED: "deleted opportunity",
     LogAction.OPPORTUNITY_AI_INGESTED: "ingested opportunity via AI",
+    # Every one of these reads as `{user} {verb} "{entity}"`, with the entity being the
+    # opportunity the comment hangs off - the page itself belongs in `details`.
+    LogAction.COMMENT_ADDED: "commented on",
+    LogAction.COMMENT_REPLIED: "replied to a comment on",
+    LogAction.COMMENT_UPDATED: "edited their comment on",
+    LogAction.COMMENT_DELETED: "deleted their comment on",
     LogAction.PIPELINE_PROJECT_CREATED: "created pipeline project",
     LogAction.PIPELINE_PROJECT_UPDATED: "updated pipeline project",
     LogAction.PIPELINE_PROJECT_DELETED: "deleted pipeline project",
@@ -773,6 +820,12 @@ LOG_ACTION_VERBS: dict[LogAction, str] = {
     LogAction.USER_ROLE_CHANGED: "changed the role of user",
     LogAction.USER_STATUS_CHANGED: "changed the status of user",
     LogAction.USER_DELETED: "deleted user",
+    # Ends on the entity noun like its neighbours, so SYSTEM_LOG_DESCRIPTION_WITH_ENTITY
+    # reads '{actor} moved to bench user "{name}"'.
+    LogAction.USER_BENCHED: "moved to bench user",
+    # A sweep over many users, so it names no entity - the handler passes an explicit
+    # description carrying the counts, and this verb is only the fallback sentence.
+    LogAction.USER_HIERARCHY_REPAIRED: "repaired the reporting hierarchy",
     LogAction.ROLE_PERMISSION_CREATED: "created role permissions for",
     LogAction.ROLE_PERMISSION_UPDATED: "updated role permissions for",
     LogAction.ROLE_PERMISSION_DELETED: "deleted role permissions for",

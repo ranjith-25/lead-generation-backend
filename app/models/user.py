@@ -34,8 +34,14 @@ class User(Base):
     hashedPassword: Mapped[str | None] = mapped_column(String(150), nullable=True)
     refUID: Mapped[str | None] = mapped_column(String(50), nullable=True)
     passwordResetAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    role_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("roles.role_id", ondelete="SET NULL"), nullable=True
+    # RESTRICT rather than SET NULL: every user belongs to exactly one role, so a roleless row
+    # is not a state the app can render or authorise - `require_permission` has nothing to walk.
+    # SET NULL on a NOT NULL column is a promise the database cannot keep either; it would only
+    # surface at delete time as a NOT NULL violation. RESTRICT states the actual rule - a role
+    # that still holds users cannot be dropped - and `handle_delete_role` already honours it by
+    # moving everyone onto the fallback `User` role before it deletes.
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("roles.role_id", ondelete="RESTRICT"), nullable=False
     )
     reporting_to: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True

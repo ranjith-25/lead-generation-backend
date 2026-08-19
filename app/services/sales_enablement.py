@@ -1,10 +1,16 @@
 from uuid import UUID
-from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.sales_enablement import SalesEnablementRead, SalesEnablementCreate
+from app.schemas.sales_enablement import (
+    SalesEnablementRead,
+    SalesEnablementCreate,
+    SalesEnablementUpdate,
+    OutreachTemplateUpdate,
+)
 from app.responses.base import BaseResponse
 from app.models.sales_enablement import SalesEnablement
+from app.exceptions.opportunity import InvalidOpportunityIdException, OpportunityNotFoundException
+from app.exceptions.sales_enablement import InvalidSalesEnablementIdException, SalesEnablementNotFoundException, SalesEnablementAlreadyExistsException
 from app.services.db.opportunity import get_opportunity_by_id
 from app.services.db.sales_enablement import get_sales_enablement_by_id_db, get_sales_enablement_by_opp_db, add_sales_enablement_db, update_sales_enablement_db, delete_sales_enablement_db
 from app.config import LogAction
@@ -14,36 +20,38 @@ async def check_opportunity_access(db: AsyncSession, opportunity_id: UUID, user_
 
     opportunity = await get_opportunity_by_id(db, opportunity_id, user_id)
     if not opportunity:
-        raise HTTPException(status_code=404, detail="Opportunity not found or unauthorized")
+        raise OpportunityNotFoundException(opportunity_id)
 
 async def get_sales_enablement_service(db: AsyncSession, se_id: UUID | str, user_id: UUID) -> SalesEnablementRead:
-    
+
     try:
         parsed_id = UUID(str(se_id))
     except (ValueError, TypeError):
-        raise HTTPException(status_code=400, detail="Invalid Sales Enablement ID format")
+        raise InvalidSalesEnablementIdException(se_id)
 
     se = await get_sales_enablement_by_id_db(db, parsed_id)
     if not se:
-        raise HTTPException(status_code=404, detail="Sales Enablement not found")
-        
+        raise SalesEnablementNotFoundException(parsed_id)
+
     await check_opportunity_access(db, se.opportunityID, user_id)
-    
+
     return SalesEnablementRead.model_validate(se)
 
 async def get_sales_enablement_by_opp_service(db: AsyncSession, opp_id: UUID | str, user_id: UUID) -> SalesEnablementRead:
-    
+
     try:
         parsed_opp_id = UUID(str(opp_id))
     except (ValueError, TypeError):
-        raise HTTPException(status_code=400, detail="Invalid Opportunity ID format")
+        raise InvalidOpportunityIdException(opp_id)
 
     await check_opportunity_access(db, parsed_opp_id, user_id)
 
     se = await get_sales_enablement_by_opp_db(db, parsed_opp_id)
     if not se:
-        raise HTTPException(status_code=404, detail="Sales Enablement not found for this opportunity")
-        
+        # No id to report - the exception details key is the sales-enablement id, not the
+        # opportunity id we looked it up by.
+        raise SalesEnablementNotFoundException()
+
     return SalesEnablementRead.model_validate(se)
 
 async def create_sales_enablement_service(db: AsyncSession, se_data: SalesEnablementCreate, user_id: UUID) -> SalesEnablementRead:
@@ -52,8 +60,8 @@ async def create_sales_enablement_service(db: AsyncSession, se_data: SalesEnable
 
     existing = await get_sales_enablement_by_opp_db(db, se_data.opportunityID)
     if existing:
-        raise HTTPException(status_code=400, detail="Sales Enablement already exists for this opportunity")
-    
+        raise SalesEnablementAlreadyExistsException(se_data.opportunityID)
+
     se_dict = se_data.model_dump()
     se_dict['createdBy'] = user_id
     se_dict['updatedBy'] = user_id
@@ -70,23 +78,22 @@ async def create_sales_enablement_service(db: AsyncSession, se_data: SalesEnable
     saved_se = await add_sales_enablement_db(db, new_se)
     return SalesEnablementRead.model_validate(saved_se)
 
-async def update_sales_enablement_service(db: AsyncSession, se_id: UUID | str, se_data: SalesEnablementCreate, user_id: UUID) -> SalesEnablementRead:
-    
+async def update_sales_enablement_service(db: AsyncSession, se_id: UUID | str, se_data: SalesEnablementUpdate, user_id: UUID) -> SalesEnablementRead:
+
     try:
         parsed_id = UUID(str(se_id))
     except (ValueError, TypeError):
-        raise HTTPException(status_code=400, detail="Invalid Sales Enablement ID format")
+        raise InvalidSalesEnablementIdException(se_id)
 
     se = await get_sales_enablement_by_id_db(db, parsed_id)
     if not se:
-        raise HTTPException(status_code=404, detail="Sales Enablement not found")
+        raise SalesEnablementNotFoundException(parsed_id)
 
     await check_opportunity_access(db, se.opportunityID, user_id)
-    
-    # Don't allow changing the opportunity ID
-    update_dict = se_data.model_dump(exclude={'opportunityID'}, exclude_unset=True)
+
+    update_dict = se_data.model_dump(exclude_unset=True)
     update_dict['updatedBy'] = user_id
-    
+
     await log_activity(
         db,
         LogAction.SALES_ENABLEMENT_UPDATED,
@@ -102,19 +109,96 @@ async def update_sales_enablement_service(db: AsyncSession, se_id: UUID | str, s
     updated_se = await update_sales_enablement_db(db, se, update_dict)
     return SalesEnablementRead.model_validate(updated_se)
 
+async def update_sales_enablement_by_opportunity_service(
+    db: AsyncSession,
+    opp_id: UUID | str,
+    se_data: SalesEnablementUpdate,
+    user_id: UUID,
+    log_details: dict | None = None,
+) -> SalesEnablementRead:
+    """Edit sales enablement addressed by opportunity, so the client needs no prior GET.
+
+    `log_details` lets a narrower caller (the outreach-template endpoint) label its own edit in
+    the activity feed without opening a second write path.
+    """
+
+    try:
+        parsed_opp_id = UUID(str(opp_id))
+    except (ValueError, TypeError):
+        raise InvalidOpportunityIdException(opp_id)
+
+    # Ownership boundary - must run before any read or write on the row.
+    await check_opportunity_access(db, parsed_opp_id, user_id)
+
+    update_dict = se_data.model_dump(exclude_unset=True)
+    details = {
+        "opportunityID": parsed_opp_id,
+        "updatedFields": sorted(update_dict.keys()),
+    }
+    if log_details:
+        details.update(log_details)
+
+    se = await get_sales_enablement_by_opp_db(db, parsed_opp_id)
+
+    if not se:
+        # Upsert: an opportunity added by hand never went through AI ingest, so it has no row to
+        # edit - a 404 on a screen that plainly offers editing would be the wrong answer.
+        new_se = SalesEnablement(
+            opportunityID=parsed_opp_id,
+            createdBy=user_id,
+            updatedBy=user_id,
+            **update_dict,
+        )
+
+        await log_activity(
+            db,
+            LogAction.SALES_ENABLEMENT_CREATED,
+            user_id,
+            entity_type="sales_enablement",
+            details=details,
+        )
+
+        saved_se = await add_sales_enablement_db(db, new_se)
+        return SalesEnablementRead.model_validate(saved_se)
+
+    update_dict['updatedBy'] = user_id
+
+    await log_activity(
+        db,
+        LogAction.SALES_ENABLEMENT_UPDATED,
+        user_id,
+        entity_type="sales_enablement",
+        entity_id=se.id,
+        details=details,
+    )
+
+    updated_se = await update_sales_enablement_db(db, se, update_dict)
+    return SalesEnablementRead.model_validate(updated_se)
+
+async def update_outreach_template_service(db: AsyncSession, opp_id: UUID | str, template_data: OutreachTemplateUpdate, user_id: UUID) -> SalesEnablementRead:
+    """Delegates so the upsert rule and the write itself live in exactly one place."""
+
+    return await update_sales_enablement_by_opportunity_service(
+        db,
+        opp_id,
+        SalesEnablementUpdate(outreach_template=template_data.outreach_template),
+        user_id,
+        log_details={"updatedFields": ["outreach_template"]},
+    )
+
 async def delete_sales_enablement_service(db: AsyncSession, se_id: UUID | str, user_id: UUID) -> BaseResponse:
-    
+
     try:
         parsed_id = UUID(str(se_id))
     except (ValueError, TypeError):
-        raise HTTPException(status_code=400, detail="Invalid Sales Enablement ID format")
+        raise InvalidSalesEnablementIdException(se_id)
 
     se = await get_sales_enablement_by_id_db(db, parsed_id)
     if not se:
-        raise HTTPException(status_code=404, detail="Sales Enablement not found")
+        raise SalesEnablementNotFoundException(parsed_id)
 
     await check_opportunity_access(db, se.opportunityID, user_id)
-        
+
     await log_activity(
         db,
         LogAction.SALES_ENABLEMENT_DELETED,

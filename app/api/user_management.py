@@ -11,9 +11,11 @@ from app.schemas.user_management import (
 )
 from app.services.user_management import (
     handle_get_all_user_management,
+    handle_repair_reporting_hierarchy,
     handle_update_user_role
 )
 from app.responses.base import BaseResponse
+from app.responses.user_management import RepairReportingHierarchyResponse
 
 router = APIRouter(prefix="/settings/user-management", tags=["User Management"])
 
@@ -33,3 +35,12 @@ async def update_user_role(
     db: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
     return await handle_update_user_role(db, user_id, update_data, current_user.user_id)
+
+# Guarded by `user_hierarchy` rather than the `user_management` key its neighbours use: this
+# rewrites the reporting tree, so it belongs to whoever owns the hierarchy.
+@router.post("/repair-reporting-hierarchy", response_model=RepairReportingHierarchyResponse)
+async def repair_reporting_hierarchy(
+    current_user: User = Depends(require_permission("user_hierarchy", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> RepairReportingHierarchyResponse:
+    return await handle_repair_reporting_hierarchy(db, current_user)

@@ -1,8 +1,8 @@
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
-from datetime import datetime
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from datetime import date, datetime
 
 from app.config import NotificationType, SortOrder, TimeRange
 
@@ -59,6 +59,15 @@ class NotificationFilterRequest(BaseModel):
     order_by: SortOrder | None = None
     is_read: bool | None = None
     # notification_type: list[NotificationType] | None = None
+    # Free calendar window. Takes precedence over `time_filter` when both are sent.
+    from_date: date | None = None
+    to_date: date | None = None
+
+    @model_validator(mode="after")
+    def check_date_range(self):
+        if self.from_date and self.to_date and self.to_date < self.from_date:
+            raise ValueError("to_date must be on or after from_date")
+        return self
 
 
 class NotificationStreamToken(BaseModel):

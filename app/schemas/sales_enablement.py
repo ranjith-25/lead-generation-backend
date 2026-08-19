@@ -18,3 +18,11 @@ class SalesEnablementRead(SalesEnablementBase):
     updatedBy: UUID
     createdAt: datetime
     updatedAt: datetime | None = None
+
+class SalesEnablementUpdate(BaseModel):
+    suggested_questions: list[str] | None = None
+    sales_talking_points: list[str] | None = None
+    outreach_template: str | None = None
+
+class OutreachTemplateUpdate(BaseModel):
+    outreach_template: str

@@ -33,7 +33,10 @@ class UserRoleRead(BaseModel):
     user_id: UUID
     full_name: str
     email: EmailStr
-    role_id: UUID | None = None
+    # Required, not optional: `users.role_id` is NOT NULL and this endpoint already filters on
+    # it, so a null here would mean the query returned a row it cannot have returned.
+    # `role_name` stays optional - it comes from an outer join that can legitimately miss.
+    role_id: UUID
     role_name: str | None = None
     reporting_to: UUID | None = None
     created_at: datetime

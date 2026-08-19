@@ -86,6 +86,44 @@ async def get_user_project_by_id(db: AsyncSession, user_project_id: UUID):
         raise e
 
 
+async def get_allocation_user_id(db: AsyncSession, user_project_id: UUID) -> UUID | None:
+    """Just the `user_id` an allocation currently holds, or None when there is no such row.
+
+    Read *before* an update or delete: after either, the previous holder is unrecoverable and
+    the auto-bench sync would have nobody to check.
+    """
+    try:
+        result = await db.execute(
+            select(UserProject.user_id).where(
+                UserProject.user_project_id == user_project_id
+            )
+        )
+        return result.scalars().first()
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception("Could not find the User Project allocation holder")
+        raise e
+
+
+async def get_user_ids_by_project(db: AsyncSession, project_id: UUID) -> list[UUID]:
+    """Distinct users allocated to a project.
+
+    `user_projects.project_id` is `ondelete="CASCADE"`, so these rows vanish with the project —
+    collect them before the delete or they cannot be recovered afterwards.
+    """
+    try:
+        result = await db.execute(
+            select(UserProject.user_id)
+            .where(UserProject.project_id == project_id)
+            .distinct()
+        )
+        return list(result.scalars().all())
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception("Could not find the users allocated to the project")
+        raise e
+
+
 async def create_user_project(db: AsyncSession, user_project: UserProject):
     try:
         db.add(user_project)

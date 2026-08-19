@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.config import SortOrder, TimeRange
 from app.schemas.common import TimeFilterOption
@@ -86,6 +86,15 @@ class UserPersonalInfoFilterRequest(BaseModel):
     year_of_passout: list[int] | None = None
     team: list[str] | None = None
     branch: list[str] | None = None
+    # Free calendar window. Takes precedence over `time_filter` when both are sent.
+    from_date: date | None = None
+    to_date: date | None = None
+
+    @model_validator(mode="after")
+    def check_date_range(self):
+        if self.from_date and self.to_date and self.to_date < self.from_date:
+            raise ValueError("to_date must be on or after from_date")
+        return self
 
 class UserManagementFilterRequest(BaseModel):
     page: int = Field(1, ge=1)
@@ -95,6 +104,15 @@ class UserManagementFilterRequest(BaseModel):
     order_by: SortOrder | None = None
     search: str | None = None
     role_id: UUID | None = None
+    # Free calendar window. Takes precedence over `time_filter` when both are sent.
+    from_date: date | None = None
+    to_date: date | None = None
+
+    @model_validator(mode="after")
+    def check_date_range(self):
+        if self.from_date and self.to_date and self.to_date < self.from_date:
+            raise ValueError("to_date must be on or after from_date")
+        return self
 
 class UserPersonalInfoListRead(BaseModel):
     user_id: UUID
