@@ -7,7 +7,7 @@ from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.responses.base import BaseResponse
 from app.models.projects import Projects
-from app.core import settings
+from app.core.settings import settings
 
 import uuid
 from pathlib import Path
