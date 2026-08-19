@@ -7,7 +7,7 @@ from app.models.projects import Projects
 from app.schemas.project import ProjectFilters
 from app.models.project_domains import ProjectDomain
 from app.models.techstacks import TechStacks
-from app.services.db.filters import apply_sort, apply_time_range
+from app.services.db.filters import apply_date_filters, apply_sort
 
 # Field names the API accepts for `sort_by`, mapped to the column each one sorts on.
 # Domain and techstack are excluded: they are filtered via EXISTS, and sorting on them
@@ -28,7 +28,13 @@ def _apply_project_filters(query: Select, filters: ProjectFilters) -> Select:
     inflate the total. EXISTS matches the row at most once.
     """
 
-    query = apply_time_range(query, Projects.createdAt, filters.time_filter)
+    query = apply_date_filters(
+        query,
+        Projects.createdAt,
+        filters.time_filter,
+        filters.from_date,
+        filters.to_date,
+    )
 
     if filters.search and filters.search != "string":
         query = query.where(

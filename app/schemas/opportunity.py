@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 from app.config import SortOrder, TimeRange
 from app.schemas.common import TimeFilterOption
 
-from pydantic import BaseModel, Field, ConfigDict, AliasChoices
+from pydantic import BaseModel, Field, ConfigDict, AliasChoices, model_validator
 
 class CompanyProfileBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -112,6 +112,15 @@ class OpportunityFilterRequest(BaseModel):
     role: list[str] | None = None
     location: list[str] | None = None
     team: list[str] | None = None
+    # Free calendar window. Takes precedence over `time_filter` when both are sent.
+    from_date: date | None = None
+    to_date: date | None = None
+
+    @model_validator(mode="after")
+    def check_date_range(self):
+        if self.from_date and self.to_date and self.to_date < self.from_date:
+            raise ValueError("to_date must be on or after from_date")
+        return self
 
 class TeamMemberFilter(BaseModel):
     user_id: UUID

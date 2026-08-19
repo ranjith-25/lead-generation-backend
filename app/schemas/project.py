@@ -1,12 +1,12 @@
 import json
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, BinaryIO
 from uuid import UUID
 
 from fastapi import Form, Request
 from fastapi.exceptions import RequestValidationError
-from pydantic import AfterValidator, BaseModel, ConfigDict, TypeAdapter, ValidationError, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, TypeAdapter, ValidationError, Field, model_validator
 from pydantic_core import core_schema
 
 from app.config import SortOrder, TimeRange
@@ -275,6 +275,15 @@ class ProjectFilters(BaseModel):
     project_techstacks : list[str] | None = None
     page: int = 1
     limit: int | None = 10
+    # Free calendar window. Takes precedence over `time_filter` when both are sent.
+    from_date: date | None = None
+    to_date: date | None = None
+
+    @model_validator(mode="after")
+    def check_date_range(self):
+        if self.from_date and self.to_date and self.to_date < self.from_date:
+            raise ValueError("to_date must be on or after from_date")
+        return self
 
 class AIProjectRequest(BaseModel):
     project_name : str = Field(...,description="Project Name")

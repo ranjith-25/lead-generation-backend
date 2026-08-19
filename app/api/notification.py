@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -36,6 +37,8 @@ async def get_notifications(
     sort_by: str | None = None,
     order_by: SortOrder | None = None,
     is_read: bool | None = None,
+    from_date: date | None = Query(None, description="Start of the created-at range (YYYY-MM-DD), inclusive; overrides time_filter"),
+    to_date: date | None = Query(None, description="End of the created-at range (YYYY-MM-DD), inclusive; overrides time_filter"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -48,6 +51,8 @@ async def get_notifications(
             sort_by=sort_by,
             order_by=order_by,
             is_read=is_read,
+            from_date=from_date,
+            to_date=to_date,
         ),
         user_id=current_user.user_id,
     )
@@ -143,6 +148,8 @@ async def get_all_notifications(
     sort_by: str | None = None,
     order_by: SortOrder | None = None,
     is_read: bool | None = None,
+    from_date: date | None = Query(None, description="Start of the created-at range (YYYY-MM-DD), inclusive; overrides time_filter"),
+    to_date: date | None = Query(None, description="End of the created-at range (YYYY-MM-DD), inclusive; overrides time_filter"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -155,6 +162,8 @@ async def get_all_notifications(
             sort_by=sort_by,
             order_by=order_by,
             is_read=is_read,
+            from_date=from_date,
+            to_date=to_date,
         ),
     )
 

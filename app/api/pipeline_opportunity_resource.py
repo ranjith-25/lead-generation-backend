@@ -197,3 +197,62 @@ async def reject_pipeline_opportunity_resource(
     )
 
 
+# --- Comments (shared comment service, PageName.RESOURCE_MATCH) ---
+from fastapi import Query
+
+from app.config import PageName
+from app.responses.base import BaseResponse
+from app.responses.comment import CommentResponse
+from app.schemas.comment import (
+    CommentCreate,
+    CommentPaginatedResponse,
+    CommentUpdate,
+)
+from app.services.comment import (
+    create_comment_service,
+    delete_comment_service,
+    get_comments_service,
+    update_comment_service,
+)
+
+
+@pipeline_opportunity_resource_router.get("/{id}/comments", response_model=CommentPaginatedResponse)
+async def get_pipeline_opportunity_resource_comments(
+    id: UUID,
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> CommentPaginatedResponse:
+    return await get_comments_service(db, PageName.RESOURCE_MATCH, id, current_user, page, size)
+
+
+@pipeline_opportunity_resource_router.post("/{id}/comments", response_model=CommentResponse)
+async def create_pipeline_opportunity_resource_comment(
+    id: UUID,
+    comment: CommentCreate,
+    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "create")),
+    db: AsyncSession = Depends(get_db),
+) -> CommentResponse:
+    return await create_comment_service(db, PageName.RESOURCE_MATCH, id, comment, current_user)
+
+
+@pipeline_opportunity_resource_router.patch("/{id}/comments/{comment_id}", response_model=CommentResponse)
+async def update_pipeline_opportunity_resource_comment(
+    id: UUID,
+    comment_id: UUID,
+    comment: CommentUpdate,
+    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> CommentResponse:
+    return await update_comment_service(db, PageName.RESOURCE_MATCH, id, comment_id, comment, current_user)
+
+
+@pipeline_opportunity_resource_router.delete("/{id}/comments/{comment_id}", response_model=BaseResponse)
+async def delete_pipeline_opportunity_resource_comment(
+    id: UUID,
+    comment_id: UUID,
+    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "delete")),
+    db: AsyncSession = Depends(get_db),
+) -> BaseResponse:
+    return await delete_comment_service(db, PageName.RESOURCE_MATCH, id, comment_id, current_user)

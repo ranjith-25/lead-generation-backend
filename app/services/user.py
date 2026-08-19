@@ -52,9 +52,15 @@ async def change_users_role(
         logging.info(f"Role change skipped: '{source.roleName}' is already the destination")
         return result
 
+    # Deliberately no early return here. `affected` lists live users only, but the bulk update
+    # below also has to clear soft-deleted rows off the role — under `users.role_id`
+    # `ondelete="RESTRICT"` those retired rows are exactly what makes a following `delete_role`
+    # fail. Returning early because no *live* user holds the role would reintroduce that 500.
     if not affected:
-        logging.info(f"Role change skipped: no users hold role '{source.roleName}'")
-        return result
+        logging.info(
+            f"No live user holds role '{source.roleName}'; "
+            "running the move anyway to clear any retired rows"
+        )
 
     if dry_run:
         logging.info(

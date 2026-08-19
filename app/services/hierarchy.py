@@ -29,7 +29,17 @@ async def handleGetHierarchy(db) -> HierarchyListResponse:
             if parent_id and parent_id in nodes:
                 nodes[parent_id].children.append(nodes[user.user_id])
             else:
-                # User without manager -> Root (Admin)
+                if parent_id:
+                    # reporting_to is set but the manager is not a node: getAllUsers filters
+                    # is_deleted, so the manager was soft-deleted (or is otherwise invisible).
+                    # Say so instead of passing the user off as a genuine top-level root.
+                    logging.warning(
+                        f"Dangling reporting_to in hierarchy: user_id={user.user_id} reports to "
+                        f"manager_id={parent_id}, which is not visible (deleted?). "
+                        "Rendering the user as a root."
+                    )
+                # reporting_to IS NULL -> a real root (Admin). Either way the user is kept:
+                # the tree must never drop a user.
                 root.append(nodes[user.user_id])
         return HierarchyListResponse(
             message="Hierarchy fetched successfully",
@@ -63,6 +73,15 @@ async def handleGetHierarchyByUser(db, current_user_id: UUID) -> HierarchyRespon
 
             if parent_id and parent_id in nodes:
                 nodes[parent_id].children.append(nodes[user.user_id])
+            elif parent_id:
+                # Manager id set but absent from the node map - soft-deleted or otherwise
+                # invisible. The node stays in `nodes`, unattached, so it is still returned
+                # as its own root when it is the requested user; it is never dropped.
+                logging.warning(
+                    f"Dangling reporting_to in hierarchy: user_id={user.user_id} reports to "
+                    f"manager_id={parent_id}, which is not visible (deleted?). "
+                    "Rendering the user as a root."
+                )
 
         # Find root of the hierarchy for this user
         root = nodes.get(current_user_id)

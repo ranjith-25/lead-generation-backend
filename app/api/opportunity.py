@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.responses import JSONResponse
@@ -9,6 +11,11 @@ from app.config import PageName, SortOrder, TimeRange
 from app.core.connections.postgres import get_db
 from app.core.security import require_permission
 from app.models.user import User
+from app.schemas.comment import (
+    CommentCreate,
+    CommentUpdate,
+    CommentPaginatedResponse
+)
 from app.schemas.opportunity import (
     OpportunityRead, 
     OpportunityListRead, 
@@ -22,6 +29,13 @@ from app.schemas.opportunity import (
 )
 from app.schemas.opportunity_edit_history import OpportunityEditHistoryPaginatedResponse
 from app.responses.base import BaseResponse
+from app.responses.comment import CommentResponse
+from app.services.comment import (
+    create_comment_service,
+    get_comments_service,
+    update_comment_service,
+    delete_comment_service
+)
 from app.services.opportunity_edit_history import get_opportunity_edit_history_service
 from app.services.opportunity import (
     get_opportunity_service, 
@@ -57,6 +71,8 @@ async def get_opportunities(
     time_filter: TimeRange | None = Query(None),
     sort_by: str | None = Query(None, description="Field to sort on; unsupported names are ignored"),
     order_by: SortOrder | None = Query(None),
+    from_date: date | None = Query(None, description="Start of the created-at range (YYYY-MM-DD), inclusive; overrides time_filter"),
+    to_date: date | None = Query(None, description="End of the created-at range (YYYY-MM-DD), inclusive; overrides time_filter"),
     current_user: User = Depends(require_permission("overview_and_analysis","read")), db: AsyncSession = Depends(get_db)
 ) -> OpportunityPaginatedResponse:
     return await get_all_opportunities_service(
@@ -68,6 +84,8 @@ async def get_opportunities(
             time_filter=time_filter,
             sort_by=sort_by,
             order_by=order_by,
+            from_date=from_date,
+            to_date=to_date,
         ),
     )
 
@@ -108,6 +126,48 @@ async def get_opportunity_edit_history(
     db: AsyncSession = Depends(get_db)
 ) -> OpportunityEditHistoryPaginatedResponse:
     return await get_opportunity_edit_history_service(db, opportunityID, current_user.user_id, page_name, page, size)
+
+
+@router.get("/{opportunityID}/comments", response_model=CommentPaginatedResponse)
+async def get_opportunity_comments(
+    opportunityID: UUID,
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(require_permission("overview_and_analysis","read")),
+    db: AsyncSession = Depends(get_db)
+) -> CommentPaginatedResponse:
+    return await get_comments_service(db, PageName.OPPORTUNITY_ANALYSIS, opportunityID, current_user, page, size)
+
+
+@router.post("/{opportunityID}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
+async def create_opportunity_comment(
+    opportunityID: UUID,
+    comment_data: CommentCreate,
+    current_user: User = Depends(require_permission("overview_and_analysis","create")),
+    db: AsyncSession = Depends(get_db)
+) -> CommentResponse:
+    return await create_comment_service(db, PageName.OPPORTUNITY_ANALYSIS, opportunityID, comment_data, current_user)
+
+
+@router.patch("/{opportunityID}/comments/{comment_id}", response_model=CommentResponse)
+async def update_opportunity_comment(
+    opportunityID: UUID,
+    comment_id: UUID,
+    comment_data: CommentUpdate,
+    current_user: User = Depends(require_permission("overview_and_analysis","update")),
+    db: AsyncSession = Depends(get_db)
+) -> CommentResponse:
+    return await update_comment_service(db, PageName.OPPORTUNITY_ANALYSIS, opportunityID, comment_id, comment_data, current_user)
+
+
+@router.delete("/{opportunityID}/comments/{comment_id}", response_model=BaseResponse)
+async def delete_opportunity_comment(
+    opportunityID: UUID,
+    comment_id: UUID,
+    current_user: User = Depends(require_permission("overview_and_analysis","delete")),
+    db: AsyncSession = Depends(get_db)
+) -> BaseResponse:
+    return await delete_comment_service(db, PageName.OPPORTUNITY_ANALYSIS, opportunityID, comment_id, current_user)
 
 
 @router.get("/{opportunityID}", response_model=OpportunityRead)

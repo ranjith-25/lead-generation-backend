@@ -118,11 +118,18 @@ async def get_users_by_role_id(db: AsyncSession, role_id: UUID) -> list[User]:
 
 
 async def bulk_update_users_role(db: AsyncSession, from_role_id: UUID, to_role_id: UUID) -> int:
-    """Move every user on `from_role_id` to `to_role_id`. Returns the number of rows changed."""
+    """Move every user on `from_role_id` to `to_role_id`. Returns the number of rows changed.
+
+    Deliberately not filtered on `is_deleted`. Users are never hard-deleted, so a soft-deleted
+    row keeps pointing at its role forever, and `users.role_id` is `ondelete="RESTRICT"` — a
+    single dead row still holding the role is enough to make the subsequent `delete_role` fail
+    with a foreign-key violation. A retired user's role carries no meaning, so moving it is
+    harmless; leaving it behind is not.
+    """
     try:
         result = await db.execute(
             update(User)
-            .where(User.role_id == from_role_id, User.is_deleted.is_(False))
+            .where(User.role_id == from_role_id)
             .values(role_id=to_role_id)
             .execution_options(synchronize_session=False)
         )
@@ -155,6 +162,58 @@ async def get_user_by_id(db: AsyncSession, user_id: UUID) -> User | None:
     delete endpoint needs to read the flag to reject a second delete."""
     result = await db.execute(select(User).where(User.user_id == user_id))
     return result.scalars().first()
+
+
+async def resolve_live_manager(db: AsyncSession, user_id: UUID | None) -> UUID | None:
+    """The nearest ancestor of `user_id` (itself included) that is not soft-deleted.
+
+    Handing a subordinate straight to their deleted manager's own `reporting_to` is only
+    correct while that manager is alive. Delete a manager, then delete *his* manager, and the
+    naive version leaves live users pointing at a dead row - a row `getAllUsers` filters out,
+    so the hierarchy quietly promotes them to roots instead of showing the break. Walking up
+    past every deleted row keeps them attached to somebody who can actually be reported to.
+
+    Called with `user.reporting_to`, which is nullable, so `None` in is `None` out. Returns
+    `None` when the chain reaches a root or every ancestor is deleted - the caller reads that
+    as "no manager" and nulls the link. Pure read: no commit, no mutation.
+    """
+    if user_id is None:
+        return None
+
+    try:
+        visited: set[UUID] = set()
+        current: UUID | None = user_id
+
+        while current is not None:
+            # `reporting_to` cycles exist in this data (see `soft_delete_user`), and an
+            # unguarded walk over one never terminates. A repeat means the whole loop is
+            # deleted, so report "no live manager" rather than picking one of its members.
+            if current in visited:
+                logging.warning(
+                    f"Cycle in reporting_to while resolving a live manager for user_id: "
+                    f"{user_id} - revisited user_id: {current}. Treating as no manager."
+                )
+                return None
+            visited.add(current)
+
+            result = await db.execute(
+                select(User.is_deleted, User.reporting_to).where(User.user_id == current)
+            )
+            row = result.first()
+
+            # A missing row counts as dead: nobody may report to an id that is not there.
+            if row is None:
+                return None
+            if not row.is_deleted:
+                return current
+
+            current = row.reporting_to
+
+        return None
+    except SQLAlchemyError as e:
+        logging.exception(f"Could not resolve a live manager for user_id: {user_id}")
+        raise e
+
 
 async def update_user_password(db: AsyncSession, user_id: UUID, hashed_password: str) -> User | None:
     try:
@@ -265,8 +324,11 @@ async def soft_delete_user(db: AsyncSession, user: User) -> dict:
     `Opportunity.createdByName` and the opportunity edit history keep resolving a real name.
 
     Three cleanups ride along, each of them needed for the app to stay coherent:
-      * subordinates are reparented onto the deleted user's own manager, so the reporting
-        tree keeps one connected shape instead of sprouting an orphan subtree;
+      * subordinates are reparented onto the nearest *live* ancestor, not blindly onto the
+        deleted user's own manager - that manager may be soft-deleted too, and a chain of
+        deletions would otherwise leave live users pointing at dead rows that `getAllUsers`
+        filters out; `resolve_live_manager` walks up past them so the reporting tree keeps
+        one connected shape instead of sprouting an orphan subtree;
       * opportunities assigned to them are returned to the unassigned pool, so open leads
         surface as needing an owner instead of stalling against a ghost;
       * every live session is revoked - the only thing that actually cuts off a JWT that was
@@ -278,18 +340,30 @@ async def soft_delete_user(db: AsyncSession, user: User) -> dict:
     Returns the row counts, for the activity log.
     """
     try:
-        # A degenerate cycle - the deleted user reporting to one of their own reports - would
-        # otherwise make that row its own manager. It is excluded here and nulled by the sweep
-        # below. The same exclusion makes this a no-op when the manager is NULL.
-        reparented = await db.execute(
-            update(User)
-            .where(User.reporting_to == user.user_id, User.user_id != user.reporting_to)
-            .values(reporting_to=user.reporting_to)
-            .execution_options(synchronize_session=False)
-        )
+        # The nearest *live* ancestor rather than `user.reporting_to` itself: that manager may
+        # already be soft-deleted, and reparenting onto a dead row hides the subordinates from
+        # the hierarchy instead of keeping the tree connected.
+        target = await resolve_live_manager(db, user.reporting_to)
 
-        # Nobody may still report to a deleted user. Catches the cycle above and the ordinary
-        # case where the deleted user had no manager, leaving their reports as roots.
+        reparented_count = 0
+        if target is not None:
+            # A degenerate cycle - the live ancestor being one of the deleted user's own
+            # reports - would otherwise make that row its own manager. The exclusion is on
+            # `target`, the id actually written, so it still guards the walked-up case. That
+            # row is left behind here and nulled by the sweep below.
+            reparented = await db.execute(
+                update(User)
+                .where(User.reporting_to == user.user_id, User.user_id != target)
+                .values(reporting_to=target)
+                .execution_options(synchronize_session=False)
+            )
+            reparented_count = reparented.rowcount or 0
+        # target is None means there is no live ancestor at all (the deleted user was a root,
+        # or every ancestor is deleted): nothing to reparent onto, so every subordinate falls
+        # through to the sweep and is counted as orphaned.
+
+        # Nobody may still report to a deleted user. Catches the cycle above and every
+        # subordinate left unreparented, leaving them as roots.
         orphaned = await db.execute(
             update(User)
             .where(User.reporting_to == user.user_id)
@@ -313,7 +387,7 @@ async def soft_delete_user(db: AsyncSession, user: User) -> dict:
         await db.refresh(user)
 
         return {
-            "subordinates_reparented": reparented.rowcount or 0,
+            "subordinates_reparented": reparented_count,
             "subordinates_orphaned": orphaned.rowcount or 0,
             "opportunities_unassigned": unassigned.rowcount or 0,
             "sessions_revoked": sessions_revoked,

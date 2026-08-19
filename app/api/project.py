@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +33,8 @@ async def get_projects(
     time_filter: TimeRange | None = Query(None),
     sort_by: str | None = Query(None, description="Field to sort on; unsupported names are ignored"),
     order_by: SortOrder | None = Query(None),
+    from_date: date | None = Query(None, description="Start of the created-at range (YYYY-MM-DD), inclusive; overrides time_filter"),
+    to_date: date | None = Query(None, description="End of the created-at range (YYYY-MM-DD), inclusive; overrides time_filter"),
     current_user: User = Depends(require_permission("projects", "read")),
     db: AsyncSession = Depends(get_db),
 ) -> ProjectListResponse:
@@ -42,6 +46,8 @@ async def get_projects(
             time_filter=time_filter,
             sort_by=sort_by,
             order_by=order_by,
+            from_date=from_date,
+            to_date=to_date,
         ),
     )
 
