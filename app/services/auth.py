@@ -261,36 +261,45 @@ async def _notify_setup_completed(
 
 async def handle_signup_invitation(db : AsyncSession , invitation_id : uuid.UUID,registration_data : UserRegistrationFromInvitation):
     try : 
-        #Get Invitation Details
-        invitationDetails : UserInvitationDTO = await get_user_invitation_by_id(db,invitation_id)
+        # Get Invitation Details
+        invitationDetails: UserInvitationDTO = await get_user_invitation_by_id(db, invitation_id)
         if not invitationDetails:
-            logging.exception("Invitation details not found",invitation_id)
+            logging.exception("Invitation details not found: %s", invitation_id)
             raise NotFoundException
-        
+
         if invitationDetails.status == InvitationStatus.CANCELLED:
-            logging.exception("Invitation is cancelled",invitation_id)
+            logging.exception("Invitation is cancelled: %s", invitation_id)
             raise InvitationCancelledException
-        
+
         if invitationDetails.status == InvitationStatus.REGISTERED:
-            logging.exception("Invitation is already registered",invitation_id)
+            logging.exception("Invitation is already registered: %s", invitation_id)
             raise InvitationRegisteredException
         # User Table
 
         hashedPassword = get_password_hash(registration_data.user_details.password)
-        user : User = User(
-            email = invitationDetails.work_email,
-            hashedPassword = hashedPassword,
-            role_id = invitationDetails.roleID,
-            reporting_to = invitationDetails.reporting_to
+        user: User = User(
+            email=invitationDetails.work_email,
+            hashedPassword=hashedPassword,
+            role_id=invitationDetails.roleID,
+            reporting_to=invitationDetails.reporting_to,
         )
 
         # User Personal Info
-        new_personal_info = UserPersonalInfo(**registration_data.user_personal_details.model_dump(), user_id = "3fa85f64-5717-4562-b3fc-2c963f66afa6") # This is a dummmy userID it will be updated in the DB Layer with actual created uuid
-        
+        new_personal_info = UserPersonalInfo(
+            **registration_data.user_personal_details.model_dump()
+        )
 
         # User Invitation
         updateInvitationData = UserInvitationUpdate(
-            status = InvitationStatus.REGISTERED
+            status=InvitationStatus.REGISTERED
+        )
+
+        registered_user = await register_user_from_invitation(
+            db,
+            user,
+            new_personal_info,
+            invitation_id,
+            updateInvitationData.model_dump(exclude_none=True, exclude_unset=True),
         )
         
         
@@ -309,12 +318,12 @@ async def handle_signup_invitation(db : AsyncSession , invitation_id : uuid.UUID
 
         registered_user = await register_user_from_invitation(db,user,new_personal_info,invitation_id,updateInvitationData.model_dump(exclude_none=True,exclude_unset=True))
 
-        await _notify_setup_completed(db,registered_user,invitationDetails,new_personal_info)
+        await _notify_setup_completed(db, registered_user, invitationDetails, new_personal_info)
 
         return UserRegistrationFromInvitationResponse(
-            message = "User registration was successful."
+            message="User registration was successful."
         )
     except Exception as e:
         await db.rollback()
-        logging.exception("Some error occurred while getting Invitation")
+        logging.exception("Some error occurred while setting up invitation registration")
         raise e

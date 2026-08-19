@@ -581,7 +581,6 @@ async def handle_download_profile_variant(
 
         file_name = object_key.split("/")[-1]
         file_stream = stream_file(object_key)
-        print(file_name)
 
         # read-only request: no business write to ride along on, so the row commits itself
         await log_activity(
@@ -601,8 +600,8 @@ async def handle_download_profile_variant(
             file_name=file_name,
             content_type="application/pdf",
         )
-    except NotFoundException as e:
-        raise e
+    except NotFoundException:
+        raise
     except Exception as e:
         logging.exception("Some error occurred while downloading Profile Variant PDF")
         raise e

@@ -26,13 +26,6 @@ class Settings(BaseSettings):
     PASSWORD_RESET_JWT_EXPIRE_MINUTES: int = 10
 
     FRONTEND_BASE_URL : str
-
-    SMTP_HOST: str = ""
-    SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
-    SMTP_USE_TLS: bool = True
-    EMAIL_FROM: str = ""
     
     DB_LOGS: bool = False
 
@@ -50,5 +43,9 @@ class Settings(BaseSettings):
     AWS_REGION: str
     AWS_S3_BUCKET : str
     FIREBASE_CREDENTIALS_PATH : str
+
+    SES_ACCESS_KEY_ID : str
+    SES_SECRET_ACCESS_KEY : str
+    EMAIL_FROM : str
 
 settings = Settings()

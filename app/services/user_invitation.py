@@ -101,7 +101,7 @@ async def handle_create_user_invitation(
         temp_name = user_invitation_create.work_email.split('@')[0]
         try:
             name = f"{temp_name.split('.')[0].capitalize()} {temp_name.split('.')[1].capitalize()}"
-        except:
+        except (IndexError, AttributeError):
             name = temp_name
         work_email = user_invitation_create.work_email
     

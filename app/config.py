@@ -285,11 +285,10 @@ NOTIFICATION_CONTENT = {
 }
 
 NOTIFICATION_NAVIGATION = {
-    "OPPURTUNITY_PIPELINE": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline",
-    "MY_PROFILE": "https://macaw-otter-linoleum.ngrok-free.dev/profile",
-    "USER_HIERARCHY": "https://macaw-otter-linoleum.ngrok-free.dev/user-hierarchy?user_id={user_id}",
-    "TECHNICAL_PREPARATION": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline/technical-preparation?opportunity_id={opportunity_id}",
-    "AI_OVERVIEW": "https://macaw-otter-linoleum.ngrok-free.dev/ai-overview?opportunityID={opportunity_id}",
+    "OPPURTUNITY_PIPELINE": "/opportunity-pipeline",
+    "MY_PROFILE": "/profile",
+    "USER_HIERARCHY": "/user-hierarchy?user_id={user_id}",
+    "TECHNICAL_PREPARATION": "/opportunity-pipeline/technical-preparation?opportunity_id={opportunity_id}",
     # Same page as OPPURTUNITY_PIPELINE, but with the one resource the notification is
     # about preselected — the recipient has to act on that row, not hunt for it.
     "RESOURCE_MATCH": "https://macaw-otter-linoleum.ngrok-free.dev/opportunity-pipeline?opportunity_id={opportunity_id}&resource_id={pipeline_resource_id}",
