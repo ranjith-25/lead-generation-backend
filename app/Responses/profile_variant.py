@@ -37,6 +37,7 @@ class JobRoleSkillsResponse(BaseResponse):
 
 class ProjectItem(BaseModel):
     project_id: str = Field(..., description="Project ID")
+    project_links: dict = Field(..., description="Project Links")
     project_name: str = Field(..., description="Project Name")
 
 class ProjectDomainItem(BaseModel):

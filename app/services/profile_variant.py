@@ -537,6 +537,7 @@ async def handle_get_projects_and_domains(
             # Map project to ProjectItem
             proj_item = ProjectItem(
                 project_name=project.project_name,
+                project_links=project.links,
                 project_id=str(project.project_id)
             )
 

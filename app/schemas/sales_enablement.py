@@ -21,10 +21,10 @@ class SalesEnablementRead(SalesEnablementBase):
     updatedAt: datetime | None = None
 
 class SalesEnablementUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     suggested_questions: list[str] | None = None
     sales_talking_points: list[str] | None = None
-    outreach_template: str | None = None
-    outreach_subject: str | None = None
 
 class OutreachTemplateUpdate(BaseModel):
     outreach_template: str

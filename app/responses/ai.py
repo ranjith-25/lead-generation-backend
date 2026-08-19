@@ -32,6 +32,10 @@ class AISalesEnablementResponse(BaseModel):
         ...,
         description="Generated outreach message template."
     )
+    outreach_subject : str = Field(
+        ...,
+        description="Generated outreach message Subject."
+    )
 
 
 from uuid import UUID

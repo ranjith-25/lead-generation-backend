@@ -113,14 +113,18 @@ async def handle_get_user_profile_filters(
         
         hierarchy_res = await handleGetHierarchyByUser(db, current_user.user_id)
         team_list = []
+        seen_members = set()
         if hierarchy_res.hierarchy:
             def extract_team(node):
-                if node.fullName not in team_list:
-                    team_list.append(node.fullName)
+                # Deduped on user_id rather than the name: two people can share a display
+                # name, and collapsing them would drop one out of the filter entirely.
+                if node.user_id not in seen_members:
+                    seen_members.add(node.user_id)
+                    team_list.append({"id": node.user_id, "name": node.fullName})
                 for child in node.children:
                     extract_team(child)
             extract_team(hierarchy_res.hierarchy)
-            
+
         filters["team"] = team_list
         filters["time_filter"] = get_time_filter_options()
 

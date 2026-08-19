@@ -3,14 +3,6 @@ from datetime import datetime, timedelta
 
 OTP_MAX_ATTEMPTS = 5
 
-# Matched against roles.roleName — the Super Admin role is internal and is hidden
-# from the roles / role-permission listings the settings screens consume.
-SUPER_ADMIN_ROLE_NAME = "Super Admin"
-
-# Matched (case-insensitively) against user_status.displayName. The bench status is an
-# admin-created data row, not a schema value, so this constant is a *data* contract: rename
-# the row in user_status and the auto-bench sync stops finding it — it logs a warning and
-# leaves everybody alone rather than failing the write that triggered it.
 BENCH_STATUS_NAME = "On Bench"
 
 EMAIL_MESSAGE_CONTENT = {

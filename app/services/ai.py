@@ -203,7 +203,6 @@ async def handleSalesEnablement(
                 },
             )
             response.raise_for_status()
-
             sales_enablement_res = AISalesEnablementResponse(**response.json())
 
             await add_sales_enablement_db(
@@ -213,6 +212,7 @@ async def handleSalesEnablement(
                     suggested_questions=sales_enablement_res.discovery_questions,
                     sales_talking_points=sales_enablement_res.talking_points,
                     outreach_template=sales_enablement_res.outreach_template,
+                    outreach_subject=sales_enablement_res.outreach_subject,
                     createdBy=execution_status.createdBy,
                     updatedBy=execution_status.createdBy,
                 ),
