@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timezone
 from math import ceil
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,8 +36,8 @@ from app.services.db.notifications import (
 )
 from app.services.notification_stream import publish_notifications
 from app.services.db.firebase_token import get_firebase_token_by_user_id
-from app.services.firebase_token import send_push_notification
-from app.schemas.firebase_token import FirebaseNotificationPayload
+from app.services.firebase_messaging import send_push_notification
+from app.schemas.firebase_messaging import FirebaseNotificationPayload
 from app.config import (
     AUDIENCE_ROLES,
     Audience,
