@@ -399,8 +399,11 @@ class PageName(str, Enum):
     OPPORTUNITY_ANALYSIS = "OPPORTUNITY_ANALYSIS"
     # Backed by the PostgreSQL enum type `page_name`, which `opportunity_edit_history.page_name`
     # shares with `comments.page_name` - so these two values are valid on both tables. A new
-    # member here is only half the change: the type needs an `ALTER TYPE ... ADD VALUE`
-    # migration too, because SQLAlchemy will not alter an enum type that already exists.
+    # member here is only half the change: the type needs a migration too, because SQLAlchemy
+    # will not alter an enum type that already exists. `ALTER TYPE ... ADD VALUE` is enough only
+    # when nothing in the same `upgrade` writes the new label — PostgreSQL rejects reading back a
+    # label the open transaction added. When a backfill needs it, recreate the type instead, the
+    # way `d4b02e3c8e21` does.
     RESOURCE_MATCH = "RESOURCE_MATCH"
     TECHNICAL_PREPARATION = "TECHNICAL_PREPARATION"
 

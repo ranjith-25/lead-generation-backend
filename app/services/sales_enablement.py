@@ -178,12 +178,16 @@ async def update_sales_enablement_by_opportunity_service(
 async def update_outreach_template_service(db: AsyncSession, opp_id: UUID | str, template_data: OutreachTemplateUpdate, user_id: UUID) -> SalesEnablementRead:
     """Delegates so the upsert rule and the write itself live in exactly one place."""
 
+    # exclude_unset so a payload without outreach_subject does not blank an existing subject —
+    # SalesEnablementUpdate is dumped the same way downstream.
+    edited_fields = template_data.model_dump(exclude_unset=True)
+
     return await update_sales_enablement_by_opportunity_service(
         db,
         opp_id,
-        SalesEnablementUpdate(outreach_template=template_data.outreach_template),
+        SalesEnablementUpdate(**edited_fields),
         user_id,
-        log_details={"updatedFields": ["outreach_template"]},
+        log_details={"updatedFields": sorted(edited_fields)},
     )
 
 async def delete_sales_enablement_service(db: AsyncSession, se_id: UUID | str, user_id: UUID) -> BaseResponse:
