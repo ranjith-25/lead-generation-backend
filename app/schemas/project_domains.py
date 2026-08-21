@@ -5,11 +5,11 @@ from uuid import UUID
 class ProjectDomainBase(BaseModel):
     domain: str = Field(..., min_length=1, max_length=100)
     description: str  = Field(..., max_length=255)
-    count : int = Field(0)
     is_active: bool = Field(True)
 
 class ProjectDomainDTO(ProjectDomainBase):
     id: UUID = Field(...,description="Project Domain ID")
+    count : int = Field(0)
     model_config = ConfigDict(from_attributes=True)
 
 class ProjectDomainCreate(ProjectDomainBase):
@@ -23,7 +23,7 @@ class ProjectDomainUpdate(ProjectDomainBase):
     
 class ProjectDomainRead(ProjectDomainBase):
     id: UUID = Field(..., description="Project Domain ID")
-
+    count : int = Field(0)
     model_config = ConfigDict(from_attributes=True)
     
 class ProjectDomainFilters(BaseModel):
