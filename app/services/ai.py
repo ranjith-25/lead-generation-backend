@@ -194,6 +194,13 @@ async def handleSalesEnablement(
                 ).model_dump(mode="json")
                 for row in project_details
             ]
+            request = AISalesEnablementRequest(
+                user_id=execution_status.createdBy,
+                action="Generate Sales Enablement",
+                job_details= json.dumps(job_details),
+                projects=projects_list
+            )
+
 
             response = await client.post(
                 "/api/v1/projects/sales-enablement",
@@ -202,6 +209,11 @@ async def handleSalesEnablement(
                     "projects": projects_list,
                 },
             )
+
+            if response.status_code != 200:
+                logger.exception(f"Sales Enablement failed: {response.text} \n Payload {request.model_dump()}")
+                raise Exception("Sales Enablement failed")
+                
             response.raise_for_status()
             sales_enablement_res = AISalesEnablementResponse(**response.json())
 
@@ -420,6 +432,8 @@ async def process_opportunity_pipeline_background(
     top_project_ids = [row.project_id for row in project_res.matches]
 
     resource_request = AIGetRelaventProfilesRequest(
+        user_id=user_id,
+        action="Get Relevant Profiles ",
         job_details=json.dumps(job_details),
         top_project_ids=[str(pid) for pid in top_project_ids],
     )

@@ -20,3 +20,14 @@ class AITechnicalPreperationRequest(BaseModel):
     variant_id: str = Field(...,description="The Variant ID")
     matching_skills: list[str] = Field(...,description="List of matching skills")
     missing_skills: list[str] = Field(...,description="List of missing skills")
+
+class AIURLScrapeRequest(AIRequestBase):
+    url: str = Field(...,description="The URL to scrape for job details")
+    job_roles : list[str] = Field(...,description="List of job roles to scrape for")
+
+class AIGetRelevantProjectsRequest(AIRequestBase):
+    job_details: str = Field(..., description="The job details in JSON format")
+
+class AISalesEnablementRequest(AIRequestBase):
+    job_details: str
+    projects: list[AIProjectRequest]
