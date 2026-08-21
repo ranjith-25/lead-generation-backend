@@ -58,6 +58,8 @@ async def create_opportunity_service(db: AsyncSession, opp_data: OpportunityCrea
         from app.services.db.opportunity import get_status_by_name
         opp_dict = opp_data.model_dump()
         request : AIManualJDRequest = AIManualJDRequest(
+            user_id = user_id,
+            action = "Manual JD Overview & Analysis",
             company_name = opp_data.company,
             company_website = opp_data.company_website,
             job_title = opp_data.title,

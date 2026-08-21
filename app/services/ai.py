@@ -25,7 +25,7 @@ from app.responses.ai import (
     GetTechnicalPreperationResponse
 )
 from app.responses.opportunity import CreateOpportunityResponse
-from app.schemas.ai import AIGetRelaventProfilesRequest , AIManualJDRequest ,AITechnicalPreperationRequest
+from app.schemas.ai import AIGetRelaventProfilesRequest, AIGetRelevantProjectsRequest , AIManualJDRequest, AISalesEnablementRequest ,AITechnicalPreperationRequest, AIURLScrapeRequest
 from app.schemas.notification import NotificationType
 from app.schemas.opportunity import OpportunityBase
 from app.schemas.project import AIProjectRequest
@@ -102,9 +102,14 @@ async def handleGetRelaventProjects(
                     execution_status_id,
                 )
             )
+            request = AIGetRelevantProjectsRequest(
+                user_id=execution_status.createdBy,
+                action="Get Relevant Projects",
+                job_details=json.dumps(job_details)
+            )
             response = await client.post(
                 "/api/v1/projects/match",
-                json={"job_details": json.dumps(job_details)},
+                json=request.model_dump(mode="json"),
             )
             response.raise_for_status()
 
@@ -194,13 +199,17 @@ async def handleSalesEnablement(
                 ).model_dump(mode="json")
                 for row in project_details
             ]
+            request = AISalesEnablementRequest(
+                user_id=execution_status.createdBy,
+                action="Generate Sales Enablement",
+                job_details=job_details,
+                projects=projects_list
+            )
+
 
             response = await client.post(
                 "/api/v1/projects/sales-enablement",
-                json={
-                    "job_details": json.dumps(job_details),
-                    "projects": projects_list,
-                },
+                json=request.model_dump(mode="json")
             )
             response.raise_for_status()
             sales_enablement_res = AISalesEnablementResponse(**response.json())
@@ -404,6 +413,7 @@ async def handleTechnicalPreperation(
 async def process_opportunity_pipeline_background(
     job_details: dict,
     execution_status_id: UUID,
+    user_id: UUID
 ) -> None:
 
     client = get_ai_client()
@@ -420,6 +430,8 @@ async def process_opportunity_pipeline_background(
     top_project_ids = [row.project_id for row in project_res.matches]
 
     resource_request = AIGetRelaventProfilesRequest(
+        user=user_id,
+        action="Get Relevant Profiles",
         job_details=json.dumps(job_details),
         top_project_ids=[str(pid) for pid in top_project_ids],
     )
@@ -463,8 +475,8 @@ async def handleGetScrapedData(
         start_time = perf_counter()
         
         all_job_roles = [job_role.roleName for job_role in (await get_all_job_roles(db, JobRoleFilters()))]
-
-        response = await client.post("/api/v1/scrape", json={"url": url, "job_roles": all_job_roles})
+        request = AIURLScrapeRequest(user_id=user_id,action="Overview & Analysis",url=url,job_roles=all_job_roles,)
+        response = await client.post("/api/v1/scrape", json=request.model_dump(mode="json"))
         response.raise_for_status()
 
         ai_response = GetScrapedURLDataResponse(**response.json())
@@ -515,6 +527,7 @@ async def handleGetScrapedData(
             process_opportunity_pipeline_background,
             ai_response.job_details,
             execution_status.id,
+            user_id
         )
 
         logger.info(
@@ -614,6 +627,7 @@ async def handleGetManualScrapedData(
             process_opportunity_pipeline_background,
             ai_response.job_details,
             execution_status.id,
+            user_id
         )
 
         logger.info(
