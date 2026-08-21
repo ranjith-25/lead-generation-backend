@@ -37,11 +37,15 @@ async def get_bench_status_id(db: AsyncSession) -> UUID | None:
 async def count_allocations_for_users(
     db: AsyncSession, user_ids: Sequence[UUID]
 ) -> dict[UUID, int]:
-    """Allocation counts for the given users, in one grouped query over `user_projects`.
+    """Live allocation counts for the given users, in one grouped query over `user_projects`.
 
     A user with no allocation rows produces no group and is therefore **absent** from the
     result — callers must read a missing key as zero, which is precisely the "should be
     benched" case.
+
+    Soft-deleted allocations must not be counted: they are exactly the rows whose removal
+    triggers this sync, and counting them would leave the freed user looking occupied so they
+    were never benched at all.
     """
     if not user_ids:
         return {}
@@ -49,7 +53,10 @@ async def count_allocations_for_users(
     try:
         result = await db.execute(
             select(UserProject.user_id, func.count(UserProject.user_project_id))
-            .where(UserProject.user_id.in_(user_ids))
+            .where(
+                UserProject.user_id.in_(user_ids),
+                UserProject.is_deleted.is_(False),
+            )
             .group_by(UserProject.user_id)
         )
         return {row[0]: row[1] for row in result.all()}

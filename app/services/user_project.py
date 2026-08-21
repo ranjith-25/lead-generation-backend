@@ -48,8 +48,9 @@ async def sync_bench_status(
 ) -> int:
     """Move any of `user_ids` left with zero allocations onto the bench status. Returns how many.
 
-    Called after an allocation or a project is removed, so it decides on the state that is
-    already committed rather than predicting one.
+    Called after an allocation is soft-deleted or a project is removed, so it decides on the
+    state that is already committed rather than predicting one. `count_allocations_for_users`
+    counts only live allocations, so a soft-deleted one correctly frees its holder.
 
     Three deliberate non-behaviours:
 
@@ -259,9 +260,12 @@ async def handle_delete_user_project(
     db: AsyncSession, current_user: User, user_project_id: UUID
 ) -> DeleteUserProjectResponse:
     try:
-        # Captured before the delete — afterwards the row is gone and the freed user with it.
+        # Captured before the delete — afterwards the row reads as deleted, so the lookup that
+        # names the freed user no longer returns them.
         freed_user_id = await get_allocation_user_id(db, user_project_id)
 
+        # Soft delete: the row is flagged, not removed. An id that is unknown *or* already
+        # deleted comes back as None and surfaces as the same 404.
         deleted_user_project = await delete_user_project(db, user_project_id)
         if deleted_user_project is None:
             raise NotFoundException()
