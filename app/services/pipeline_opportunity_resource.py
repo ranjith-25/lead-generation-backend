@@ -245,7 +245,9 @@ async def _approve_pipeline_opportunity_resource(
     job_details: Opportunity = await get_opportunity_details_by_id(db, result.updatedPipelineOpportunityResource.opportunity_id)
     job_details_schema: OpportunityRead = OpportunityRead.model_validate(job_details)
     technicalPreperationRequest: AITechnicalPreperationRequest = AITechnicalPreperationRequest(
-        job_details=json.dumps(job_details_schema.model_dump(mode="json")),
+        user_id=current_user.user_id,
+        action="Technical Preparation",
+        job_details=job_details_schema.model_dump(mode="json"),
         variant_id=str(result.updatedPipelineOpportunityResource.variant_id),
         matching_skills=result.updatedPipelineOpportunityResource.matching_skills,
         missing_skills=result.updatedPipelineOpportunityResource.missing_skills,
