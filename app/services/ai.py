@@ -105,7 +105,7 @@ async def handleGetRelaventProjects(
             request = AIGetRelevantProjectsRequest(
                 user_id=execution_status.createdBy,
                 action="Get Relevant Projects",
-                job_details=job_details
+                job_details=json.dumps(job_details)
             )
             response = await client.post(
                 "/api/v1/projects/match",

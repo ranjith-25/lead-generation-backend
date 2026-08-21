@@ -32,7 +32,7 @@ class AIURLScrapeRequest(AIRequestBase):
     job_roles : list[str] = Field(...,description="List of job roles to scrape for")
 
 class AIGetRelevantProjectsRequest(AIRequestBase):
-    job_details: dict = Field(..., description="The job details in JSON format")
+    job_details: str = Field(..., description="The job details in JSON format")
 
 class AISalesEnablementRequest(AIRequestBase):
     job_details: dict
