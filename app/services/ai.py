@@ -107,7 +107,6 @@ async def handleGetRelaventProjects(
                 action="Get Relevant Projects",
                 job_details=job_details
             )
-            print("HELLLLOOOOOOOOOOOOO", request.model_dump(mode="json"))
             response = await client.post(
                 "/api/v1/projects/match",
                 json=request.model_dump(mode="json"),
