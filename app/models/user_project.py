@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, func, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
@@ -25,6 +25,13 @@ class UserProject(Base):
 
     # nobody has revised the allocation until it is actually edited
     allocation_updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
+
+    # Allocations are never hard-deleted: `sync_bench_status` and the system log both read the
+    # allocation history to explain why a user was benched, and a real DELETE would erase the
+    # evidence. Matches the soft-delete flag already carried by `users` and `comments`.
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 

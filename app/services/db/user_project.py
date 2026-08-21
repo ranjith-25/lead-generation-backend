@@ -10,10 +10,14 @@ from app.models.user_project import UserProject
 
 
 def _user_project_detail_query():
-    """Allocation rows joined to the names of their project, job role and techstack.
+    """Live allocation rows joined to the names of their project, job role and techstack.
 
     Inner joins are safe: all three FKs are NOT NULL, so every allocation has a match.
     Returns (UserProject, project_name, role_name, techstack_name) tuples.
+
+    Soft-deleted allocations are excluded here rather than in each caller, so every read path
+    built on this helper inherits the filter. Callers that add their own `.where()` are ANDed
+    onto it and stay correct.
     """
 
     return (
@@ -26,6 +30,7 @@ def _user_project_detail_query():
         .join(Projects, UserProject.project_id == Projects.project_id)
         .join(JobRole, UserProject.role_id == JobRole.id)
         .join(TechStacks, UserProject.techstack_id == TechStacks.techstack_id)
+        .where(UserProject.is_deleted.is_(False))
     )
 
 
@@ -87,15 +92,20 @@ async def get_user_project_by_id(db: AsyncSession, user_project_id: UUID):
 
 
 async def get_allocation_user_id(db: AsyncSession, user_project_id: UUID) -> UUID | None:
-    """Just the `user_id` an allocation currently holds, or None when there is no such row.
+    """Just the `user_id` a live allocation currently holds, or None when there is no such row.
 
-    Read *before* an update or delete: after either, the previous holder is unrecoverable and
-    the auto-bench sync would have nobody to check.
+    Read *before* an update or delete: after either, the previous holder is no longer on the
+    row the caller is acting on and the auto-bench sync would have nobody to check.
+
+    An already soft-deleted allocation reads as None — it has no holder left to free, and the
+    delete path turns that None into the same "not found" the caller would see for a row that
+    never existed.
     """
     try:
         result = await db.execute(
             select(UserProject.user_id).where(
-                UserProject.user_project_id == user_project_id
+                UserProject.user_project_id == user_project_id,
+                UserProject.is_deleted.is_(False),
             )
         )
         return result.scalars().first()
@@ -106,15 +116,22 @@ async def get_allocation_user_id(db: AsyncSession, user_project_id: UUID) -> UUI
 
 
 async def get_user_ids_by_project(db: AsyncSession, project_id: UUID) -> list[UUID]:
-    """Distinct users allocated to a project.
+    """Distinct users holding a live allocation on a project.
 
     `user_projects.project_id` is `ondelete="CASCADE"`, so these rows vanish with the project —
     collect them before the delete or they cannot be recovered afterwards.
+
+    Soft-deleted allocations are excluded: their holder was already put through the bench sync
+    when that allocation was deleted, so re-reporting them here would only re-run a decision
+    that has already been made.
     """
     try:
         result = await db.execute(
             select(UserProject.user_id)
-            .where(UserProject.project_id == project_id)
+            .where(
+                UserProject.project_id == project_id,
+                UserProject.is_deleted.is_(False),
+            )
             .distinct()
         )
         return list(result.scalars().all())
@@ -139,7 +156,10 @@ async def create_user_project(db: AsyncSession, user_project: UserProject):
 async def update_user_project(db: AsyncSession, update_data: dict, user_project_id: UUID):
     try:
         result = await db.execute(
-            select(UserProject).where(UserProject.user_project_id == user_project_id)
+            select(UserProject).where(
+                UserProject.user_project_id == user_project_id,
+                UserProject.is_deleted.is_(False),
+            )
         )
         db_user_project = result.scalars().first()
 
@@ -160,15 +180,31 @@ async def update_user_project(db: AsyncSession, update_data: dict, user_project_
 
 
 async def delete_user_project(db: AsyncSession, user_project_id: UUID):
+    """Soft-delete an allocation by flagging `is_deleted`; returns the row, or None when there
+    is no live allocation with that id.
+
+    The row is kept: `sync_bench_status` and the system log explain a benching by pointing at
+    the allocation that was removed, which a real DELETE would erase. Filtering the select on
+    `is_deleted` also makes a repeated delete return None, so the second call raises the same
+    "not found" as an unknown id instead of silently succeeding twice.
+
+    `updated_at` is not set by hand — this is an ORM UPDATE, so the column's
+    `onupdate=func.now()` fires on flush.
+    """
     try:
         result = await db.execute(
-            select(UserProject).where(UserProject.user_project_id == user_project_id)
+            select(UserProject).where(
+                UserProject.user_project_id == user_project_id,
+                UserProject.is_deleted.is_(False),
+            )
         )
         db_user_project = result.scalars().first()
         if not db_user_project:
             return None
-        await db.delete(db_user_project)
+        db_user_project.is_deleted = True
+        db.add(db_user_project)
         await db.commit()
+        await db.refresh(db_user_project)
         return db_user_project
     except SQLAlchemyError as e:
         await db.rollback()

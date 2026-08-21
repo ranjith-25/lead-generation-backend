@@ -35,5 +35,5 @@ class AIGetRelevantProjectsRequest(AIRequestBase):
     job_details: str = Field(..., description="The job details in JSON format")
 
 class AISalesEnablementRequest(AIRequestBase):
-    job_details: dict
+    job_details: str
     projects: list[AIProjectRequest]
