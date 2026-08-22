@@ -220,7 +220,7 @@ async def handleSalesEnablement(
             sales_enablement_res = AISalesEnablementResponse(**response.json())
 
             await add_sales_enablement_db(
-                db=db, 
+                db=db,
                 sales_enablement=SalesEnablement(
                     opportunityID=execution_status.opportunity_id,
                     suggested_questions=sales_enablement_res.discovery_questions,
