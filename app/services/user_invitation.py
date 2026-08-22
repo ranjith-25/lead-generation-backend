@@ -21,15 +21,16 @@ from app.services.db.user_invitation import (
     
 )
 from app.core.settings import settings
-from app.config import ( 
-    EMAIL_MESSAGE_CONTENT,
+from app.config import (
+    EMAIL_SUBJECTS,
     LogAction
 )
 from app.services.system_log import log_activity
 from app.services.db.role import get_role_by_id
 from email.message import EmailMessage
 from app.services.db.user_personal_info import get_user_personal_info_by_user_id
-from app.services.email import send_mail
+from app.services.email import load_email_template, send_mail
+from app.services.templating import render
 
 async def handle_get_all_user_invitations(db: AsyncSession, current_user: User) -> GetUserInvitationResponse:
     try:
@@ -105,19 +106,15 @@ async def handle_create_user_invitation(
             name = temp_name
         work_email = user_invitation_create.work_email
     
-        template = EMAIL_MESSAGE_CONTENT["INVITATION_TEMPLATE"]
-        text_content = template["text_template"].format(
-            name=name,
-            role_name=role_name,
-            invitation_url=invitation_url,
-        )
-        html_content = template["html_template"].format(
-            name=name,
-            role_name=role_name,
-            invitation_url=invitation_url,
-        )
-        
-        await send_mail(template["subject"], text_content, html_content, work_email)
+        context = {
+            "name": name,
+            "role_name": role_name,
+            "invitation_url": invitation_url,
+        }
+        text_content = render(load_email_template("invitation.txt"), context)
+        html_content = render(load_email_template("invitation.html"), context)
+
+        await send_mail(EMAIL_SUBJECTS["INVITATION"], text_content, html_content, work_email)
 
         return CreateUserInvitationResponse(
             newUserInvitation=UserInvitationDTO.model_validate(created_user_invitation),

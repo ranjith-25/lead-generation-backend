@@ -1,0 +1,15 @@
+Hello {name},
+
+You have been invited to join Lead Generation.
+
+Your assigned role: {role_name}
+
+Click the link below to complete your registration:
+{invitation_url}
+
+Please complete your registration using this invitation link.
+
+If you were not expecting this invitation, you can safely ignore this email.
+
+Regards,
+Lead Generation Team

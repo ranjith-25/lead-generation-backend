@@ -1,30 +1,42 @@
 import logging
+from functools import lru_cache
+from pathlib import Path
 
 from app.core.settings import settings
 from app.exceptions.auth import EmailSendFailedException
-from app.config import ( 
-    EMAIL_MESSAGE_CONTENT
-)
+from app.config import EMAIL_SUBJECTS
+from app.services.templating import render
 import aioboto3
 from botocore.exceptions import ClientError, BotoCoreError
 logger = logging.getLogger(__name__)
 
+# app/services/email.py -> app/ -> app/templates/email, so the path does not depend on the
+# working directory the server was started from.
+_TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "email"
+
+
+@lru_cache(maxsize=None)
+def load_email_template(filename: str) -> str:
+    """One template file, read once per process.
+
+    `encoding` is explicit and must stay that way: `read_text()` with no argument uses
+    `locale.getencoding()`, which is cp1252 on a Windows host and UTF-8 in a Linux
+    container — a non-ASCII character in a template would then break on one platform only.
+    Reading lazily rather than at import means a missing file surfaces as a catchable
+    request-time error instead of killing startup.
+    """
+    return (_TEMPLATE_DIR / filename).read_text(encoding="utf-8")
+
 
 async def send_otp_email(email: str, otp: str) -> None:
-    
-    template = EMAIL_MESSAGE_CONTENT["OTP_TEMPLATE"]
-    
-    text_content = template["text_template"].format(
-        otp=otp,
-        expiry_minutes=settings.OTP_EXPIRE_MINUTES
-    )
-    html_content = template["html_template"].format(
-        otp=otp,
-        expiry_minutes=settings.OTP_EXPIRE_MINUTES
-    )
+
+    context = {"otp": otp, "expiry_minutes": settings.OTP_EXPIRE_MINUTES}
+
+    text_content = render(load_email_template("otp.txt"), context)
+    html_content = render(load_email_template("otp.html"), context)
 
     try:
-        await send_mail(EMAIL_MESSAGE_CONTENT["OTP_TEMPLATE"]["subject"],text_content, html_content, email)
+        await send_mail(EMAIL_SUBJECTS["OTP"], text_content, html_content, email)
     except Exception as e:
         logger.exception("Could not send the password reset OTP to %s", email)
         raise EmailSendFailedException()

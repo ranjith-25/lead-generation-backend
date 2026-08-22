@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import settings
+from app.services.templating import render
 from app.exceptions.notification import (
     NotificationNotFoundException,
     NotificationTypeNotConfiguredException,
@@ -50,31 +51,6 @@ from app.config import (
 )
 
 
-class _SafeContext(dict):
-    """Keeps template rendering forgiving — missing or None placeholders become empty strings."""
-
-    def __getitem__(self, key):
-        value = super().__getitem__(key)
-        if value is None:
-            return ""
-        return value
-
-    def __missing__(self, key):
-        logging.warning(f"Missing notification template placeholder: {key}")
-        return ""
-
-
-def _render(template: str | None, context: dict[str, Any]) -> str | None:
-    if not template:
-        return template
-    try:
-        return template.format_map(_SafeContext(context))
-    except (IndexError, ValueError):
-        # Braces that are not placeholders (json snippets, css, …) — keep the raw template.
-        logging.warning("Could not render notification template, using it as-is")
-        return template
-
-
 def _resolve_navigation_url(notification_type: NotificationType, context: dict[str, Any]) -> str | None:
     """notification type -> page key (NOTIFICATION_TYPE_NAVIGATION) -> link (NOTIFICATION_NAVIGATION)."""
     page_key = NOTIFICATION_TYPE_NAVIGATION.get(notification_type.value)
@@ -94,7 +70,7 @@ def _resolve_navigation_url(notification_type: NotificationType, context: dict[s
     if link.startswith("/"):
         link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}{link}"
 
-    return _render(link, context)
+    return render(link, context)
 
 
 def build_notification_content(content: NotificationContentBase) -> dict:
@@ -104,8 +80,8 @@ def build_notification_content(content: NotificationContentBase) -> dict:
     if configured is None:
         raise NotificationTypeNotConfiguredException(notification_type.value)
 
-    title = content.title or _render(configured.get("title", ""), content.context)
-    body = content.body or _render(configured.get("body", ""), content.context)
+    title = content.title or render(configured.get("title", ""), content.context)
+    body = content.body or render(configured.get("body", ""), content.context)
     url = content.url or _resolve_navigation_url(notification_type, content.context)
 
     return {
