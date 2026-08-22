@@ -2,7 +2,7 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 from app.config import (
-    OTP_MAX_ATTEMPTS,
+    AppConfigKey,
     LogAction,
     NotificationType
 )
@@ -15,6 +15,7 @@ from app.schemas.user_invitation import UserInvitationDTO,UserInvitationUpdate,I
 from app.models.user_personal_info import UserPersonalInfo
 from app.core.security import create_access_token, verify_password
 from app.services.db.user import get_user_by_email, get_user_by_id
+from app.services.db.app_config import get_config_value
 from app.services.db.session import create_session, get_session_by_token, revoke_session
 from app.services.db.role_permissions import get_feature_names_by_role_id
 from app.exceptions.auth import InvalidCredentialsException, InvalidResetTokenException, InvalidOtpException
@@ -154,8 +155,10 @@ async def handle_verify_otp(db: AsyncSession, payload: VerifyOtpRequest) -> Forg
 
         token_hash = _hash_otp(str(user.user_id), payload.otp)
 
+        max_attempts = await get_config_value(db, AppConfigKey.OTP_MAX_ATTEMPTS)
+
         attempts = _otp_attempts.get(token_hash, 0) + 1
-        if attempts > OTP_MAX_ATTEMPTS:
+        if attempts > max_attempts:
             raise InvalidOtpException()
 
         reset_token = await get_password_reset_token_by_user_and_hash(

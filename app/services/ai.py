@@ -59,7 +59,8 @@ from app.services.db.pipeline_opportunity_techincal_preperation import create_mu
 from app.models.pipeline_opportunity_techincal_preperation import PipelineOpportunityTechnicalPreperationModel
 from app.services.db.job_role import get_all_job_roles
 from app.schemas.job_role import JobRoleFilters
-from app.config import JOBKEY_QUERY_URL
+from app.config import AppConfigKey
+from app.services.db.app_config import get_config_value
 
 logger = logging.getLogger(__name__)
 
@@ -464,13 +465,12 @@ async def handleGetScrapedData(
 ) -> CreateOpportunityResponse:
     """Initial entry point: Scrapes URL, saves Opportunity, and queues background pipeline."""
     try:
-        can_continue = True
-        for jobkey_url in JOBKEY_QUERY_URL:
-            if jobkey_url in url:
-                can_continue: False
-                
-        if can_continue:
+        # Hosts that carry the job id in the query string keep it; everything else is
+        # normalised to the bare path so the same posting is not stored twice.
+        jobkey_hosts = await get_config_value(db, AppConfigKey.JOBKEY_QUERY_HOSTS)
+        if not any(host in url for host in jobkey_hosts):
             url = url.split('?')[0]
+
             
         existing_opportunity = await get_opportunity_by_url(db, url)
         if existing_opportunity:
