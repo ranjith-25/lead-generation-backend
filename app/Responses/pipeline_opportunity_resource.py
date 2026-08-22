@@ -24,6 +24,9 @@ class UpdatePipelineOpportunityResourceResponse(BaseResponse):
     updatedPipelineOpportunityResource: PipelineOpportunityResourceDTO = Field(..., description="Pipeline Opportunity Resource Updated")
     status_code: int = Field(200)
 
+class SelectPipelineOpportunityResourcesResponse(BaseResponse):
+    selectedPipelineOpportunityResources: list[PipelineOpportunityResourceDTO] = Field(..., description="Pipeline Opportunity Resources Selected")
+    status_code: int = Field(200)
 
 class DeletePipelineOpportunityResourceResponse(BaseResponse):
     status_code: int = Field(200)

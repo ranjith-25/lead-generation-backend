@@ -11,8 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Float,
     JSON,
-    Index,
-    Boolean
+    Boolean,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -20,6 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 from app.models.user import User
 from app.schemas.pipeline_opportunity_resource import ApprovalStatus
+
 
 class PipelineOpportunityResourceModel(Base):
     __tablename__ = "pipeline_opportunity_resource"
@@ -114,6 +114,30 @@ class PipelineOpportunityResourceModel(Base):
         nullable=True,
     )
 
+    # Stores the user who is responsible/authorized to approve
+    # this resource. This can be either a TL or a Manager.
+    #
+    # The frontend determines the approval authority based on
+    # the selected users and sends this user ID to the backend.
+    approval_authority_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "users.user_id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+    )
+
+    # Stores the user who actually approved the resource.
+    approved_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "users.user_id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+    )
+
     approved_at: Mapped[datetime | None] = mapped_column(
         DateTime,
         nullable=True,
@@ -124,17 +148,8 @@ class PipelineOpportunityResourceModel(Base):
         nullable=True,
     )
 
-    reject_reason : Mapped[str | None] = mapped_column(
+    reject_reason: Mapped[str | None] = mapped_column(
         String(1000),
-        nullable=True
-    )
-
-    approved_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey(
-            "users.user_id",
-            ondelete="SET NULL",
-        ),
         nullable=True,
     )
 
@@ -147,8 +162,6 @@ class PipelineOpportunityResourceModel(Base):
         nullable=True,
     )
 
-
-
     rejected_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey(
@@ -157,8 +170,6 @@ class PipelineOpportunityResourceModel(Base):
         ),
         nullable=True,
     )
-
-    
 
     createdAt: Mapped[datetime] = mapped_column(
         DateTime,
@@ -191,6 +202,16 @@ class PipelineOpportunityResourceModel(Base):
         nullable=False,
     )
 
+    # ---------------------------------------------------------
+    # Relationships
+    # ---------------------------------------------------------
+
+    approval_authority_user: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[approval_authority_id],
+        lazy="selectin",
+    )
+
     approved_by_user: Mapped["User | None"] = relationship(
         "User",
         foreign_keys=[approved_by],
@@ -215,32 +236,66 @@ class PipelineOpportunityResourceModel(Base):
         lazy="selectin",
     )
 
-    
+    # ---------------------------------------------------------
+    # Computed Properties
+    # ---------------------------------------------------------
+
     @property
     def reportingTo(self):
         try:
             if not self.user_details or not self.user_details.reportingUser:
                 return None
+
             return self.user_details.reportingUser.fullName
+
         except Exception:
             return None
 
     @property
     def workingStatus(self):
         try:
-            if not self.user_details or not self.user_details.personal_info or not self.user_details.personal_info.userStatus:
+            if (
+                not self.user_details
+                or not self.user_details.personal_info
+                or not self.user_details.personal_info.userStatus
+            ):
                 return None
+
             user_status = self.user_details.personal_info.userStatus
-            return getattr(user_status, "displayName", getattr(user_status, "status_name", None))
+
+            return getattr(
+                user_status,
+                "displayName",
+                getattr(user_status, "status_name", None),
+            )
+
         except Exception:
             return None
 
     @property
     def primaryJobRole(self):
         try:
-            if not self.user_details or not self.user_details.personal_info or not self.user_details.personal_info.primary_role_id or not self.user_details.personal_info.jobRole:
+            if (
+                not self.user_details
+                or not self.user_details.personal_info
+                or not self.user_details.personal_info.primary_role_id
+                or not self.user_details.personal_info.jobRole
+            ):
                 return None
+
             return self.user_details.personal_info.jobRole.roleName
+
+        except Exception:
+            return None
+
+    @property
+    def approvalAuthority(self):
+        try:
+            if self.approval_authority_user:
+                return self.approval_authority_user.fullName
+
+            return None
+
         except Exception:
             return None
 
@@ -249,16 +304,20 @@ class PipelineOpportunityResourceModel(Base):
         try:
             if self.approved_by_user:
                 return self.approved_by_user.fullName
+
             return None
+
         except Exception:
             return None
-    
+
     @property
     def resourceRejectedBy(self):
         try:
-            if self.rejected_by:
+            if self.rejected_by_user:
                 return self.rejected_by_user.fullName
+
             return None
+
         except Exception:
             return None
 
@@ -267,15 +326,8 @@ class PipelineOpportunityResourceModel(Base):
         try:
             if self.assigned_to_tl_by_user:
                 return self.assigned_to_tl_by_user.fullName
-            return None
-        except Exception:
+
             return None
 
-    __table_args__ = (
-        Index(
-            "uq_one_approved_resource_per_opportunity",
-            "opportunity_id",
-            unique=True,
-            postgresql_where=text("status = 'APPROVED'"),
-        ),
-    )
+        except Exception:
+            return None

@@ -8,7 +8,7 @@ from uuid import UUID
 from app.models.pipeline_opportunity_resource import PipelineOpportunityResourceModel
 from app.models.user import User
 from app.models.user_personal_info import UserPersonalInfo
-from app.schemas.pipeline_opportunity_resource import ApprovalStatus
+from app.schemas.pipeline_opportunity_resource import ApprovalStatus,PipelineOpportunityResourceUpdate
 
 
 def _get_resource_query_options():
@@ -55,6 +55,19 @@ async def get_pipeline_opportunity_resource_by_id(db: AsyncSession, pipeline_opp
             .where(PipelineOpportunityResourceModel.id == pipeline_opportunity_resource_id)
         )
         return result.scalars().first()
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception("Could not find Pipeline Opportunity Resource")
+        raise e
+
+async def get_multiple_pipeline_opportunity_resource_by_id(db: AsyncSession, pipeline_opportunity_resource_ids: list[UUID]):
+    try:
+        result = await db.execute(
+            select(PipelineOpportunityResourceModel)
+            .options(*_get_resource_query_options())
+            .where(PipelineOpportunityResourceModel.id.in_(pipeline_opportunity_resource_ids))
+        )
+        return result.scalars().all()
     except SQLAlchemyError as e:
         await db.rollback()
         logging.exception("Could not find Pipeline Opportunity Resource")
@@ -114,7 +127,7 @@ async def create_multiple_pipeline_opportunity_resource(db: AsyncSession, pipeli
         raise e
 
 
-async def update_pipeline_opportunity_resource(db: AsyncSession, update_data: dict, pipeline_opportunity_resource_id: UUID):
+async def  update_pipeline_opportunity_resource(db: AsyncSession, update_data: dict, pipeline_opportunity_resource_id: UUID):
     try:
         result = await db.execute(
             select(PipelineOpportunityResourceModel)
@@ -154,4 +167,56 @@ async def delete_pipeline_opportunity_resource(db: AsyncSession, pipeline_opport
     except SQLAlchemyError as e:
         await db.rollback()
         logging.exception("Could not delete Pipeline Opportunity Resource")
+        raise e
+
+
+async def update_multiple_pipeline_opportunity_resource(
+    db: AsyncSession,
+    update_data: PipelineOpportunityResourceUpdate,
+    pipeline_opportunity_resource_ids: list[UUID],
+):
+    try:
+        result = await db.execute( 
+            select(PipelineOpportunityResourceModel)
+            .options(*_get_resource_query_options())
+            .where(
+                PipelineOpportunityResourceModel.id.in_(
+                    pipeline_opportunity_resource_ids
+                )
+            )
+        )
+
+        db_pipeline_opportunity_resources = result.scalars().all()
+
+        if not db_pipeline_opportunity_resources:
+            return None
+
+        # Convert the Pydantic update schema into a dictionary.
+        # exclude_unset=True ensures that only fields explicitly
+        # provided by the caller are updated.
+        update_fields = update_data.model_dump(exclude_unset=True)
+
+        # The ID is used to identify resources and must not be
+        # modified as part of an update operation.
+        update_fields.pop("id", None)
+
+        # Apply the same update fields to every selected resource.
+        for resource in db_pipeline_opportunity_resources:
+            for key, value in update_fields.items():
+                setattr(resource, key, value)
+
+        await db.commit()
+
+        # Refresh the objects so that updated values and relationships
+        # are available after the transaction is committed.
+        for resource in db_pipeline_opportunity_resources:
+            await db.refresh(resource)
+
+        return db_pipeline_opportunity_resources
+
+    except SQLAlchemyError as e:
+        await db.rollback()
+        logging.exception(
+            "Could not update multiple Pipeline Opportunity Resources"
+        )
         raise e

@@ -14,6 +14,7 @@ from app.responses.pipeline_opportunity_resource import (
     DeletePipelineOpportunityResourceResponse,
     GetPipelineOpportunityResourceResponse,
     UpdatePipelineOpportunityResourceResponse,
+    SelectPipelineOpportunityResourcesResponse
 )
 from app.schemas.pipeline_opportunity_resource import (
     ApprovalStatus,
@@ -33,7 +34,9 @@ from app.services.db.pipeline_opportunity_resource import (
     get_approved_pipeline_opportunity_resource_by_opportunity_id,
     get_pipeline_opportunity_resource_by_id,
     update_pipeline_opportunity_resource,
-    get_pipeline_opportunity_resource_by_opportunity_id
+    get_pipeline_opportunity_resource_by_opportunity_id,
+    update_multiple_pipeline_opportunity_resource,
+    get_multiple_pipeline_opportunity_resource_by_id
 )
 from app.schemas.ai import AITechnicalPreperationRequest
 from app.services.db.opportunity import get_opportunity_details_by_id
@@ -55,8 +58,8 @@ from app.core.security import hasPermissions
 async def _apply_pipeline_opportunity_resource_status(
     db: AsyncSession,
     current_user: User,
-    pipeline_opportunity_resource_id: UUID,
-    status_data: dict,
+    pipeline_opportunity_resource_id_list : list[UUID],
+    status_data: PipelineOpportunityResourceUpdate,
     message: str,
 ) -> UpdatePipelineOpportunityResourceResponse:
     """Persist a dedicated status transition (select / approve / reject).
@@ -64,19 +67,20 @@ async def _apply_pipeline_opportunity_resource_status(
     Status changes deliberately bypass PipelineOpportunityResourceUpdate so that the
     generic update endpoint cannot move a resource through the workflow arbitrarily.
     """
-    status_data["updatedBy"] = current_user.user_id
-    updated_pipeline_opportunity_resource = await update_pipeline_opportunity_resource(
-        db, status_data, pipeline_opportunity_resource_id
+    status_data.updatedBy = current_user.user_id
+    updated_pipeline_opportunity_resources = await update_multiple_pipeline_opportunity_resource(
+        db = db,
+        update_data= status_data,
+        pipeline_opportunity_resource_ids= pipeline_opportunity_resource_id_list
     )
-    if updated_pipeline_opportunity_resource is None:
+    if updated_pipeline_opportunity_resources is None:
         raise NotFoundException()
 
-    return UpdatePipelineOpportunityResourceResponse(
-        updatedPipelineOpportunityResource=PipelineOpportunityResourceDTO.model_validate(
-            updated_pipeline_opportunity_resource
-        ),
-        message=message,
-        status_code=200,
+    return SelectPipelineOpportunityResourcesResponse(
+        status_code = 200,
+        selectedPipelineOpportunityResources = [
+            PipelineOpportunityResourceDTO.model_validate(row) for row in updated_pipeline_opportunity_resources
+        ]
     )
 
 
@@ -473,21 +477,22 @@ async def handle_select_pipeline_opportunity_resource(
     request: PipelineOpportunityResourceSelectRequest,
 ) -> UpdatePipelineOpportunityResourceResponse:
     try:
-        pipeline_opportunity_resource = await get_pipeline_opportunity_resource_by_id(
-            db, request.pipeline_resource_id
+        pipeline_opportunity_resources : list[PipelineOpportunityResourceModel] = await get_multiple_pipeline_opportunity_resource_by_id(
+            db, request.pipeline_resource_id_list
         )
-        if pipeline_opportunity_resource is None:
+        if not pipeline_opportunity_resources:
             raise NotFoundException()
 
-        if pipeline_opportunity_resource.status not in (
-            ApprovalStatus.SUGGESTED,
-            ApprovalStatus.SELECTED,
-        ):
-            raise AppException(
-                message=f"A resource that is already {pipeline_opportunity_resource.status.value} cannot be selected",
-                status_code=400,
-                error_code=ErrorCode.VALIDATION_ERROR,
-            )
+        for pipeline_opportunity_resource in pipeline_opportunity_resources:
+            if pipeline_opportunity_resource.status not in (
+                ApprovalStatus.SUGGESTED,
+                ApprovalStatus.SELECTED,
+            ):
+                raise AppException(
+                    message=f"A resource {pipeline_opportunity_resource.variant_title} that is already {pipeline_opportunity_resource.status.value} cannot be selected",
+                    status_code=400,
+                    error_code=ErrorCode.VALIDATION_ERROR,
+                )
 
         await log_activity(
             db,
@@ -507,8 +512,8 @@ async def handle_select_pipeline_opportunity_resource(
         response = await _apply_pipeline_opportunity_resource_status(
             db=db,
             current_user=current_user,
-            pipeline_opportunity_resource_id=request.pipeline_resource_id,
-            status_data={"status": ApprovalStatus.SELECTED},
+            pipeline_opportunity_resource_id_list=request.pipeline_resource_id_list,
+            status_data=PipelineOpportunityResourceUpdate(status=ApprovalStatus.SELECTED),
             message="Pipeline Opportunity Resource selected successfully",
         )
 
