@@ -219,7 +219,7 @@ async def handleSalesEnablement(
             response.raise_for_status()
             sales_enablement_res = AISalesEnablementResponse(**response.json())
 
-            await add_sale s_enablement_db(
+            await add_sales_enablement_db(
                 db=db,
                 sales_enablement=SalesEnablement(
                     opportunityID=execution_status.opportunity_id,
