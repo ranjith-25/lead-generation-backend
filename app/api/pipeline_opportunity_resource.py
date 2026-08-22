@@ -11,6 +11,7 @@ from app.responses.pipeline_opportunity_resource import (
     DeletePipelineOpportunityResourceResponse,
     GetPipelineOpportunityResourceResponse,
     UpdatePipelineOpportunityResourceResponse,
+    SelectPipelineOpportunityResourcesResponse
 )
 from app.schemas.pipeline_opportunity_resource import (
     PipelineOpportunityResourceCreate,
@@ -126,7 +127,7 @@ async def select_pipeline_opportunity_resource(
     current_user: User = Depends(require_permission("pipeline_opportunity_resource", "select_resource")),
     db: AsyncSession = Depends(get_db),
 ):
-    response: UpdatePipelineOpportunityResourceResponse = await handle_select_pipeline_opportunity_resource(
+    response: SelectPipelineOpportunityResourcesResponse = await handle_select_pipeline_opportunity_resource(
         db, current_user, request
     )
     return JSONResponse(
