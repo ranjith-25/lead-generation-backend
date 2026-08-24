@@ -14,21 +14,22 @@ from app.config.enums import (
     NotificationType,
     PAGE_NAME_LABELS,
     PageName,
-    RolesMap,
     SortOrder,
     TimeRange,
 )
 from app.config.system_keys import (
     APP_CONFIG_DEFAULTS,
+    TERMINAL_OPPORTUNITY_STATUS_KEYS,
     AppConfigKey,
-    BENCH_STATUS_NAME,
-    SUPER_ADMIN_ROLE_NAME,
+    OpportunityStatusKey,
+    RoleKey,
+    UserStatusKey,
 )
 from app.config.email_templates import (
     EMAIL_SUBJECTS,
 )
 from app.config.notifications import (
-    AUDIENCE_ROLES,
+    AUDIENCE_ROLE_KEYS,
     NOTIFICATION_CONTENT,
     NOTIFICATION_EVENTS,
     NOTIFICATION_NAVIGATION,
@@ -58,11 +59,14 @@ from app.config.time_ranges import (
 )
 
 __all__ = [
+    "TERMINAL_OPPORTUNITY_STATUS_KEYS",
+    "OpportunityStatusKey",
+    "RoleKey",
+    "UserStatusKey",
     "APP_CONFIG_DEFAULTS",
     "AppConfigKey",
-    "AUDIENCE_ROLES",
+    "AUDIENCE_ROLE_KEYS",
     "Audience",
-    "BENCH_STATUS_NAME",
     "EDIT_HISTORY_DATETIME_FORMAT",
     "EDIT_HISTORY_ID_FIELDS",
     "EDIT_HISTORY_OPAQUE_SENTENCE",
@@ -86,8 +90,6 @@ __all__ = [
     "OPPORTUNITY_FIELD_LABELS",
     "PAGE_NAME_LABELS",
     "PageName",
-    "RolesMap",
-    "SUPER_ADMIN_ROLE_NAME",
     "SYSTEM_LOG_DESCRIPTION",
     "SYSTEM_LOG_DESCRIPTION_WITH_ENTITY",
     "SYSTEM_LOG_MAX_DESCRIPTION_LENGTH",

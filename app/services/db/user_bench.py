@@ -6,7 +6,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import BENCH_STATUS_NAME
+from app.config import UserStatusKey
 from app.models.user_personal_info import UserPersonalInfo
 from app.models.user_project import UserProject
 from app.models.user_status import UserStatus
@@ -15,15 +15,15 @@ from app.models.user_status import UserStatus
 async def get_bench_status_id(db: AsyncSession) -> UUID | None:
     """The id of the `user_status` row that means "on bench", or None when it is absent.
 
-    Matched case-insensitively on `displayName` against BENCH_STATUS_NAME because the row is
-    admin-created data, not a schema value. Returning None rather than raising lets the caller
+    Matched on `status_key`, so renaming the status in the UI does not break the sync.
+    Returning None rather than raising lets the caller
     decide — the auto-bench sync treats a missing row as "do nothing" so a lookup that was
     never seeded cannot fail an allocation delete.
     """
     try:
         result = await db.execute(
             select(UserStatus.id).where(
-                UserStatus.displayName.ilike(BENCH_STATUS_NAME),
+                UserStatus.status_key == UserStatusKey.ON_BENCH.value,
                 UserStatus.is_active == True,
             )
         )

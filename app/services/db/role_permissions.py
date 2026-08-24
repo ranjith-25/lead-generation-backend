@@ -5,7 +5,7 @@ from app.models.role_permissions import RolePermission
 from app.models.role import Role
 from app.models.feature import Feature
 from app.models.permissions import Permission
-from app.config import SUPER_ADMIN_ROLE_NAME
+from app.config import RoleKey
 import logging
 async def get_feature_names_by_role_id(
     db: AsyncSession,
@@ -66,7 +66,7 @@ async def get_all_role_permissions_db(db: AsyncSession) -> list[RolePermission]:
         .join(Role, RolePermission.role_id == Role.role_id)
         .where(
             RolePermission.isDeleted == False,
-            Role.roleName != SUPER_ADMIN_ROLE_NAME
+            Role.role_key.is_distinct_from(RoleKey.SUPER_ADMIN.value)
         )
     )
     return list(result.scalars().all())

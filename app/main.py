@@ -54,12 +54,34 @@ logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
+async def _warn_on_missing_system_rows() -> None:
+    """Name the unseeded system rows once at startup instead of at first use.
+
+    Logs rather than raises: a fresh database must still boot so it can be seeded. The use
+    sites raise SystemRowMissingException when they actually need a row that is absent.
+    """
+    try:
+        from app.core.connections.postgres import AsyncSessionLocal
+        from app.services.db.system_refs import warm_system_ref_cache
+
+        async with AsyncSessionLocal() as session:
+            missing = await warm_system_ref_cache(session)
+        if missing:
+            logger.warning(
+                "Unseeded system rows (features depending on them will fail): %s",
+                ", ".join(missing),
+            )
+    except Exception:
+        logger.exception("Could not check system rows at startup")
+
+
 async def lifespan(app: FastAPI):
     logger.info("Application Started")
     await connect_ai()
     await connect_notification_listener()
     await connect_s3()
     connect_firebase()
+    await _warn_on_missing_system_rows()
 
     yield
     await disconnect_notification_listener()

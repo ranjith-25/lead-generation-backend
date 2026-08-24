@@ -72,9 +72,6 @@ class EditChangeType(str, Enum):
     UPDATED = "UPDATED"
     REMOVED = "REMOVED"
 
-class RolesMap(str, Enum):
-    USER = "User"
-
 class SortOrder(str, Enum):
     ASC = "asc"
     DESC = "desc"
