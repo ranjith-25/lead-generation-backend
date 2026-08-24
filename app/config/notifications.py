@@ -75,10 +75,10 @@ NOTIFICATION_NAVIGATION = {
     "OPPURTUNITY_PIPELINE": "/opportunity-pipeline",
     "MY_PROFILE": "/profile",
     "USER_HIERARCHY": "/user-hierarchy?user_id={user_id}",
-    "TECHNICAL_PREPARATION": "/opportunity-pipeline/technical-preparation?opportunity_id={opportunity_id}",
+    "TECHNICAL_PREPARATION": "/ai-overview?opportunityID={opportunity_id}&from=pipeline&tab=technical-preparation",
     # Same page as OPPURTUNITY_PIPELINE, but with the one resource the notification is
     # about preselected — the recipient has to act on that row, not hunt for it.
-    "RESOURCE_MATCH": "/opportunity-pipeline?opportunity_id={opportunity_id}&resource_id={pipeline_resource_id}",
+    "RESOURCE_MATCH": "/ai-overview?opportunityID={opportunity_id}&from=pipeline&tab=resource-match",
     "PROJECTS": "/projects",
 }
 
