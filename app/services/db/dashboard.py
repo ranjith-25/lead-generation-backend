@@ -1,5 +1,5 @@
 import logging
-from sqlalchemy import select, func, text
+from sqlalchemy import or_, select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -10,7 +10,7 @@ from app.models.opportunity_status import OpportunityStatus
 from app.models.pipeline_opportunity_project import PipelineOpportunityProjectModel
 from app.models.user_personal_info import UserPersonalInfo
 from app.models.user_status import UserStatus
-from app.config import TimeRange
+from app.config import TERMINAL_OPPORTUNITY_STATUS_KEYS, OpportunityStatusKey, TimeRange
 from datetime import datetime, timedelta
 from app.services.hierarchy import handleGetHierarchyByUser
 from app.schemas.user import UserHierarchy
@@ -99,7 +99,10 @@ async def get_dashboard_metrics(db: AsyncSession, time_range: TimeRange | None =
         active_pipelines_query = (
             select(func.count(Opportunity.opportunityID))
             .join(OpportunityStatus, Opportunity.status_id == OpportunityStatus.id)
-            .where(OpportunityStatus.status.notin_(["New", "Not Qualified", "Selected", "Rejected"]))
+            .where(or_(
+                    OpportunityStatus.status_key.is_(None),
+                    OpportunityStatus.status_key.notin_([k.value for k in TERMINAL_OPPORTUNITY_STATUS_KEYS]),
+                ))
         )
         if start_date:
             active_pipelines_query = active_pipelines_query.where(Opportunity.createdAt >= start_date)
@@ -110,7 +113,7 @@ async def get_dashboard_metrics(db: AsyncSession, time_range: TimeRange | None =
         clarification_query = (
             select(func.count(Opportunity.opportunityID))
             .join(OpportunityStatus, Opportunity.status_id == OpportunityStatus.id)
-            .where(OpportunityStatus.status == "New")
+            .where(OpportunityStatus.status_key == OpportunityStatusKey.NEW.value)
         )
         if start_date:
             clarification_query = clarification_query.where(Opportunity.createdAt >= start_date)
@@ -121,7 +124,7 @@ async def get_dashboard_metrics(db: AsyncSession, time_range: TimeRange | None =
         success_query = (
             select(func.count(Opportunity.opportunityID))
             .join(OpportunityStatus, Opportunity.status_id == OpportunityStatus.id)
-            .where(OpportunityStatus.status == "Selected")
+            .where(OpportunityStatus.status_key == OpportunityStatusKey.SELECTED.value)
         )
         if start_date:
             success_query = success_query.where(Opportunity.createdAt >= start_date)
@@ -136,7 +139,7 @@ async def get_dashboard_metrics(db: AsyncSession, time_range: TimeRange | None =
                 select(func.count(Opportunity.opportunityID))
                 .join(OpportunityStatus, Opportunity.status_id == OpportunityStatus.id)
                 .where(
-                    OpportunityStatus.status == "Selected",
+                    OpportunityStatus.status_key == OpportunityStatusKey.SELECTED.value,
                     Opportunity.createdAt >= prev_start,
                     Opportunity.createdAt < prev_end
                 )
@@ -321,7 +324,10 @@ async def get_dashboard_summary_metrics(db: AsyncSession, current_user: User, vi
             select(func.count(Opportunity.opportunityID))
             .join(OpportunityStatus, Opportunity.status_id == OpportunityStatus.id)
             .where(
-                OpportunityStatus.status.notin_(["New", "Not Qualified", "Selected", "Rejected"]),
+                or_(
+                    OpportunityStatus.status_key.is_(None),
+                    OpportunityStatus.status_key.notin_([k.value for k in TERMINAL_OPPORTUNITY_STATUS_KEYS]),
+                ),
                 Opportunity.createdBy.in_(target_user_ids)
             )
         )

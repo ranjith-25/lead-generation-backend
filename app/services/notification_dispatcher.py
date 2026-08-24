@@ -5,9 +5,10 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import AUDIENCE_ROLES, Audience, NotificationEvent, NotificationType
+from app.config import AUDIENCE_ROLE_KEYS, Audience, NotificationEvent, NotificationType
 from app.schemas.notification import NotificationBulkCreateSchema, NotificationRead
-from app.services.db.user import get_user_ids_by_role_names
+from app.services.db.system_refs import resolve_role_id
+from app.services.db.user import get_user_ids_by_role_ids
 
 
 @dataclass
@@ -33,15 +34,18 @@ async def _resolve_audience(
     role_cache: dict[str, list[UUID]],
 ) -> list[UUID]:
     """Audience -> user ids, memoising role lookups in `role_cache` for the current dispatch."""
-    role_name = AUDIENCE_ROLES.get(audience)
+    role_key = AUDIENCE_ROLE_KEYS.get(audience)
 
-    if role_name is not None:
-        if role_name not in role_cache:
-            role_cache[role_name] = await get_user_ids_by_role_names(db, [role_name])
-        return role_cache[role_name]
+    if role_key is not None:
+        if role_key.value not in role_cache:
+            role_id = await resolve_role_id(db, role_key)
+            role_cache[role_key.value] = (
+                await get_user_ids_by_role_ids(db, [role_id]) if role_id else []
+            )
+        return role_cache[role_key.value]
 
-    # Absent from AUDIENCE_ROLES means a relationship audience — read off the event context,
-    # never from a role.
+    # Absent from AUDIENCE_ROLE_KEYS means a relationship audience — read off the event
+    # context, never from a role.
     relationship_ids = {
         Audience.SUBJECT: ctx.subject_id,
         Audience.SUBJECT_REPORTING_TO: ctx.subject_reporting_to,

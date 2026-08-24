@@ -10,18 +10,6 @@ from app.models.base import Base
 
 
 class AppConfig(Base):
-    """Runtime tunables, changed with an UPDATE rather than a deploy.
-
-    Holds values the application reads at request time and nothing else — not row
-    identities. A row naming another table's row (a role or status by display name) belongs
-    on that table as a `*_key` column instead; see
-    app/.docs/plans/system-row-references.md.
-
-    Keys are declared in `AppConfigKey` (app/config/system_keys.py) and read through
-    `get_config_value` (app/services/db/app_config.py), which falls back to a code default
-    when a row is absent.
-    """
-
     __tablename__ = "app_config"
 
     id: Mapped[uuid.UUID] = mapped_column(

@@ -6,6 +6,9 @@ from uuid import UUID
 
 from app.models.opportunity_status import OpportunityStatus
 from app.models.opportunity import Opportunity
+from app.config import OpportunityStatusKey
+from app.exceptions.custom import SystemRowMissingException
+from app.services.db.system_refs import resolve_opportunity_status_id
 
 
 async def get_all_opportunity_statuses(db: AsyncSession, search: str | None = None, page: int = 1, limit: int = 10):
@@ -105,11 +108,14 @@ async def delete_opportunity_status(db: AsyncSession, opportunity_status_id: UUI
         raise e
 
 
-async def fetch_new_opportunity_status_id(db: AsyncSession):
-    try:
-        result = await db.execute(select(OpportunityStatus).where(OpportunityStatus.status == "New"))
-        return result.scalars().first().id
-    except SQLAlchemyError as e:
-        await db.rollback()
-        logging.exception("Could not find Opportunity Status")
-        raise e
+async def fetch_new_opportunity_status_id(db: AsyncSession) -> UUID:
+    """The id of the `new` opportunity status.
+
+    Matched on `status_key`, so renaming the status in the UI does not break opportunity
+    creation. Raises rather than returning None: the caller has no sensible fallback, and a
+    named error beats the AttributeError this used to raise when the row was absent.
+    """
+    status_id = await resolve_opportunity_status_id(db, OpportunityStatusKey.NEW)
+    if status_id is None:
+        raise SystemRowMissingException("opportunity_status", OpportunityStatusKey.NEW.value)
+    return status_id

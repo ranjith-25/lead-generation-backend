@@ -1,30 +1,51 @@
-"""Names and keys the code uses to address specific database rows and settings.
+"""Stable identities for the database rows the code reasons about.
 
 Deliberately free of `app.*` imports: the config package sits on the module-scope import
 path of every SQLAlchemy model, so anything here that needed a session would cycle. The
-readers live in `app/services/db/`.
+readers live in `app/services/db/` — `system_refs.py` for the row keys, `app_config.py` for
+the tunables.
 
-`BENCH_STATUS_NAME` and `SUPER_ADMIN_ROLE_NAME` are row references matched against editable
-display names, which is why renaming a role or status silently changes behaviour. They are
-replaced by `*_key` columns in app/.docs/plans/system-row-references.md.
+A `*Key` member is matched against the table's `*_key` column, never against the display
+name. Display names (`roles.roleName`, `user_status.displayName`, `opportunity_status.status`)
+are administrator-editable; renaming one must not change behaviour. Rows an administrator
+creates carry no key at all, which is why every key column is nullable.
 """
 
 from enum import Enum
 
 
-# Rows addressed by name rather than id: both are seeded per environment, so the id differs
-# between databases while the name is the stable contract.
-BENCH_STATUS_NAME = "On Bench"
+class RoleKey(str, Enum):
+    """Matched against `roles.role_key`."""
 
-SUPER_ADMIN_ROLE_NAME = "Super Admin"
+    SUPER_ADMIN = "super_admin"
+    USER = "user"
+    BD_EXECUTIVE = "bd_executive"
+    MANAGER = "manager"
+    TEAM_LEAD = "team_lead"
+
+
+class UserStatusKey(str, Enum):
+    ON_BENCH = "on_bench"
+
+
+class OpportunityStatusKey(str, Enum):
+    """Matched against `opportunity_status.status_key`."""
+
+    NEW = "new"
+    SELECTED = "selected"
+    REJECTED = "rejected"
+    NOT_QUALIFIED = "not_qualified"
+
+
+TERMINAL_OPPORTUNITY_STATUS_KEYS = (
+    OpportunityStatusKey.NEW,
+    OpportunityStatusKey.NOT_QUALIFIED,
+    OpportunityStatusKey.SELECTED,
+    OpportunityStatusKey.REJECTED,
+)
 
 
 class AppConfigKey(str, Enum):
-    """Keys of the `app_config` rows, read through `app/services/db/app_config.py`.
-
-    An enum rather than bare strings so a typo is a NameError at import instead of a silent
-    fall back to the default at runtime.
-    """
 
     OTP_MAX_ATTEMPTS = "otp_max_attempts"
     JOBKEY_QUERY_HOSTS = "jobkey_query_hosts"

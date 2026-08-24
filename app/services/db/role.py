@@ -4,7 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.role import Role
-from app.config import SUPER_ADMIN_ROLE_NAME
+from app.config import RoleKey
 
 async def create_role(db: AsyncSession, role: Role) -> Role:
     try:
@@ -40,7 +40,7 @@ async def get_role_by_name(db: AsyncSession, role_name: str) -> Role | None:
 
 async def get_all_roles(db: AsyncSession) -> list[Role]:
     try:
-        result = await db.execute(select(Role).where(Role.roleName != SUPER_ADMIN_ROLE_NAME))
+        result = await db.execute(select(Role).where(Role.role_key.is_distinct_from(RoleKey.SUPER_ADMIN.value)))
         return list(result.scalars().all())
     except SQLAlchemyError as e:
         logging.exception("Could not fetch Roles")

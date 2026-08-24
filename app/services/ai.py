@@ -465,8 +465,6 @@ async def handleGetScrapedData(
 ) -> CreateOpportunityResponse:
     """Initial entry point: Scrapes URL, saves Opportunity, and queues background pipeline."""
     try:
-        # Hosts that carry the job id in the query string keep it; everything else is
-        # normalised to the bare path so the same posting is not stored twice.
         jobkey_hosts = await get_config_value(db, AppConfigKey.JOBKEY_QUERY_HOSTS)
         if not any(host in url for host in jobkey_hosts):
             url = url.split('?')[0]

@@ -41,13 +41,9 @@ from app.services.firebase_messaging import send_push_notification
 from app.schemas.firebase_messaging import FirebaseNotificationPayload
 from app.schemas.firebase_messaging import FirebaseNotificationPayload 
 from app.config import (
-    AUDIENCE_ROLES,
-    Audience,
     NOTIFICATION_CONTENT,
-    NOTIFICATION_EVENTS,
     NOTIFICATION_NAVIGATION,
     NOTIFICATION_TYPE_NAVIGATION,
-    NotificationEvent,
 )
 
 
