@@ -59,7 +59,7 @@ async def _apply_pipeline_opportunity_resource_status(
     db: AsyncSession,
     current_user: User,
     pipeline_opportunity_resource_id_list : list[UUID],
-    status_data: PipelineOpportunityResourceUpdate,
+    status_data: dict,
     message: str,
 ) -> UpdatePipelineOpportunityResourceResponse:
     """Persist a dedicated status transition (select / approve / reject).
@@ -67,7 +67,6 @@ async def _apply_pipeline_opportunity_resource_status(
     Status changes deliberately bypass PipelineOpportunityResourceUpdate so that the
     generic update endpoint cannot move a resource through the workflow arbitrarily.
     """
-    status_data.updatedBy = current_user.user_id
     updated_pipeline_opportunity_resources = await update_multiple_pipeline_opportunity_resource(
         db = db,
         update_data= status_data,
@@ -78,6 +77,7 @@ async def _apply_pipeline_opportunity_resource_status(
 
     return SelectPipelineOpportunityResourcesResponse(
         status_code = 200,
+        message = message,
         selectedPipelineOpportunityResources = [
             PipelineOpportunityResourceDTO.model_validate(row) for row in updated_pipeline_opportunity_resources
         ]
@@ -483,16 +483,20 @@ async def handle_select_pipeline_opportunity_resource(
         if not pipeline_opportunity_resources:
             raise NotFoundException()
 
+        reporting_to_ids = set()
+
         for pipeline_opportunity_resource in pipeline_opportunity_resources:
             if pipeline_opportunity_resource.status not in (
                 ApprovalStatus.SUGGESTED,
                 ApprovalStatus.SELECTED,
             ):
-                raise AppException(
-                    message=f"A resource {pipeline_opportunity_resource.variant_title} that is already {pipeline_opportunity_resource.status.value} cannot be selected",
-                    status_code=400,
-                    error_code=ErrorCode.VALIDATION_ERROR,
-                )
+                continue
+
+            reporting_to_ids.add(
+                pipeline_opportunity_resource.user_details.reporting_to
+            )
+
+        reporting_authority = next(iter(reporting_to_ids)) if len(reporting_to_ids) == 1 else None
 
         await log_activity(
             db,
@@ -513,7 +517,7 @@ async def handle_select_pipeline_opportunity_resource(
             db=db,
             current_user=current_user,
             pipeline_opportunity_resource_id_list=request.pipeline_resource_id_list,
-            status_data=PipelineOpportunityResourceUpdate(status=ApprovalStatus.SELECTED),
+            status_data={"status": ApprovalStatus.SELECTED , "approval_authority_id" : reporting_authority},
             message="Pipeline Opportunity Resource selected successfully",
         )
 
