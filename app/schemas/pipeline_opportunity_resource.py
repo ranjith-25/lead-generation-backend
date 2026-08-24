@@ -11,7 +11,7 @@ class ApprovalStatus(str, Enum):
     REJECTED = "REJECTED"
     SUGGESTED = "SUGGESTED"
     ASSIGNED_TO_TL = "ASSIGNED_TO_TL" 
-
+    
 
 class PipelineOpportunityResourceBase(BaseModel):
     opportunity_id: UUID = Field(..., description="Opportunity ID")
@@ -52,6 +52,8 @@ class PipelineOpportunityResourceDTO(PipelineOpportunityResourceBase):
     workingStatus: Optional[str] = Field(None)
     primaryJobRole: Optional[str] = Field(None)
     reportingTo: Optional[str] = Field(None)
+    approval_authority_id : Optional[UUID] = Field(None)
+    approvalAuthority : Optional[str] = Field(None)
     model_config = ConfigDict(from_attributes=True)
 
 

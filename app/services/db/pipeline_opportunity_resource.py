@@ -191,18 +191,13 @@ async def update_multiple_pipeline_opportunity_resource(
         if not db_pipeline_opportunity_resources:
             return None
 
-        # Convert the Pydantic update schema into a dictionary.
-        # exclude_unset=True ensures that only fields explicitly
-        # provided by the caller are updated.
-        update_fields = update_data.model_dump(exclude_unset=True)
-
         # The ID is used to identify resources and must not be
         # modified as part of an update operation.
-        update_fields.pop("id", None)
+        update_data.pop("id", None)
 
         # Apply the same update fields to every selected resource.
         for resource in db_pipeline_opportunity_resources:
-            for key, value in update_fields.items():
+            for key, value in update_data.items():
                 setattr(resource, key, value)
 
         await db.commit()
