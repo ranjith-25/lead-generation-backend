@@ -251,7 +251,7 @@ async def _approve_pipeline_opportunity_resource(
     technicalPreperationRequest: AITechnicalPreperationRequest = AITechnicalPreperationRequest(
         user_id=current_user.user_id,
         action="Technical Preparation",
-        job_details=job_details_schema.model_dump(mode="json"),
+        job_details=json.dumps(job_details_schema.model_dump(mode="json")),
         variant_id=str(result.updatedPipelineOpportunityResource.variant_id),
         matching_skills=result.updatedPipelineOpportunityResource.matching_skills,
         missing_skills=result.updatedPipelineOpportunityResource.missing_skills,
@@ -562,13 +562,6 @@ async def handle_assign_pipeline_opportunity_resource_to_tl(
         if pipeline_opportunity_resource.status == ApprovalStatus.ASSIGNED_TO_TL:
             raise AppException(
                 message="This resource is already assigned to the TL.",
-                status_code=400,
-                error_code=ErrorCode.VALIDATION_ERROR,
-            )
-
-        if not hasPermissions( db = db, role_id= pipeline_opportunity_resource.user_details.reportingUser.role_id,feature_key="pipeline_opportunity_resource",permission_name="approve") and  not hasPermissions( db = db, role_id= pipeline_opportunity_resource.user_details.reportingUser.role_id,feature_key="pipeline_opportunity_resource",permission_name="reject"):
-            raise AppException(
-                message="This reporting user doesn't have permission to approve or reject this resource.",
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
