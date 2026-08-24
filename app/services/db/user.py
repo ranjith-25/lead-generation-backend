@@ -60,26 +60,25 @@ async def get_all_user_by_role(db: AsyncSession, roles: list[UUID] | None = None
         raise e
 
 
-async def get_user_ids_by_role_names(db: AsyncSession, role_names: list[str]) -> list[UUID]:
-    """User ids for the given roles, matched by name rather than by role_id.
+async def get_user_ids_by_role_ids(db: AsyncSession, role_ids: list[UUID]) -> list[UUID]:
+    """User ids for the given roles, compared on the indexed foreign key.
 
-    Companion to `get_all_user_by_role`, which takes role_ids — those are generated per
-    environment, so notification recipient lists are configured by the stable role name
-    instead. An unknown name simply contributes no rows.
+    Callers resolve their role keys to ids through `app/services/db/system_refs.py` first,
+    which is what replaced matching on `roles.roleName` - the display name is editable, so
+    a rename used to empty a notification audience silently. Comparing ids also drops the
+    join this query used to need.
     """
-    if not role_names:
+    if not role_ids:
         return []
 
     try:
-        query = (
-            select(User.user_id)
-            .join(Role, User.role_id == Role.role_id)
-            .where(Role.roleName.in_(role_names), User.is_deleted.is_(False))
+        query = select(User.user_id).where(
+            User.role_id.in_(role_ids), User.is_deleted.is_(False)
         )
         result = await db.execute(query)
         return list(result.scalars().all())
     except SQLAlchemyError as e:
-        logging.exception("Could not fetch user ids by role names")
+        logging.exception("Could not fetch user ids by role ids")
         raise e
 
 async def get_users_by_ids(db: AsyncSession, user_ids: list[UUID]) -> list[User]:

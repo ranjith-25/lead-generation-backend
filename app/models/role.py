@@ -20,6 +20,12 @@ class Role(Base):
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     roleName: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # Stable identity for the rows the code addresses. Null for administrator-created
+    # rows, which no code refers to. See app/config/system_keys.py.
+    role_key: Mapped[str | None] = mapped_column(
+        String(50), unique=True, nullable=True
+    )
     
     is_legacy_role: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")

@@ -124,3 +124,21 @@ class OpportunityAlreadyExistsException(AppException):
             error_code=ErrorCode.OPPORTUNITY_ALREADY_EXISTS,
             details={"opportunityID": str(opportunity_id)} if opportunity_id else None,
         )
+
+
+class SystemRowMissingException(AppException):
+    """A row the code addresses by key is not in the database.
+
+    Raised rather than returned so the failure names the missing seed instead of surfacing
+    later as an empty list or a wrong branch. The bench lookup is the deliberate exception -
+    it treats a missing row as "do nothing" so an unseeded status cannot fail an allocation
+    delete.
+    """
+
+    def __init__(self, table: str, key: str):
+        super().__init__(
+            message=f"Required {table} row '{key}' is missing. Seed it before using this feature.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code=ErrorCode.SYSTEM_ROW_MISSING,
+            details={"table": table, "key": key},
+        )

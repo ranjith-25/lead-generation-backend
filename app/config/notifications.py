@@ -1,7 +1,7 @@
 """Notification copy, navigation targets, and the event -> audience routing table."""
 
 from app.config.enums import Audience, NotificationEvent, NotificationType
-from app.config.system_keys import SUPER_ADMIN_ROLE_NAME
+from app.config.system_keys import RoleKey
 
 
 NOTIFICATION_CONTENT = {
@@ -98,14 +98,14 @@ NOTIFICATION_TYPE_NAVIGATION = {
     "PROJECT_ADDED" : "PROJECTS",
 }
 
-# Role audiences, matched against roles.roleName — role_id values are generated per
-# environment, the names are the stable contract. An audience absent from this map is a
-# relationship audience and is resolved from the event context instead.
-AUDIENCE_ROLES: dict[Audience, str] = {
-    Audience.BD_TEAM: "BD-Executive",
-    Audience.MANAGERS: "Manager",
-    Audience.TEAM_LEADS: "Team Lead",
-    Audience.SUPER_ADMINS: SUPER_ADMIN_ROLE_NAME,
+# Role audiences, resolved through roles.role_key rather than the editable display name.
+# An audience absent from this map is a relationship audience and comes from the event
+# context instead.
+AUDIENCE_ROLE_KEYS: dict[Audience, RoleKey] = {
+    Audience.BD_TEAM: RoleKey.BD_EXECUTIVE,
+    Audience.MANAGERS: RoleKey.MANAGER,
+    Audience.TEAM_LEADS: RoleKey.TEAM_LEAD,
+    Audience.SUPER_ADMINS: RoleKey.SUPER_ADMIN,
 }
 
 NOTIFICATION_EVENTS: dict[NotificationEvent, list[tuple[Audience, NotificationType]]] = {

@@ -12,6 +12,7 @@ from app.responses.user_status import (
     UpdateUserStatusResponse,
 )
 from app.schemas.user_status import UserStatusCreate, UserStatusDTO, UserStatusUpdate, UserStatusListRead
+from app.services.db.system_refs import clear_system_ref_cache
 from app.services.db.user_status import (
     create_user_status,
     delete_user_status,
@@ -109,6 +110,8 @@ async def handle_delete_user_status(
 ) -> DeleteUserStatusResponse:
     try:
         deleted_user_status = await delete_user_status(db, user_status_id)
+        # A cached key -> id entry for this row would now point at nothing.
+        clear_system_ref_cache()
         if deleted_user_status is None:
             raise NotFoundException()
 

@@ -17,6 +17,9 @@ class RoleUpdate(BaseModel):
 
 class RoleRead(RoleBase):
     role_id: UUID
+    # Read-only. Absent from RoleCreate/RoleUpdate on purpose - a key identifies a row the
+    # code addresses, so it is set by migration or seed, never through the API.
+    role_key: str | None = None
     is_legacy_role: bool
     createdAt: datetime
 

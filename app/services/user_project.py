@@ -3,7 +3,7 @@ from typing import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from app.config import BENCH_STATUS_NAME, LogAction
+from app.config import LogAction, UserStatusKey
 from app.exceptions.custom import NotFoundException
 from app.models.user_project import UserProject
 from app.models.user import User
@@ -70,8 +70,8 @@ async def sync_bench_status(
     bench_status_id = await get_bench_status_id(db)
     if bench_status_id is None:
         logging.warning(
-            "No active user_status row named %r — skipping the auto-bench sync for %s user(s)",
-            BENCH_STATUS_NAME,
+            "No active user_status row keyed %r — skipping the auto-bench sync for %s user(s)",
+            UserStatusKey.ON_BENCH.value,
             len(unique_ids),
         )
         return 0

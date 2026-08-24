@@ -26,7 +26,8 @@ from app.services.db.role import (
     get_role_by_name
 )
 from app.services.user import change_users_role
-from app.config import RolesMap
+from app.config import RoleKey
+from app.services.db.system_refs import clear_system_ref_cache, resolve_role_id
 
 async def handle_get_role(
     db: AsyncSession, current_user: User, role_id: UUID
@@ -118,19 +119,21 @@ async def handle_delete_role(
         if role is None:
             raise NotFoundException()
         
-        destination_role = await get_role_by_name(db, RolesMap.USER)
-        if destination_role is None:
-            logging.error(f"Fallback role '{RolesMap.USER}' is missing — cannot reassign users")
+        destination_role_id = await resolve_role_id(db, RoleKey.USER)
+        if destination_role_id is None:
+            logging.error(
+                "Fallback role '%s' is missing — cannot reassign users", RoleKey.USER.value
+            )
             raise RoleReassignmentException(
                 role_id=role_id,
-                destination_role=RolesMap.USER,
+                destination_role=RoleKey.USER.value,
             )
 
         try:
             await change_users_role(
                 db,
                 role_id,
-                destination_role.role_id
+                destination_role_id
             )
         except Exception as e:
             logging.exception(f"Could not move users off role {role_id}")
@@ -143,6 +146,8 @@ async def handle_delete_role(
             raise LegacyRoleDeleteException()
 
         deleted_role = await delete_role(db, role_id)
+        # A cached key -> id entry for this row would now point at nothing.
+        clear_system_ref_cache()
         if deleted_role is None:
             raise NotFoundException()
 

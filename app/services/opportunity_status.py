@@ -12,6 +12,7 @@ from app.responses.opportunity_status import (
     UpdateOpportunityStatusResponse,
 )
 from app.schemas.opportunity_status import OpportunityStatusCreate, OpportunityStatusDTO, OpportunityStatusUpdate, OpportunityStatusListRead
+from app.services.db.system_refs import clear_system_ref_cache
 from app.services.db.opportunity_status import (
     create_opportunity_status,
     delete_opportunity_status,
@@ -105,6 +106,8 @@ async def handle_delete_opportunity_status(
 ) -> DeleteOpportunityStatusResponse:
     try:
         deleted_opportunity_status = await delete_opportunity_status(db, opportunity_status_id)
+        # A cached key -> id entry for this row would now point at nothing.
+        clear_system_ref_cache()
         if deleted_opportunity_status is None:
             raise NotFoundException()
 

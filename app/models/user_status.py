@@ -13,6 +13,12 @@ class UserStatus(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     displayName: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+
+    # Stable identity for the rows the code addresses. Null for administrator-created
+    # rows, which no code refers to. See app/config/system_keys.py.
+    status_key: Mapped[str | None] = mapped_column(
+        String(50), unique=True, nullable=True
+    )
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
 
