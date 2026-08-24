@@ -53,7 +53,6 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-@asynccontextmanager
 async def _warn_on_missing_system_rows() -> None:
     """Name the unseeded system rows once at startup instead of at first use.
 
@@ -75,6 +74,7 @@ async def _warn_on_missing_system_rows() -> None:
         logger.exception("Could not check system rows at startup")
 
 
+@asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application Started")
     await connect_ai()
