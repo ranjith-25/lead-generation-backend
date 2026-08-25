@@ -11,14 +11,28 @@ from app.models.role import Role
 from app.models.opportunity import Opportunity
 from app.models.user_personal_info import UserPersonalInfo
 from app.models.user_invitation import UserInvitation
+from app.exceptions.custom import SystemRowMissingException
 from app.services.db.session import revoke_all_sessions_for_user
+from app.services.db.system_refs import resolve_role_id
+from app.config.system_keys import RoleKey
 import logging
 from uuid import UUID
+
+async def get_all_manager(db: AsyncSession) -> list[dict]:
+    role_id = await resolve_role_id(db, RoleKey.MANAGER)
+
+    if role_id is None:
+        raise SystemRowMissingException("roles", RoleKey.MANAGER.value)
+
+    return await get_all_user_by_role(db, [role_id])
 
 
 async def get_all_user_by_role(db: AsyncSession, roles: list[UUID] | None = None) -> list[dict]:
     if not roles:
-        return []
+        result = await db.execute(select(Role).where(
+            Role.role_key.in_([RoleKey.MANAGER, RoleKey.TEAM_LEAD])
+        ))
+        roles = [role.role_id for role in result.scalars().all()]
     try:
         query = select(
             User.user_id,

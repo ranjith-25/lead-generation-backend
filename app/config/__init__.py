@@ -56,6 +56,7 @@ from app.config.system_log import (
 from app.config.time_ranges import (
     TIME_RANGE_DELAYS,
     TIME_RANGE_LABELS,
+    TIME_RANGE_PREVIOUS,
 )
 
 __all__ = [
@@ -96,5 +97,6 @@ __all__ = [
     "SortOrder",
     "TIME_RANGE_DELAYS",
     "TIME_RANGE_LABELS",
+    "TIME_RANGE_PREVIOUS",
     "TimeRange",
 ]

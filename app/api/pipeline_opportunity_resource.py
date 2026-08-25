@@ -7,6 +7,7 @@ from app.api.deps import get_db
 from app.core.security import require_permission
 from app.models.user import User
 from app.responses.pipeline_opportunity_resource import (
+    AssignPipelineOpportunityResourcesResponse,
     CreatePipelineOpportunityResourceResponse,
     DeletePipelineOpportunityResourceResponse,
     GetPipelineOpportunityResourceResponse,
@@ -136,13 +137,13 @@ async def select_pipeline_opportunity_resource(
     )
 
 
-@pipeline_opportunity_resource_router.patch("/assign-to-tl")
+@pipeline_opportunity_resource_router.patch("/assign")
 async def assign_pipeline_opportunity_resource_to_tl(
     request: PipelineOpportunityResourceAssignToTLRequest,
     current_user: User = Depends(require_permission("pipeline_opportunity_resource", "resource_assign_to_tl")),
     db: AsyncSession = Depends(get_db),
 ):
-    response: UpdatePipelineOpportunityResourceResponse = await handle_assign_pipeline_opportunity_resource_to_tl(
+    response: AssignPipelineOpportunityResourcesResponse = await handle_assign_pipeline_opportunity_resource_to_tl(
         db, current_user, request
     )
     return JSONResponse(
