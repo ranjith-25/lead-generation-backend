@@ -1,10 +1,17 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.schemas.education import EducationCreate, EducationOut, EducationUpdate
 from app.services.db import EducationRepository
 from app.services.deps import get_education_repo
+from app.services.education import (
+    create_education as create_education_service,
+    delete_education as delete_education_service,
+    get_education as get_education_service,
+    list_education as list_education_service,
+    update_education as update_education_service,
+)
 
 
 router = APIRouter(prefix="/education", tags=["education"])
@@ -14,15 +21,12 @@ router = APIRouter(prefix="/education", tags=["education"])
 async def get_education(
     id: uuid.UUID, repo: EducationRepository = Depends(get_education_repo)
 ):
-    obj = await repo.get(id)
-    if obj is None:
-        raise HTTPException(status_code=404, detail="Education not found")
-    return obj
+    return await get_education_service(repo, id)
 
 
 @router.get("/", response_model=list[EducationOut])
 async def list_education(repo: EducationRepository = Depends(get_education_repo)):
-    return await repo.list()
+    return await list_education_service(repo)
 
 
 @router.post("/", response_model=list[EducationOut])
@@ -30,8 +34,7 @@ async def create_education(
     payload: list[EducationCreate],
     repo: EducationRepository = Depends(get_education_repo),
 ):
-    items = [item.model_dump() for item in payload]
-    return await repo.bulk_create(items)
+    return await create_education_service(repo, payload)
 
 
 @router.patch("/{id}", response_model=EducationOut)
@@ -40,16 +43,12 @@ async def update_education(
     payload: EducationUpdate,
     repo: EducationRepository = Depends(get_education_repo),
 ):
-    obj = await repo.update(id, **payload.model_dump(exclude_unset=True))
-    if obj is None:
-        raise HTTPException(status_code=404, detail="Education not found")
-    return obj
+    return await update_education_service(repo, id, payload)
 
 
 @router.delete("/{id}")
 async def delete_education(
     id: uuid.UUID, repo: EducationRepository = Depends(get_education_repo)
 ):
-    if not await repo.delete(id):
-        raise HTTPException(status_code=404, detail="Education not found")
+    await delete_education_service(repo, id)
     return {"ok": True}

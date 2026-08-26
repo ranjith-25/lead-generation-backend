@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.schemas.specialization import (
     SpecializationCreate,
@@ -9,6 +9,13 @@ from app.schemas.specialization import (
 )
 from app.services.db import SpecializationRepository
 from app.services.deps import get_specialization_repo
+from app.services.specialization import (
+    create_specialization as create_specialization_service,
+    delete_specialization as delete_specialization_service,
+    get_specialization as get_specialization_service,
+    list_specializations as list_specializations_service,
+    update_specialization as update_specialization_service,
+)
 
 
 router = APIRouter(prefix="/specialization", tags=["specialization"])
@@ -18,26 +25,22 @@ router = APIRouter(prefix="/specialization", tags=["specialization"])
 async def get_specialization(
     id: uuid.UUID, repo: SpecializationRepository = Depends(get_specialization_repo)
 ):
-    obj = await repo.get(id)
-    if obj is None:
-        raise HTTPException(status_code=404, detail="Specialization not found")
-    return obj
+    return await get_specialization_service(repo, id)
 
 
 @router.get("/", response_model=list[SpecializationOut])
 async def list_specializations(
     repo: SpecializationRepository = Depends(get_specialization_repo),
 ):
-    return await repo.list()
+    return await list_specializations_service(repo)
 
 
-@router.post("/", response_model=SpecializationOut)
+@router.post("/", response_model=list[SpecializationOut])
 async def create_specialization(
-    payload: SpecializationCreate,
+    payload: list[SpecializationCreate],
     repo: SpecializationRepository = Depends(get_specialization_repo),
 ):
-    return await repo.create(**payload.model_dump())
-
+    return await create_specialization_service(repo, payload)
 
 @router.patch("/{id}", response_model=SpecializationOut)
 async def update_specialization(
@@ -45,16 +48,12 @@ async def update_specialization(
     payload: SpecializationUpdate,
     repo: SpecializationRepository = Depends(get_specialization_repo),
 ):
-    obj = await repo.update(id, **payload.model_dump(exclude_unset=True))
-    if obj is None:
-        raise HTTPException(status_code=404, detail="Specialization not found")
-    return obj
+    return await update_specialization_service(repo, id, payload)
 
 
 @router.delete("/{id}")
 async def delete_specialization(
     id: uuid.UUID, repo: SpecializationRepository = Depends(get_specialization_repo)
 ):
-    if not await repo.delete(id):
-        raise HTTPException(status_code=404, detail="Specialization not found")
+    await delete_specialization_service(repo, id)
     return {"ok": True}
