@@ -32,6 +32,8 @@ from app.models.firebase_token import FirebaseTokens
 from app.models.system_log import SystemLog
 from app.models.comment import Comment
 from app.models.app_config import AppConfig
+from app.models.education import Education
+from app.models.specialization import Specialization
 
-__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain","UserInvitation", "UserStatus", "JobRole", "ProfileVariant", "ProfileVariantProject", "Branch", "PipelineExecutionStatusModel","PipelineOpportunityProjectModel","PipelineOpportunityResourceModel","PipelineOpportunityTechnicalPreperationModel","PasswordResetToken", "UserProject","Notifications","OpportunityEditHistory","FirebaseTokens","SystemLog","Comment","AppConfig"]
+__all__ = ["User", "Role", "Session", "UserPersonalInfo", "Menu", "MenuRole", "Opportunity", "SalesEnablement","Feature","Permission","RolePermission", "OpportunityStatus", "Platform", "Projects","ProjectDomain","UserInvitation", "UserStatus", "JobRole", "ProfileVariant", "ProfileVariantProject", "Branch", "PipelineExecutionStatusModel","PipelineOpportunityProjectModel","PipelineOpportunityResourceModel","PipelineOpportunityTechnicalPreperationModel","PasswordResetToken", "UserProject","Notifications","OpportunityEditHistory","FirebaseTokens","SystemLog","Comment","AppConfig", "Education","Specialization"]
 

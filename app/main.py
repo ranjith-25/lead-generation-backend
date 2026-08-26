@@ -37,6 +37,8 @@ from app.api.user_invitation import user_invitation_router
 from app.api.user_management import router as user_management_router
 from app.api.role import router as role_router
 from app.api.branch import branch_router
+from app.api.education import router as education_router
+from app.api.specialization import router as specialization_router
 from app.api.profile_variant import router as profile_variant_router
 from app.api.dashboard import router as dashboard_router
 from app.api.pipeline_execution_status import pipeline_execution_status_router
@@ -146,6 +148,8 @@ app.include_router(user_invitation_router)
 # =========================
 
 app.include_router(branch_router)
+app.include_router(education_router)
+app.include_router(specialization_router)
 
 
 # =========================
