@@ -331,3 +331,14 @@ class PipelineOpportunityResourceModel(Base):
 
         except Exception:
             return None
+        
+    @property
+    def reportingToId(self):
+        try:
+            if not self.user_details or not self.user_details.reportingUser:
+                return None
+
+            return self.user_details.reportingUser.user_id
+
+        except Exception:
+            return None

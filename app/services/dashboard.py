@@ -3,33 +3,37 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
 from app.models.user import User
-from app.schemas.dashboard import DashboardResponse, DashboardSummaryResponse
+from app.schemas.dashboard import (
+    DashboardFilterRequest,
+    DashboardResponse,
+    DashboardSummaryFilterRequest,
+    DashboardSummaryResponse,
+)
 from app.services.db.dashboard import get_dashboard_metrics, get_dashboard_summary_metrics
-from app.config import TimeRange
 import csv
 import io
 from app.responses.project import FileDownloadResponse
 
-async def handle_get_dashboard_data(db: AsyncSession, current_user: User, time_range: TimeRange | None = None, platform: str | None = None) -> DashboardResponse:
+async def handle_get_dashboard_data(db: AsyncSession, current_user: User, filters: DashboardFilterRequest | None = None) -> DashboardResponse:
     try:
-        metrics = await get_dashboard_metrics(db, time_range, platform)
+        metrics = await get_dashboard_metrics(db, filters)
         return DashboardResponse(**metrics)
     except Exception as e:
         logging.exception("Some error occurred while getting dashboard data")
         raise HTTPException(status_code=500, detail="Could not fetch dashboard metrics")
 
-async def handle_get_dashboard_summary(db: AsyncSession, current_user: User, view: str) -> DashboardSummaryResponse:
+async def handle_get_dashboard_summary(db: AsyncSession, current_user: User, filters: DashboardSummaryFilterRequest | None = None) -> DashboardSummaryResponse:
     try:
-        metrics = await get_dashboard_summary_metrics(db, current_user, view)
+        metrics = await get_dashboard_summary_metrics(db, current_user, filters)
         return DashboardSummaryResponse(**metrics)
     except Exception as e:
         logging.exception("Some error occurred while getting dashboard summary")
         raise HTTPException(status_code=500, detail="Could not fetch dashboard summary")
 
 
-async def handle_export_kpi_dashboard(db: AsyncSession, current_user: User, time_range: TimeRange | None = None, platform: str | None = None) -> FileDownloadResponse:
+async def handle_export_kpi_dashboard(db: AsyncSession, current_user: User, filters: DashboardFilterRequest | None = None) -> FileDownloadResponse:
     try:
-        metrics = await get_dashboard_metrics(db, time_range, platform)
+        metrics = await get_dashboard_metrics(db, filters)
         return generate_kpi_dashboard_csv(DashboardResponse(**metrics))
     except Exception as e:
         logging.exception("Some error occurred while getting dashboard data")
@@ -37,9 +41,9 @@ async def handle_export_kpi_dashboard(db: AsyncSession, current_user: User, time
 
 
 
-async def handle_export_dashboard_summary(db: AsyncSession, current_user: User, view: str) -> FileDownloadResponse:
+async def handle_export_dashboard_summary(db: AsyncSession, current_user: User, filters: DashboardSummaryFilterRequest | None = None) -> FileDownloadResponse:
     try:
-        metrics = await get_dashboard_summary_metrics(db, current_user, view)
+        metrics = await get_dashboard_summary_metrics(db, current_user, filters)
         return generate_dashboard_summary_csv(DashboardSummaryResponse(**metrics))
     except Exception as e:
         logging.exception("Some error occurred while getting dashboard summary")

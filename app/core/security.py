@@ -15,6 +15,8 @@ from app.exceptions.auth import (
     InvalidResetTokenException,
     SessionExpiredException,
 )
+from app.models.user import User
+from app.config import RoleKey
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
@@ -94,11 +96,11 @@ def require_permission(
 ):
     async def dependency(
         db=Depends(get_db),
-        current_user=Depends(get_current_user)
+        current_user: User =Depends(get_current_user)
     ):
 
-        # if current_user.role.roleName == "Super Admin":
-        #     return current_user
+        if current_user.role.role_key == RoleKey.SUPER_ADMIN:
+            return current_user
 
         allowed = await hasPermissions(
             db=db,

@@ -52,8 +52,10 @@ class PipelineOpportunityResourceDTO(PipelineOpportunityResourceBase):
     workingStatus: Optional[str] = Field(None)
     primaryJobRole: Optional[str] = Field(None)
     reportingTo: Optional[str] = Field(None)
-    approval_authority_id : Optional[UUID] = Field(None)
-    approvalAuthority : Optional[str] = Field(None)
+    approval_authority_id: Optional[UUID] = Field(None)
+    approvalAuthority: Optional[str] = Field(
+        None, description="The person who may approve or reject the resource"
+    )
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -73,6 +75,25 @@ class PipelineOpportunityResourceUpdate(PipelineOpportunityResourceBase):
     missing_skills: Optional[list[str]] = Field(None)
     justification: Optional[str] = Field(None, max_length=1000)
     is_active: Optional[bool] = Field(None)
+    updatedBy: Optional[str] = Field(None)
+
+
+class PipelineOpportunityResourceStatusUpdate(BaseModel):
+    """Workflow transition fields, kept apart from PipelineOpportunityResourceUpdate.
+
+    The generic update endpoint takes PipelineOpportunityResourceUpdate, so a status
+    field there would let any client drive a transition through PATCH /{id}.
+    """
+    status: Optional[ApprovalStatus] = Field(None)
+    updatedBy: Optional[UUID] = Field(None)
+    approval_authority_id: Optional[UUID] = Field(None)
+    assigned_to_tl_by: Optional[UUID] = Field(None)
+    is_auto_approved: Optional[bool] = Field(None)
+    approved_at: Optional[datetime] = Field(None)
+    approved_by: Optional[UUID] = Field(None)
+    rejected_at: Optional[datetime] = Field(None)
+    rejected_by: Optional[UUID] = Field(None)
+    reject_reason: Optional[str] = Field(None)
 
 
 class PipelineOpportunityResourceSelectRequest(BaseModel):
@@ -80,8 +101,12 @@ class PipelineOpportunityResourceSelectRequest(BaseModel):
 
 
 class PipelineOpportunityResourceAssignToTLRequest(BaseModel):
-    pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
-
+    pipeline_resource_id_list: list[UUID] = Field(
+        ..., min_length=1, description="Pipeline Opportunity Resource ID list"
+    )
+    # Derived from the shared reporting user when omitted; only a batch spanning
+    # several reporting lines needs the frontend to name a Manager.
+    approval_authority_id: Optional[UUID] = Field(None, description="User who may approve or reject these resources")
 
 class PipelineOpportunityResourceApproveRequest(BaseModel):
     pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
