@@ -7,6 +7,7 @@ from app.api.deps import get_db
 from app.core.security import require_permission
 from app.models.user import User
 from app.responses.pipeline_opportunity_resource import (
+    AssignPipelineOpportunityResourcesResponse,
     CreatePipelineOpportunityResourceResponse,
     DeletePipelineOpportunityResourceResponse,
     GetPipelineOpportunityResourceResponse,
@@ -17,6 +18,7 @@ from app.schemas.pipeline_opportunity_resource import (
     PipelineOpportunityResourceCreate,
     PipelineOpportunityResourceUpdate,
     PipelineOpportunityResourceSelectRequest,
+    PipelineOpportunityResourceUnselectRequest,
     PipelineOpportunityResourceAssignToTLRequest,
     PipelineOpportunityResourceApproveRequest,
     PipelineOpportunityResourceAutoApproveRequest,
@@ -30,6 +32,7 @@ from app.services.pipeline_opportunity_resource import (
     handle_update_pipeline_opportunity_resource,
     handle_get_pipeline_opportunity_resource_by_opportunity_id,
     handle_select_pipeline_opportunity_resource,
+    handle_unselect_pipeline_opportunity_resource,
     handle_assign_pipeline_opportunity_resource_to_tl,
     handle_approve_pipeline_opportunity_resource,
     handle_auto_approve_pipeline_opportunity_resource,
@@ -135,14 +138,28 @@ async def select_pipeline_opportunity_resource(
         status_code=200,
     )
 
+@pipeline_opportunity_resource_router.patch("/unselect")
+async def unselect_pipeline_opportunity_resource(
+    request: PipelineOpportunityResourceUnselectRequest,
+    current_user: User = Depends(require_permission("pipeline_opportunity_resource", "select_resource")),
+    db: AsyncSession = Depends(get_db),
+):
+    response: UpdatePipelineOpportunityResourceResponse = await handle_unselect_pipeline_opportunity_resource(
+        db, current_user, request
+    )
+    return JSONResponse(
+        content=response.model_dump(mode="json", exclude_none=True),
+        status_code=200,
+    )
 
-@pipeline_opportunity_resource_router.patch("/assign-to-tl")
+
+@pipeline_opportunity_resource_router.patch("/assign")
 async def assign_pipeline_opportunity_resource_to_tl(
     request: PipelineOpportunityResourceAssignToTLRequest,
     current_user: User = Depends(require_permission("pipeline_opportunity_resource", "resource_assign_to_tl")),
     db: AsyncSession = Depends(get_db),
 ):
-    response: UpdatePipelineOpportunityResourceResponse = await handle_assign_pipeline_opportunity_resource_to_tl(
+    response: AssignPipelineOpportunityResourcesResponse = await handle_assign_pipeline_opportunity_resource_to_tl(
         db, current_user, request
     )
     return JSONResponse(

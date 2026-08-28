@@ -1,6 +1,32 @@
-from pydantic import BaseModel
+from datetime import date
+
+from pydantic import BaseModel, model_validator
 from enum import Enum
+
+from app.config import TimeRange
+from app.exceptions.validation import InvalidDateRange
 from app.schemas.opportunity import OpportunityListRead
+
+
+class DashboardDateWindow(BaseModel):
+    time_range: TimeRange | None = None
+    from_date: date | None = None
+    to_date: date | None = None
+
+    @model_validator(mode="after")
+    def check_date_range(self):
+        if self.from_date and self.to_date and self.to_date < self.from_date:
+            raise InvalidDateRange()
+        return self
+
+
+class DashboardFilterRequest(DashboardDateWindow):
+    platform: str | None = None
+
+
+class DashboardSummaryFilterRequest(DashboardDateWindow):
+    view: str = "My view"
+
 
 class PipelineStatusCount(BaseModel):
     status_name: str

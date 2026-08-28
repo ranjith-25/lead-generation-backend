@@ -18,6 +18,10 @@ from app.schemas.user_project import (
     TechStackInfo,
 )
 
+from app.schemas.pipeline_opportunity_resource import (
+    PipelineOpportunityResourceUnselectRequest,
+)   
+
 __all__ = [
     "UserCreate",
     "UserRead",
@@ -39,5 +43,6 @@ __all__ = [
     "ProjectInfo",
     "RoleInfo",
     "TechStackInfo",
+    "PipelineOpportunityResourceUnselectRequest"
 ]
 

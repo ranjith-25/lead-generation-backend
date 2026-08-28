@@ -6,10 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import LogAction, NotificationEvent
 from app.exceptions.custom import AppException, NotFoundException
+from app.exceptions.pipeline_opportunity_resource import InvalidResourceAssignmentException
 from app.exceptions.error_codes import ErrorCode
 from app.models.pipeline_opportunity_resource import PipelineOpportunityResourceModel
 from app.models.user import User
 from app.responses.pipeline_opportunity_resource import (
+    AssignPipelineOpportunityResourcesResponse,
     CreatePipelineOpportunityResourceResponse,
     DeletePipelineOpportunityResourceResponse,
     GetPipelineOpportunityResourceResponse,
@@ -21,11 +23,13 @@ from app.schemas.pipeline_opportunity_resource import (
     PipelineOpportunityResourceCreate,
     PipelineOpportunityResourceDTO,
     PipelineOpportunityResourceUpdate,
+    PipelineOpportunityResourceStatusUpdate,
     PipelineOpportunityResourceSelectRequest,
     PipelineOpportunityResourceAssignToTLRequest,
     PipelineOpportunityResourceApproveRequest,
     PipelineOpportunityResourceAutoApproveRequest,
     PipelineOpportunityResourceRejectRequest,
+    PipelineOpportunityResourceUnselectRequest,
 )
 from app.services.db.pipeline_opportunity_resource import (
     create_pipeline_opportunity_resource,
@@ -40,6 +44,7 @@ from app.services.db.pipeline_opportunity_resource import (
 )
 from app.schemas.ai import AITechnicalPreperationRequest
 from app.services.db.opportunity import get_opportunity_details_by_id
+from app.services.db.user import get_user_by_id
 from app.services.notification_dispatcher import (
     NotificationEventContext,
     dispatch_notification_event,
@@ -58,15 +63,45 @@ from app.core.security import hasPermissions
 async def _apply_pipeline_opportunity_resource_status(
     db: AsyncSession,
     current_user: User,
-    pipeline_opportunity_resource_id_list : list[UUID],
-    status_data: dict,
+    pipeline_opportunity_resource_id: UUID,
+    status_data: PipelineOpportunityResourceStatusUpdate,
     message: str,
 ) -> UpdatePipelineOpportunityResourceResponse:
-    """Persist a dedicated status transition (select / approve / reject).
+    """Persist a dedicated status transition (assign / approve / reject).
 
     Status changes deliberately bypass PipelineOpportunityResourceUpdate so that the
     generic update endpoint cannot move a resource through the workflow arbitrarily.
     """
+    status_data.updatedBy = current_user.user_id
+    updated_pipeline_opportunity_resource = await update_pipeline_opportunity_resource(
+        db,
+        status_data.model_dump(exclude_unset=True),
+        pipeline_opportunity_resource_id,
+    )
+    if updated_pipeline_opportunity_resource is None:
+        raise NotFoundException()
+
+    return UpdatePipelineOpportunityResourceResponse(
+        updatedPipelineOpportunityResource=PipelineOpportunityResourceDTO.model_validate(
+            updated_pipeline_opportunity_resource
+        ),
+        message=message,
+        status_code=200,
+    )
+
+
+async def _apply_pipeline_opportunity_resource_status_list(
+    db: AsyncSession,
+    current_user: User,
+    pipeline_opportunity_resource_id_list: list[UUID],
+    status_data: PipelineOpportunityResourceStatusUpdate,
+) -> list[PipelineOpportunityResourceDTO]:
+    """The same transition applied to a batch, for /select and /assign.
+
+    Returns the updated rows rather than a response — the two routes name their payload
+    differently, so the envelope belongs to the handler.
+    """
+    status_data.updatedBy = current_user.user_id
     updated_pipeline_opportunity_resources = await update_multiple_pipeline_opportunity_resource(
         db = db,
         update_data= status_data,
@@ -75,13 +110,10 @@ async def _apply_pipeline_opportunity_resource_status(
     if updated_pipeline_opportunity_resources is None:
         raise NotFoundException()
 
-    return SelectPipelineOpportunityResourcesResponse(
-        status_code = 200,
-        message = message,
-        selectedPipelineOpportunityResources = [
-            PipelineOpportunityResourceDTO.model_validate(row) for row in updated_pipeline_opportunity_resources
-        ]
-    )
+    return [
+        PipelineOpportunityResourceDTO.model_validate(row)
+        for row in updated_pipeline_opportunity_resources
+    ]
 
 
 def _resource_display_name(
@@ -226,15 +258,15 @@ async def _approve_pipeline_opportunity_resource(
             db=db,
             current_user=current_user,
             pipeline_opportunity_resource_id=pipeline_opportunity_resource.id,
-            status_data={
-                "status": ApprovalStatus.APPROVED,
-                "is_auto_approved": is_auto_approved,
-                "approved_at": datetime.now(),
-                "approved_by": current_user.user_id,
-                "rejected_at": None,
-                "rejected_by": None,
-                "reject_reason": None,
-            },
+            status_data=PipelineOpportunityResourceStatusUpdate(
+                status=ApprovalStatus.APPROVED,
+                is_auto_approved=is_auto_approved,
+                approved_at=datetime.now(),
+                approved_by=current_user.user_id,
+                rejected_at=None,
+                rejected_by=None,
+                reject_reason=None,
+            ),
             message=message,
         )
     except IntegrityError as e:
@@ -281,17 +313,80 @@ async def _approve_pipeline_opportunity_resource(
     return result
 
 
-def _ensure_reporting_user(
+def _ensure_approval_authority(
     pipeline_opportunity_resource: PipelineOpportunityResourceModel,
     current_user: User,
     action: str,
 ) -> None:
-    if pipeline_opportunity_resource.user_details.reporting_to != current_user.user_id:
+    """The approver is whoever /assign recorded.
+
+    Rows assigned before approval_authority_id was written fall back to the resource's
+    reporting user, so nothing already in flight needs a backfill.
+    """
+    user_details = pipeline_opportunity_resource.user_details
+    approval_authority_id = pipeline_opportunity_resource.approval_authority_id or (
+        user_details.reporting_to if user_details else None
+    )
+    if approval_authority_id is None or approval_authority_id != current_user.user_id:
         raise AppException(
-            message=f"Only the reporting user can {action} this resource",
+            message=f"Only the assigned approver can {action} this resource",
             status_code=403,
             error_code=ErrorCode.NOT_ALLOWED,
         )
+
+
+def _resolve_common_reporting_user(
+    pipeline_opportunity_resources: list[PipelineOpportunityResourceModel],
+) -> UUID | None:
+    """The one user every resource reports to, or None when they differ.
+
+    The None-in-set check is the subtlety: a batch whose reporting_to is NULL throughout
+    yields a set of one and would otherwise read as "same TL" with nobody to assign to.
+    """
+    reporting_to_ids = {
+        resource.user_details.reporting_to if resource.user_details else None
+        for resource in pipeline_opportunity_resources
+    }
+    if len(reporting_to_ids) == 1 and None not in reporting_to_ids:
+        return next(iter(reporting_to_ids))
+    return None
+
+
+async def _resolve_approval_authority(db: AsyncSession, approval_authority_id: UUID) -> User:
+    """Validate the approver the frontend nominated.
+
+    The hierarchy is deliberately not walked: a selection spanning several TLs is meant
+    to land on a Manager who need not be anyone's reporting user. All that is checked is
+    that the nominee can actually act on the resource.
+    """
+    approval_authority = await get_user_by_id(db, approval_authority_id)
+    if approval_authority is None or approval_authority.is_deleted:
+        raise AppException(
+            message="The selected approver does not exist.",
+            status_code=400,
+            error_code=ErrorCode.VALIDATION_ERROR,
+        )
+
+    can_approve = await hasPermissions(
+        db=db,
+        role_id=approval_authority.role_id,
+        feature_key="pipeline_opportunity_resource",
+        permission_name="approve",
+    )
+    can_reject = await hasPermissions(
+        db=db,
+        role_id=approval_authority.role_id,
+        feature_key="pipeline_opportunity_resource",
+        permission_name="reject",
+    )
+    if not can_approve and not can_reject:
+        raise AppException(
+            message="The selected approver doesn't have permission to approve or reject this resource.",
+            status_code=400,
+            error_code=ErrorCode.VALIDATION_ERROR,
+        )
+
+    return approval_authority
 
 
 async def handle_get_all_pipeline_opportunity_resources(
@@ -475,7 +570,7 @@ async def handle_select_pipeline_opportunity_resource(
     db: AsyncSession,
     current_user: User,
     request: PipelineOpportunityResourceSelectRequest,
-) -> UpdatePipelineOpportunityResourceResponse:
+) -> SelectPipelineOpportunityResourcesResponse:
     try:
         pipeline_opportunity_resources : list[PipelineOpportunityResourceModel] = await get_multiple_pipeline_opportunity_resource_by_id(
             db, request.pipeline_resource_id_list
@@ -483,74 +578,75 @@ async def handle_select_pipeline_opportunity_resource(
         if not pipeline_opportunity_resources:
             raise NotFoundException()
 
-        reporting_to_ids = set()
+        selectable_resources = [
+            pipeline_opportunity_resource
+            for pipeline_opportunity_resource in pipeline_opportunity_resources
+            if pipeline_opportunity_resource.status
+            in (ApprovalStatus.SUGGESTED, ApprovalStatus.SELECTED)
+        ]
 
-        for pipeline_opportunity_resource in pipeline_opportunity_resources:
-            if pipeline_opportunity_resource.status not in (
-                ApprovalStatus.SUGGESTED,
-                ApprovalStatus.SELECTED,
-            ):
-                continue
+        if not selectable_resources:
+            raise NotFoundException()
 
-            reporting_to_ids.add(
-                pipeline_opportunity_resource.user_details.reporting_to
+        # One shared reporting user means the approver is already known at select time;
+        # a split selection leaves it unset for /assign to name.
+        reporting_authority = _resolve_common_reporting_user(selectable_resources)
+
+        # Per resource, not once for whichever the validation loop happened to leave
+        # bound — a five-resource select owes five audit rows.
+        for pipeline_opportunity_resource in selectable_resources:
+            await log_activity(
+                db,
+                LogAction.PIPELINE_RESOURCE_SELECTED,
+                current_user,
+                entity_type="pipeline_resource",
+                entity_id=pipeline_opportunity_resource.id,
+                entity_name=_resource_display_name(pipeline_opportunity_resource),
+                details={
+                    "opportunity_id": pipeline_opportunity_resource.opportunity_id,
+                    "user_id": pipeline_opportunity_resource.user_id,
+                    "previous_status": pipeline_opportunity_resource.status,
+                    "new_status": ApprovalStatus.SELECTED,
+                },
             )
 
-        reporting_authority = next(iter(reporting_to_ids)) if len(reporting_to_ids) == 1 else None
-
-        await log_activity(
-            db,
-            LogAction.PIPELINE_RESOURCE_SELECTED,
-            current_user,
-            entity_type="pipeline_resource",
-            entity_id=pipeline_opportunity_resource.id,
-            entity_name=_resource_display_name(pipeline_opportunity_resource),
-            details={
-                "opportunity_id": pipeline_opportunity_resource.opportunity_id,
-                "user_id": pipeline_opportunity_resource.user_id,
-                "previous_status": pipeline_opportunity_resource.status,
-                "new_status": ApprovalStatus.SELECTED,
-            },
-        )
-
-        response = await _apply_pipeline_opportunity_resource_status(
+        selected_pipeline_opportunity_resources = await _apply_pipeline_opportunity_resource_status_list(
             db=db,
             current_user=current_user,
-            pipeline_opportunity_resource_id_list=request.pipeline_resource_id_list,
-            status_data={"status": ApprovalStatus.SELECTED , "approval_authority_id" : reporting_authority},
-            message="Pipeline Opportunity Resource selected successfully",
+            pipeline_opportunity_resource_id_list=[r.id for r in selectable_resources],
+            status_data=PipelineOpportunityResourceStatusUpdate(
+                status=ApprovalStatus.SELECTED,
+                approval_authority_id=reporting_authority,
+            ),
         )
 
         # SELECTED is the state that puts the resource in the reporting Team Lead's
         # approval queue, so they are told only once the transition has committed.
-        await _dispatch_resource_event(
-            db,
-            NotificationEvent.RESOURCE_SELECTED,
-            current_user,
-            pipeline_opportunity_resource,
-            selected_by_name=current_user.fullName,
-        )
+        for pipeline_opportunity_resource in selectable_resources:
+            await _dispatch_resource_event(
+                db,
+                NotificationEvent.RESOURCE_SELECTED,
+                current_user,
+                pipeline_opportunity_resource,
+                selected_by_name=current_user.fullName,
+            )
 
-        return response
+        return SelectPipelineOpportunityResourcesResponse(
+            selectedPipelineOpportunityResources=selected_pipeline_opportunity_resources,
+            message="Pipeline Opportunity Resource selected successfully",
+            status_code=200,
+        )
     except (NotFoundException, AppException) as e:
         raise e
     except Exception as e:
         logging.exception("Some error occurred while selecting Pipeline Opportunity Resource")
         raise e
 
-
-async def handle_assign_pipeline_opportunity_resource_to_tl(
+async def handle_unselect_pipeline_opportunity_resource(
     db: AsyncSession,
     current_user: User,
-    request: PipelineOpportunityResourceAssignToTLRequest,
+    request: PipelineOpportunityResourceUnselectRequest,
 ) -> UpdatePipelineOpportunityResourceResponse:
-    """Hand a selected resource over to the TL (the resource's reporting user).
-
-    The update permission is enforced on the route, so reaching this handler already
-    means the caller (BD team) is allowed to move the resource through the workflow.
-    The TL is not stored on the resource — it is the reporting user of the resource's
-    user, the same person the approve/reject handlers authorise against.
-    """
     try:
         pipeline_opportunity_resource: PipelineOpportunityResourceModel = await get_pipeline_opportunity_resource_by_id(
             db, request.pipeline_resource_id
@@ -559,35 +655,23 @@ async def handle_assign_pipeline_opportunity_resource_to_tl(
         if pipeline_opportunity_resource is None:
             raise NotFoundException()
 
-        if pipeline_opportunity_resource.status == ApprovalStatus.ASSIGNED_TO_TL:
+        if pipeline_opportunity_resource.status == ApprovalStatus.SUGGESTED:
             raise AppException(
-                message="This resource is already assigned to the TL.",
+                message="This resource is already Suggested.",
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
 
         if pipeline_opportunity_resource.status != ApprovalStatus.SELECTED:
             raise AppException(
-                message="Only selected resources can be assigned to the TL",
-                status_code=400,
-                error_code=ErrorCode.VALIDATION_ERROR,
-            )
-
-        tl_user_id = (
-            pipeline_opportunity_resource.user_details.reporting_to
-            if pipeline_opportunity_resource.user_details
-            else None
-        )
-        if tl_user_id is None:
-            raise AppException(
-                message="This resource has no reporting user to assign to",
+                message="Only Selected resources can be unselected",
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
             )
 
         await log_activity(
             db,
-            LogAction.PIPELINE_RESOURCE_ASSIGNED_TO_TL,
+            LogAction.PIPELINE_RESOURCE_UNSELECTED,
             current_user,
             entity_type="pipeline_resource",
             entity_id=pipeline_opportunity_resource.id,
@@ -595,37 +679,132 @@ async def handle_assign_pipeline_opportunity_resource_to_tl(
             details={
                 "opportunity_id": pipeline_opportunity_resource.opportunity_id,
                 "user_id": pipeline_opportunity_resource.user_id,
-                "assigned_to_tl_user_id": tl_user_id,
                 "previous_status": pipeline_opportunity_resource.status,
-                "new_status": ApprovalStatus.ASSIGNED_TO_TL,
+                "new_status": ApprovalStatus.SUGGESTED,
             },
         )
 
-        result: UpdatePipelineOpportunityResourceResponse = await _apply_pipeline_opportunity_resource_status(
+        return await _apply_pipeline_opportunity_resource_status(
             db=db,
             current_user=current_user,
             pipeline_opportunity_resource_id=request.pipeline_resource_id,
-            status_data={
-                "status": ApprovalStatus.ASSIGNED_TO_TL,
-                "assigned_to_tl_by": current_user.user_id,
-            },
-            message="Pipeline Opportunity Resource assigned to TL successfully",
+            status_data=PipelineOpportunityResourceStatusUpdate(
+                status=ApprovalStatus.SUGGESTED,
+                # Clear the approval routing that /select set, since it's no longer
+                # meaningful once the resource drops out of the TL's queue.
+                approval_authority_id=None,
+            ),
+            message="Pipeline Opportunity Resource unselected successfully",
+        )
+    except (NotFoundException, AppException) as e:
+        raise e
+    except Exception as e:
+        logging.exception("Some error occurred while unselecting Pipeline Opportunity Resource")
+        raise e
+
+async def handle_assign_pipeline_opportunity_resource_to_tl(
+    db: AsyncSession,
+    current_user: User,
+    request: PipelineOpportunityResourceAssignToTLRequest,
+) -> AssignPipelineOpportunityResourcesResponse:
+    """Hand a batch of selected resources over to the approver the frontend nominated.
+
+    The update permission is enforced on the route, so reaching this handler already
+    means the caller (BD team) is allowed to move the resources through the workflow.
+    Who approves is client-supplied by design — the frontend knows whether a selection
+    belongs to one TL or to a Manager sitting above several — and is recorded on every
+    resource as approval_authority_id, which is what approve/reject then authorise against.
+
+    One approver for the whole batch, and the batch is all-or-nothing: every id is checked
+    before anything is written, so the caller fixes every problem in one round trip.
+    """
+    try:
+        # Sending the same id twice is not an error, and the write is idempotent per row.
+        resource_ids = list(dict.fromkeys(request.pipeline_resource_id_list))
+
+        pipeline_opportunity_resources: list[PipelineOpportunityResourceModel] = await get_multiple_pipeline_opportunity_resource_by_id(
+            db, resource_ids
+        )
+        resources_by_id = {resource.id: resource for resource in pipeline_opportunity_resources}
+
+        # Collected rather than short-circuited: an id missing from the loaded set was
+        # dropped silently before, which read as success for a resource nothing happened to.
+        invalid: list[tuple[UUID, str]] = []
+        for resource_id in resource_ids:
+            pipeline_opportunity_resource = resources_by_id.get(resource_id)
+            if pipeline_opportunity_resource is None:
+                invalid.append((resource_id, "not_found"))
+            elif pipeline_opportunity_resource.status == ApprovalStatus.ASSIGNED_TO_TL:
+                invalid.append((resource_id, "already_assigned"))
+            elif pipeline_opportunity_resource.status != ApprovalStatus.SELECTED:
+                invalid.append((resource_id, "invalid_status"))
+
+        if invalid:
+            raise InvalidResourceAssignmentException(invalid)
+
+        # The frontend names an approver only when it has to; a batch sharing one
+        # reporting user resolves to that TL here.
+        approval_authority_id = request.approval_authority_id or _resolve_common_reporting_user(
+            pipeline_opportunity_resources
+        )
+        if approval_authority_id is None:
+            raise AppException(
+                message="Selected resources report to different team leads; an approving manager is required",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        approval_authority = await _resolve_approval_authority(db, approval_authority_id)
+
+        for pipeline_opportunity_resource in pipeline_opportunity_resources:
+            await log_activity(
+                db,
+                LogAction.PIPELINE_RESOURCE_ASSIGNED_TO_TL,
+                current_user,
+                entity_type="pipeline_resource",
+                entity_id=pipeline_opportunity_resource.id,
+                entity_name=_resource_display_name(pipeline_opportunity_resource),
+                details={
+                    "opportunity_id": pipeline_opportunity_resource.opportunity_id,
+                    "user_id": pipeline_opportunity_resource.user_id,
+                    "approval_authority_id": approval_authority.user_id,
+                    "previous_status": pipeline_opportunity_resource.status,
+                    "new_status": ApprovalStatus.ASSIGNED_TO_TL,
+                },
+            )
+
+        assigned_pipeline_opportunity_resources = await _apply_pipeline_opportunity_resource_status_list(
+            db=db,
+            current_user=current_user,
+            pipeline_opportunity_resource_id_list=resource_ids,
+            status_data=PipelineOpportunityResourceStatusUpdate(
+                status=ApprovalStatus.ASSIGNED_TO_TL,
+                assigned_to_tl_by=current_user.user_id,
+                approval_authority_id=approval_authority.user_id,
+            ),
         )
 
-        await notify_users(
-            db,
-            user_ids=[tl_user_id],
-            notification_type=NotificationType.RESOURCE_ASSIGNED_TO_TL,
-            context={
-                "opportunity_id": str(pipeline_opportunity_resource.opportunity_id),
-                "pipeline_resource_id": str(pipeline_opportunity_resource.id),
-                "candidate_name": pipeline_opportunity_resource.candidate_name,
-                "variant_title": pipeline_opportunity_resource.variant_title,
-            },
-            created_by=current_user.user_id,
-        )
+        # One per resource: RESOURCE_MATCH deep-links to a single resource, so a batch
+        # cannot share a notification without a navigation target that addresses a set.
+        for pipeline_opportunity_resource in pipeline_opportunity_resources:
+            await notify_users(
+                db,
+                user_ids=[approval_authority.user_id],
+                notification_type=NotificationType.RESOURCE_ASSIGNED_TO_TL,
+                context={
+                    "opportunity_id": str(pipeline_opportunity_resource.opportunity_id),
+                    "pipeline_resource_id": str(pipeline_opportunity_resource.id),
+                    "candidate_name": pipeline_opportunity_resource.candidate_name,
+                    "variant_title": pipeline_opportunity_resource.variant_title,
+                },
+                created_by=current_user.user_id,
+            )
 
-        return result
+        return AssignPipelineOpportunityResourcesResponse(
+            assignedPipelineOpportunityResources=assigned_pipeline_opportunity_resources,
+            message="Pipeline Opportunity Resources assigned to TL successfully",
+            status_code=200,
+        )
     except (NotFoundException, AppException) as e:
         raise e
     except Exception as e:
@@ -647,7 +826,7 @@ async def handle_approve_pipeline_opportunity_resource(
         if pipeline_opportunity_resource is None:
             raise NotFoundException()
 
-        _ensure_reporting_user(pipeline_opportunity_resource, current_user, "approve")
+        _ensure_approval_authority(pipeline_opportunity_resource, current_user, "approve")
 
         if pipeline_opportunity_resource.status == ApprovalStatus.APPROVED:
             raise AppException(
@@ -749,7 +928,7 @@ async def handle_reject_pipeline_opportunity_resource(
         if pipeline_opportunity_resource is None:
             raise NotFoundException()
 
-        _ensure_reporting_user(pipeline_opportunity_resource, current_user, "reject")
+        _ensure_approval_authority(pipeline_opportunity_resource, current_user, "reject")
 
         if pipeline_opportunity_resource.status == ApprovalStatus.REJECTED:
             raise AppException(
@@ -785,14 +964,14 @@ async def handle_reject_pipeline_opportunity_resource(
             db=db,
             current_user=current_user,
             pipeline_opportunity_resource_id=request.pipeline_resource_id,
-            status_data={
-                "status": ApprovalStatus.REJECTED,
-                "rejected_at": datetime.now(),
-                "rejected_by": current_user.user_id,
-                "reject_reason": request.reject_reason,
-                "approved_at": None,
-                "approved_by": None,
-            },
+            status_data=PipelineOpportunityResourceStatusUpdate(
+                status=ApprovalStatus.REJECTED,
+                rejected_at=datetime.now(),
+                rejected_by=current_user.user_id,
+                reject_reason=request.reject_reason,
+                approved_at=None,
+                approved_by=None,
+            ),
             message="Pipeline Opportunity Resource rejected successfully",
         )
 

@@ -8,7 +8,7 @@ from uuid import UUID
 from app.models.pipeline_opportunity_resource import PipelineOpportunityResourceModel
 from app.models.user import User
 from app.models.user_personal_info import UserPersonalInfo
-from app.schemas.pipeline_opportunity_resource import ApprovalStatus,PipelineOpportunityResourceUpdate
+from app.schemas.pipeline_opportunity_resource import ApprovalStatus,PipelineOpportunityResourceStatusUpdate
 
 
 def _get_resource_query_options():
@@ -144,7 +144,16 @@ async def  update_pipeline_opportunity_resource(db: AsyncSession, update_data: d
                 setattr(db_pipeline_opportunity_resource, key, value)
 
         await db.commit()
-        return await get_pipeline_opportunity_resource_by_id(db, pipeline_opportunity_resource_id)
+
+        # populate_existing: without it this SELECT hands back the identity map's copy,
+        # whose relationships still hold their pre-update values.
+        refreshed = await db.execute(
+            select(PipelineOpportunityResourceModel)
+            .options(*_get_resource_query_options())
+            .where(PipelineOpportunityResourceModel.id == pipeline_opportunity_resource_id)
+            .execution_options(populate_existing=True)
+        )
+        return refreshed.scalars().first()
     except SQLAlchemyError as e:
         await db.rollback()
         logging.exception("Could not update Pipeline Opportunity Resource")
@@ -172,11 +181,11 @@ async def delete_pipeline_opportunity_resource(db: AsyncSession, pipeline_opport
 
 async def update_multiple_pipeline_opportunity_resource(
     db: AsyncSession,
-    update_data: PipelineOpportunityResourceUpdate,
+    update_data: PipelineOpportunityResourceStatusUpdate,
     pipeline_opportunity_resource_ids: list[UUID],
 ):
     try:
-        result = await db.execute( 
+        result = await db.execute(
             select(PipelineOpportunityResourceModel)
             .options(*_get_resource_query_options())
             .where(
@@ -191,27 +200,27 @@ async def update_multiple_pipeline_opportunity_resource(
         if not db_pipeline_opportunity_resources:
             return None
 
-        # The ID is used to identify resources and must not be
-        # modified as part of an update operation.
-        update_data.pop("id", None)
+        # exclude_unset keeps the write to the transition fields the caller actually set.
+        # An explicitly passed None is still "set", so reject can clear approved_at/by.
+        update_fields = update_data.model_dump(exclude_unset=True)
+        update_fields.pop("id", None)
 
-        # Apply the same update fields to every selected resource.
         for resource in db_pipeline_opportunity_resources:
-            for key, value in update_data.items():
+            for key, value in update_fields.items():
                 setattr(resource, key, value)
 
         await db.commit()
 
-        # Refresh the objects so that updated values and relationships
-        # are available after the transaction is committed.
-        for resource in db_pipeline_opportunity_resources:
-            await db.refresh(resource)
-
-        return db_pipeline_opportunity_resources
-
-    except SQLAlchemyError as e:
-        await db.rollback()
-        logging.exception(
-            "Could not update multiple Pipeline Opportunity Resources"
+        # populate_existing: without it this SELECT hands back the identity map's copies,
+        # whose relationships still hold their pre-update values.
+        refreshed = await db.execute(
+            select(PipelineOpportunityResourceModel)
+            .options(*_get_resource_query_options())
+            .where(PipelineOpportunityResourceModel.id.in_(pipeline_opportunity_resource_ids))
+            .execution_options(populate_existing=True)
         )
-        raise e
+        return refreshed.scalars().all()
+
+    except Exception:
+        await db.rollback()
+        raise
