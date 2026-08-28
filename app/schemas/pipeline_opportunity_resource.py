@@ -99,6 +99,8 @@ class PipelineOpportunityResourceStatusUpdate(BaseModel):
 class PipelineOpportunityResourceSelectRequest(BaseModel):
     pipeline_resource_id_list: list[UUID] = Field(..., description="Pipeline Opportunity Resource ID list")
 
+class PipelineOpportunityResourceUnselectRequest(BaseModel):
+    pipeline_resource_id: UUID = Field(..., description="Pipeline Opportunity Resource ID")
 
 class PipelineOpportunityResourceAssignToTLRequest(BaseModel):
     pipeline_resource_id_list: list[UUID] = Field(

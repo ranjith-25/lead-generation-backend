@@ -29,6 +29,7 @@ from app.schemas.pipeline_opportunity_resource import (
     PipelineOpportunityResourceApproveRequest,
     PipelineOpportunityResourceAutoApproveRequest,
     PipelineOpportunityResourceRejectRequest,
+    PipelineOpportunityResourceUnselectRequest,
 )
 from app.services.db.pipeline_opportunity_resource import (
     create_pipeline_opportunity_resource,
@@ -641,6 +642,65 @@ async def handle_select_pipeline_opportunity_resource(
         logging.exception("Some error occurred while selecting Pipeline Opportunity Resource")
         raise e
 
+async def handle_unselect_pipeline_opportunity_resource(
+    db: AsyncSession,
+    current_user: User,
+    request: PipelineOpportunityResourceUnselectRequest,
+) -> UpdatePipelineOpportunityResourceResponse:
+    try:
+        pipeline_opportunity_resource: PipelineOpportunityResourceModel = await get_pipeline_opportunity_resource_by_id(
+            db, request.pipeline_resource_id
+        )
+
+        if pipeline_opportunity_resource is None:
+            raise NotFoundException()
+
+        if pipeline_opportunity_resource.status == ApprovalStatus.SUGGESTED:
+            raise AppException(
+                message="This resource is already Suggested.",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        if pipeline_opportunity_resource.status != ApprovalStatus.SELECTED:
+            raise AppException(
+                message="Only Selected resources can be unselected",
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+            )
+
+        await log_activity(
+            db,
+            LogAction.PIPELINE_RESOURCE_UNSELECTED,
+            current_user,
+            entity_type="pipeline_resource",
+            entity_id=pipeline_opportunity_resource.id,
+            entity_name=_resource_display_name(pipeline_opportunity_resource),
+            details={
+                "opportunity_id": pipeline_opportunity_resource.opportunity_id,
+                "user_id": pipeline_opportunity_resource.user_id,
+                "previous_status": pipeline_opportunity_resource.status,
+                "new_status": ApprovalStatus.SUGGESTED,
+            },
+        )
+
+        return await _apply_pipeline_opportunity_resource_status(
+            db=db,
+            current_user=current_user,
+            pipeline_opportunity_resource_id=request.pipeline_resource_id,
+            status_data=PipelineOpportunityResourceStatusUpdate(
+                status=ApprovalStatus.SUGGESTED,
+                # Clear the approval routing that /select set, since it's no longer
+                # meaningful once the resource drops out of the TL's queue.
+                approval_authority_id=None,
+            ),
+            message="Pipeline Opportunity Resource unselected successfully",
+        )
+    except (NotFoundException, AppException) as e:
+        raise e
+    except Exception as e:
+        logging.exception("Some error occurred while unselecting Pipeline Opportunity Resource")
+        raise e
 
 async def handle_assign_pipeline_opportunity_resource_to_tl(
     db: AsyncSession,
